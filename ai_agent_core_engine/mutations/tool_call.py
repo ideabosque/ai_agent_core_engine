@@ -10,7 +10,7 @@ from graphene import Boolean, Field, Int, List, Mutation, String
 
 from silvaengine_utility import JSON
 
-from ..models.tool_call import delete_tool_call, insert_tool_call
+from ..models.tool_call import delete_tool_call, insert_update_tool_call
 from ..types.tool_call import ToolCallType
 
 
@@ -19,17 +19,19 @@ class InsertToolCall(Mutation):
 
     class Arguments:
         thread_uuid = String(required=True)
-        tool_call_id = String(required=True)
-        run_id = String(required=False)
+        tool_call_uuid = String(required=False)
+        run_uuid = String(required=False)
+        tool_call_id = String(required=False)
         tool_type = String(required=False)
         name = String(required=False)
         arguments = JSON(required=False)
         content = String(required=False)
+        updated_by = String(required=True)
 
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "InsertToolCall":
         try:
-            tool_call = insert_tool_call(info, **kwargs)
+            tool_call = insert_update_tool_call(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
             info.context.get("logger").error(log)
@@ -43,7 +45,7 @@ class DeleteToolCall(Mutation):
 
     class Arguments:
         thread_uuid = String(required=True)
-        tool_call_id = String(required=True)
+        tool_call_uuid = String(required=True)
 
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteToolCall":

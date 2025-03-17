@@ -12,10 +12,13 @@ from silvaengine_utility import JSON
 
 class MessageType(ObjectType):
     run = JSON()
+    message_uuid = String()
     message_id = String()
     role = String()
     message = String()
+    updated_by = String()
     created_at = DateTime()
+    updated_at = DateTime()
 
 
 class MessageListType(ListObjectType):

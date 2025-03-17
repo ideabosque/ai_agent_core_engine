@@ -10,7 +10,7 @@ from graphene import Boolean, Field, Int, List, Mutation, String
 
 from silvaengine_utility import JSON
 
-from ..models.message import delete_message, insert_message
+from ..models.message import delete_message, insert_update_message
 from ..types.message import MessageType
 
 
@@ -19,15 +19,17 @@ class InsertMessage(Mutation):
 
     class Arguments:
         thread_uuid = String(required=True)
-        message_id = String(required=True)
-        run_id = String(required=False)
+        message_uuid = String(required=False)
+        run_uuid = String(required=False)
+        message_id = String(required=False)
         role = String(required=False)
         message = String(required=False)
+        updated_by = String(required=True)
 
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "InsertMessage":
         try:
-            message = insert_message(info, **kwargs)
+            message = insert_update_message(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
             info.context.get("logger").error(log)
@@ -41,7 +43,7 @@ class DeleteMessage(Mutation):
 
     class Arguments:
         thread_uuid = String(required=True)
-        message_id = String(required=True)
+        message_uuid = String(required=True)
 
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteMessage":

@@ -123,7 +123,7 @@ class Query(ObjectType):
     run = Field(
         RunType,
         thread_uuid=String(required=True),
-        run_id=String(required=True),
+        run_uuid=String(required=True),
     )
 
     run_list = Field(
@@ -131,6 +131,7 @@ class Query(ObjectType):
         page_number=Int(required=False),
         limit=Int(required=False),
         thread_uuid=String(required=False),
+        run_id=String(required=False),
         token_type=String(required=False),
         great_token=Int(required=False),
         less_token=Int(required=False),
@@ -139,7 +140,7 @@ class Query(ObjectType):
     tool_call = Field(
         ToolCallType,
         thread_uuid=String(required=True),
-        tool_call_id=String(required=True),
+        tool_call_uuid=String(required=True),
     )
 
     tool_call_list = Field(
@@ -147,7 +148,8 @@ class Query(ObjectType):
         page_number=Int(required=False),
         limit=Int(required=False),
         thread_uuid=String(required=False),
-        run_id=String(required=False),
+        run_uuid=String(required=False),
+        tool_call_id=String(required=False),
         tool_type=Int(required=False),
         name=Int(required=False),
     )
@@ -155,7 +157,7 @@ class Query(ObjectType):
     message = Field(
         MessageType,
         thread_uuid=String(required=True),
-        message_id=String(required=True),
+        message_uuid=String(required=True),
     )
 
     message_list = Field(
@@ -163,7 +165,8 @@ class Query(ObjectType):
         page_number=Int(required=False),
         limit=Int(required=False),
         thread_uuid=String(required=False),
-        run_id=String(required=False),
+        run_uuid=String(required=False),
+        message_id=String(required=False),
         roles=List(String, required=False),
     )
 
@@ -184,7 +187,7 @@ class Query(ObjectType):
     fine_tuning_message = Field(
         FineTuningMessageType,
         agent_uuid=String(required=True),
-        message_id=String(required=True),
+        message_uuid=String(required=True),
     )
 
     fine_tuning_message_list = Field(

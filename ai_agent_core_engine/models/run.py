@@ -31,7 +31,8 @@ class RunModel(BaseModel):
         table_name = "aace-runs"
 
     thread_uuid = UnicodeAttribute(hash_key=True)
-    run_id = UnicodeAttribute(range_key=True)
+    run_uuid = UnicodeAttribute(range_key=True)
+    run_id = UnicodeAttribute(null=True)
     endpoint_id = UnicodeAttribute()
     completion_tokens = NumberAttribute(default=0)
     prompt_tokens = NumberAttribute(default=0)
@@ -55,12 +56,12 @@ def create_run_table(logger: logging.Logger) -> bool:
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
 )
-def get_run(thread_uuid: str, run_id: str) -> RunModel:
-    return RunModel.get(thread_uuid, run_id)
+def get_run(thread_uuid: str, run_uuid: str) -> RunModel:
+    return RunModel.get(thread_uuid, run_uuid)
 
 
-def get_run_count(thread_uuid: str, run_id: str) -> int:
-    return RunModel.count(thread_uuid, RunModel.run_id == run_id)
+def get_run_count(thread_uuid: str, run_uuid: str) -> int:
+    return RunModel.count(thread_uuid, RunModel.run_uuid == run_uuid)
 
 
 def get_run_type(info: ResolveInfo, run: RunModel) -> RunType:
@@ -78,17 +79,18 @@ def get_run_type(info: ResolveInfo, run: RunModel) -> RunType:
 
 
 def resolve_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> RunType:
-    return get_run_type(info, get_run(kwargs["thread_uuid"], kwargs["run_id"]))
+    return get_run_type(info, get_run(kwargs["thread_uuid"], kwargs["run_uuid"]))
 
 
 @monitor_decorator
 @resolve_list_decorator(
-    attributes_to_get=["thread_uuid", "run_id"],
+    attributes_to_get=["thread_uuid", "run_uuid"],
     list_type_class=RunListType,
     type_funct=get_run_type,
 )
 def resolve_run_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     thread_uuid = kwargs.get("thread_uuid")
+    run_id = kwargs.get("run_id")
     endpoint_id = info.context["endpoint_id"]
     token_type = kwargs.get("token_type")
     great_token = kwargs.get("great_token")
@@ -104,6 +106,9 @@ def resolve_run_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     the_filters = None  # We can add filters for the query.
     if endpoint_id:
         the_filters &= RunModel.endpoint_id == endpoint_id
+    if run_id:
+        the_filters &= RunModel.run_id.exists()
+        the_filters &= RunModel.run_id == run_id
     if token_type == "completion":
         if great_token:
             the_filters &= RunModel.completion_tokens < great_token
@@ -128,9 +133,8 @@ def resolve_run_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
 @insert_update_decorator(
     keys={
         "hash_key": "thread_uuid",
-        "range_key": "run_id",
+        "range_key": "run_uuid",
     },
-    range_key_required=True,
     model_funct=get_run,
     count_funct=get_run_count,
     type_funct=get_run_type,
@@ -139,7 +143,7 @@ def resolve_run_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
 )
 def insert_update_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     thread_uuid = kwargs.get("thread_uuid")
-    run_id = kwargs.get("run_id")
+    run_uuid = kwargs.get("run_uuid")
     if kwargs.get("entity") is None:
         cols = {
             "endpoint_id": info.context["endpoint_id"],
@@ -147,13 +151,13 @@ def insert_update_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
             "created_at": pendulum.now("UTC"),
             "updated_at": pendulum.now("UTC"),
         }
-        for key in ["completion_tokens", "prompt_tokens", "total_tokens"]:
+        for key in ["run_id", "completion_tokens", "prompt_tokens", "total_tokens"]:
             if key in kwargs:
                 cols[key] = kwargs[key]
 
         RunModel(
             thread_uuid,
-            run_id,
+            run_uuid,
             **cols,
         ).save()
         return
@@ -165,6 +169,7 @@ def insert_update_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     ]
     # Map of potential keys in kwargs to RunModel attributes
     field_map = {
+        "run_id": RunModel.run_id,
         "completion_tokens": RunModel.completion_tokens,
         "prompt_tokens": RunModel.prompt_tokens,
         "total_tokens": RunModel.total_tokens,
@@ -183,7 +188,7 @@ def insert_update_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
 @delete_decorator(
     keys={
         "hash_key": "thread_uuid",
-        "range_key": "run_id",
+        "range_key": "run_uuid",
     },
     model_funct=get_run,
 )

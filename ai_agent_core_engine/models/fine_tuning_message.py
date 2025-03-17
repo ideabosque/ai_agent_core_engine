@@ -67,13 +67,13 @@ class FineTuningMessageModel(BaseModel):
         table_name = "aace-fine_tuning_messages"
 
     agent_uuid = UnicodeAttribute(hash_key=True)
-    message_id = UnicodeAttribute(range_key=True)
+    message_uuid = UnicodeAttribute(range_key=True)
     thread_uuid = UnicodeAttribute()
     timestamp = NumberAttribute()
     endpoint_id = UnicodeAttribute()
     role = UnicodeAttribute()
     tool_calls = ListAttribute(of=MapAttribute, null=True)
-    tool_call_id = UnicodeAttribute(null=True)
+    tool_call_uuid = UnicodeAttribute(null=True)
     content = UnicodeAttribute(null=True)
     weight = NumberAttribute(default=0)
     trained = BooleanAttribute(default=False)
@@ -97,13 +97,15 @@ def create_fine_tuning_message_table(logger: logging.Logger) -> bool:
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
 )
-def get_fine_tuning_message(agent_uuid: str, message_id: str) -> FineTuningMessageModel:
-    return FineTuningMessageModel.get(agent_uuid, message_id)
+def get_fine_tuning_message(
+    agent_uuid: str, message_uuid: str
+) -> FineTuningMessageModel:
+    return FineTuningMessageModel.get(agent_uuid, message_uuid)
 
 
-def get_fine_tuning_message_count(agent_uuid: str, message_id: str) -> int:
+def get_fine_tuning_message_count(agent_uuid: str, message_uuid: str) -> int:
     return FineTuningMessageModel.count(
-        agent_uuid, FineTuningMessageModel.message_id == message_id
+        agent_uuid, FineTuningMessageModel.message_uuid == message_uuid
     )
 
 
@@ -121,13 +123,13 @@ def resolve_fine_tuning_message(
 ) -> FineTuningMessageType:
     return get_fine_tuning_message_type(
         info,
-        get_fine_tuning_message(kwargs["agent_uuid"], kwargs["message_id"]),
+        get_fine_tuning_message(kwargs["agent_uuid"], kwargs["message_uuid"]),
     )
 
 
 @monitor_decorator
 @resolve_list_decorator(
-    attributes_to_get=["agent_uuid", "message_id"],
+    attributes_to_get=["agent_uuid", "message_uuid"],
     list_type_class=FineTuningMessageListType,
     type_funct=get_fine_tuning_message_type,
 )
@@ -191,7 +193,7 @@ def resolve_fine_tuning_message_list(
 @insert_update_decorator(
     keys={
         "hash_key": "agent_uuid",
-        "range_key": "message_id",
+        "range_key": "message_uuid",
     },
     range_key_required=True,
     model_funct=get_fine_tuning_message,
@@ -202,7 +204,7 @@ def insert_update_fine_tuning_message(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> None:
     agent_uuid = kwargs["agent_uuid"]
-    message_id = kwargs["message_id"]
+    message_uuid = kwargs["message_uuid"]
     if kwargs.get("entity") is None:
         cols = {
             "thread_uuid": kwargs["thread_uuid"],
@@ -212,13 +214,13 @@ def insert_update_fine_tuning_message(
             "updated_by": kwargs["updated_by"],
             "updated_at": pendulum.now("UTC"),
         }
-        for key in ["tool_calls", "tool_call_id", "content", "weight", "trained"]:
+        for key in ["tool_calls", "tool_call_uuid", "content", "weight", "trained"]:
             if key in kwargs:
                 cols[key] = kwargs[key]
 
         FineTuningMessageModel(
             agent_uuid,
-            message_id,
+            message_uuid,
             **cols,
         ).save()
         return
@@ -231,7 +233,7 @@ def insert_update_fine_tuning_message(
     # Map of potential keys in kwargs to FineTuningMessageModel attributes
     field_map = {
         "tool_calls": FineTuningMessageModel.tool_calls,
-        "tool_call_id": FineTuningMessageModel.tool_call_id,
+        "tool_call_uuid": FineTuningMessageModel.tool_call_uuid,
         "content": FineTuningMessageModel.content,
         "weight": FineTuningMessageModel.weight,
         "trained": FineTuningMessageModel.trained,
@@ -250,7 +252,7 @@ def insert_update_fine_tuning_message(
 @delete_decorator(
     keys={
         "hash_key": "agent_uuid",
-        "range_key": "message_id",
+        "range_key": "message_uuid",
     },
     model_funct=get_fine_tuning_message,
 )

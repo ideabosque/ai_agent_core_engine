@@ -12,6 +12,7 @@ from silvaengine_utility import JSON
 
 class RunType(ObjectType):
     thread = JSON()
+    run_uuid = String()
     run_id = String()
     completion_tokens = Int()
     prompt_tokens = Int()

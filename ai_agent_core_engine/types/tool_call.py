@@ -12,12 +12,15 @@ from silvaengine_utility import JSON
 
 class ToolCallType(ObjectType):
     run = JSON()
+    tool_call_uuid = String()
     tool_call_id = String()
     tool_type = String()
     name = String()
     arguments = JSON()
     content = String()
+    updated_by = String()
     created_at = DateTime()
+    updated_at = DateTime()
 
 
 class ToolCallListType(ListObjectType):

@@ -19,7 +19,8 @@ class InsertUpdateRun(Mutation):
 
     class Arguments:
         thread_uuid = String(required=True)
-        run_id = String(required=True)
+        run_uuid = String(required=False)
+        run_id = String(required=False)
         completion_tokens = Int(required=False)
         prompt_tokens = Int(required=False)
         total_tokens = Int(required=False)
@@ -42,7 +43,7 @@ class DeleteRun(Mutation):
 
     class Arguments:
         thread_uuid = String(required=True)
-        run_id = String(required=True)
+        run_uuid = String(required=True)
 
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteRun":

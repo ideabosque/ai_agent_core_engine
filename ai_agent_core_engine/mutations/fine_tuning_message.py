@@ -22,12 +22,12 @@ class InsertUpdateFineTuningMessage(Mutation):
 
     class Arguments:
         agent_uuid = String(required=True)
-        message_id = String(required=True)
+        message_uuid = String(required=True)
         thread_uuid = String(required=False)
         timestamp = Int(required=False)
         role = String(required=False)
         tool_calls = List(JSON, required=False)
-        tool_call_id = String(required=False)
+        tool_call_uuid = String(required=False)
         content = String(required=False)
         weight = Int(required=False)
         trained = Boolean(required=False)
@@ -52,7 +52,7 @@ class DeleteFineTuningMessage(Mutation):
 
     class Arguments:
         agent_uuid = String(required=True)
-        message_id = String(required=True)
+        message_uuid = String(required=True)
 
     @staticmethod
     def mutate(

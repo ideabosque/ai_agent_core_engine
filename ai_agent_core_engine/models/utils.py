@@ -76,14 +76,14 @@ def _get_thread(endpoint_id: str, thread_id: str) -> Dict[str, Any]:
     }
 
 
-def _get_run(thread_uuid: str, run_id: str) -> Dict[str, Any]:
+def _get_run(thread_uuid: str, run_uuid: str) -> Dict[str, Any]:
     from .run import get_run
 
-    run = get_run(thread_uuid, run_id)
+    run = get_run(thread_uuid, run_uuid)
 
     return {
         "thread": _get_thread(run.endpoint_id, run.thread_uuid),
-        "run_id": run.run_id,
+        "run_uuid": run.run_uuid,
         "completion_tokens": run.completion_tokens,
         "prompt_tokens": run.prompt_tokens,
         "total_tokens": run.total_tokens,

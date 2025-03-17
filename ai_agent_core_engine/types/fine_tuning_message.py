@@ -12,13 +12,13 @@ from silvaengine_utility import JSON
 
 class FineTuningMessageType(ObjectType):
     agent_uuid = String()
-    message_id = String()
+    message_uuid = String()
     thread_uuid = String()
     timestamp = Int()
     endpoint_id = String()
     role = String()
     tool_calls = List(JSON)
-    tool_call_id = String()
+    tool_call_uuid = String()
     content = String()
     weight = Float()
     trained = Boolean()
