@@ -18,6 +18,7 @@ class Config:
     """
 
     aws_lambda = None
+    apigw_client = None
     schemas = {}
 
     @classmethod
@@ -31,6 +32,7 @@ class Config:
         try:
             cls._set_parameters(setting)
             cls._initialize_aws_services(setting)
+            cls._initialize_apigw_client(setting)
             if setting.get("test_mode") == "local_for_all":
                 cls._initialize_tables(logger)
             logger.info("Configuration initialized successfully.")
@@ -67,6 +69,26 @@ class Config:
             aws_credentials = {}
 
         cls.aws_lambda = boto3.client("lambda", **aws_credentials)
+
+    @classmethod
+    def _initialize_apigw_client(cls, setting: Dict[str, Any]) -> None:
+        if all(
+            setting.get(k)
+            for k in [
+                "api_id",
+                "api_stage",
+                "region_name",
+                "aws_access_key_id",
+                "aws_secret_access_key",
+            ]
+        ):
+            cls.apigw_client = boto3.client(
+                "apigatewaymanagementapi",
+                endpoint_url=f"https://{setting['api_id']}.execute-api.{setting['region_name']}.amazonaws.com/{setting['api_stage']}",
+                region_name=setting["region_name"],
+                aws_access_key_id=setting["aws_access_key_id"],
+                aws_secret_access_key=setting["aws_secret_access_key"],
+            )
 
     @classmethod
     def _initialize_tables(cls, logger: logging.Logger) -> None:

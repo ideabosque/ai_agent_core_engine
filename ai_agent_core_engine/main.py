@@ -53,6 +53,10 @@ class AIAgentCoreEngine(SilvaEngineDynamoDBBase):
         at_agent_listener.async_insert_update_tool_call(self.logger, **params)
         return
 
+    def send_data_to_websocket(self, **params: Dict[str, Any]) -> Any:
+        at_agent_listener.send_data_to_websocket(self.logger, **params)
+        return
+
     def ai_agent_core_graphql(self, **params: Dict[str, Any]) -> Any:
         ## Test the waters 🧪 before diving in!
         ##<--Testing Data-->##
