@@ -26,6 +26,8 @@ class InsertUpdateToolCall(Mutation):
         name = String(required=False)
         arguments = JSON(required=False)
         content = String(required=False)
+        status = String(required=False)
+        notes = String(required=False)
         updated_by = String(required=True)
 
     @staticmethod

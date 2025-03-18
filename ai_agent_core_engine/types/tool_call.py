@@ -18,6 +18,8 @@ class ToolCallType(ObjectType):
     name = String()
     arguments = JSON()
     content = String()
+    status = String()
+    notes = String()
     updated_by = String()
     created_at = DateTime()
     updated_at = DateTime()

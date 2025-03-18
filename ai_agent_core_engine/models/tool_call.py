@@ -52,8 +52,10 @@ class ToolCallModel(BaseModel):
     tool_call_id = UnicodeAttribute(null=True)
     tool_type = UnicodeAttribute()
     name = UnicodeAttribute()
-    arguments = MapAttribute()
+    arguments = MapAttribute(null=True)
     content = UnicodeAttribute(null=True)
+    status = UnicodeAttribute(default="initial")
+    notes = UnicodeAttribute(null=True)
     updated_by = UnicodeAttribute()
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()
@@ -79,7 +81,9 @@ def get_tool_call(thread_uuid: str, tool_call_uuid: str) -> ToolCallModel:
 
 
 def get_tool_call_count(thread_uuid: str, tool_call_uuid: str) -> int:
-    return ToolCallModel.count(thread_uuid, ToolCallModel.tool_call_uuid == tool_call_uuid)
+    return ToolCallModel.count(
+        thread_uuid, ToolCallModel.tool_call_uuid == tool_call_uuid
+    )
 
 
 def get_tool_call_type(info: ResolveInfo, tool_call: ToolCallModel) -> ToolCallType:
@@ -114,6 +118,7 @@ def resolve_tool_call_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     tool_call_id = kwargs.get("tool_call_id")
     tool_type = kwargs.get("tool_type")
     name = kwargs.get("name")
+    statuses = kwargs.get("statuses")
 
     args = []
     inquiry_funct = ToolCallModel.scan
@@ -133,6 +138,8 @@ def resolve_tool_call_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
         the_filters &= ToolCallModel.tool_type == tool_type
     if name:
         the_filters &= ToolCallModel.name == name
+    if statuses:
+        the_filters &= ToolCallModel.status.is_in(*statuses)
     if the_filters is not None:
         args.append(the_filters)
 
@@ -152,16 +159,21 @@ def insert_update_tool_call(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None
     tool_call_uuid = kwargs.get("tool_call_uuid")
     if kwargs.get("entity") is None:
         cols = {
-            "run_uuid": kwargs["run_uuid"],
-            "tool_type": kwargs["tool_type"],
-            "name": kwargs["name"],
-            "arguments": kwargs["arguments"],
             "updated_by": kwargs["updated_by"],
             "created_at": pendulum.now("UTC"),
             "updated_at": pendulum.now("UTC"),
         }
 
-        for key in ["tool_call_id", "content"]:
+        for key in [
+            "run_uuid",
+            "tool_type",
+            "name",
+            "arguments",
+            "tool_call_id",
+            "content",
+            "status",
+            "notes",
+        ]:
             if key in kwargs:
                 cols[key] = kwargs[key]
 
@@ -184,7 +196,9 @@ def insert_update_tool_call(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None
         "tool_type": ToolCallModel.tool_type,
         "name": ToolCallModel.name,
         "arguments": ToolCallModel.arguments,
-        "content": ToolCallModel.content
+        "content": ToolCallModel.content,
+        "status": ToolCallModel.status,
+        "notes": ToolCallModel.notes,
     }
 
     # Check if a key exists in kwargs before adding it to the update actions

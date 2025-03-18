@@ -19,6 +19,7 @@ from ..types.async_task import AsyncTaskType
 from .ai_agent_utility import (
     execute_ask_model_handler,
     get_input_messages,
+    get_tool_call_list,
     insert_update_tool_call,
 )
 
@@ -203,19 +204,35 @@ def async_insert_update_tool_call(
     """
     endpoint_id = kwargs.get("endpoint_id")
     setting = kwargs.get("setting", {})
+    tool_call_list = get_tool_call_list(
+        logger,
+        endpoint_id,
+        setting=setting,
+        **{
+            "threadUuid": kwargs.get("thread_uuid"),
+            "toolCallId": kwargs.get("tool_call_id"),
+        },
+    )
+
+    tool_call_uuid = None
+    if tool_call_list["total"] > 0:
+        tool_call_uuid = tool_call_list["tool_call_list"][0]["tool_call_uuid"]
+
     tool_call = insert_update_tool_call(
         logger,
         endpoint_id,
         setting=setting,
         **{
             "threadUuid": kwargs.get("thread_uuid"),
-            "toolCallUuid": kwargs.get("tool_call_uuid"),
+            "toolCallUuid": tool_call_uuid,
             "runUuid": kwargs.get("run_uuid"),
             "toolCallId": kwargs.get("tool_call_id"),
             "toolType": kwargs.get("tool_type"),
             "name": kwargs.get("name"),
             "arguments": kwargs.get("arguments"),
             "content": kwargs.get("content"),
+            "status": kwargs.get("status"),
+            "notes": kwargs.get("notes"),
             "updatedBy": kwargs.get("updated_by"),
         },
     )

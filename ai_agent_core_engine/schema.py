@@ -158,6 +158,7 @@ class Query(ObjectType):
         tool_call_id=String(required=False),
         tool_type=Int(required=False),
         name=Int(required=False),
+        statues=List(String, required=False),
     )
 
     message = Field(

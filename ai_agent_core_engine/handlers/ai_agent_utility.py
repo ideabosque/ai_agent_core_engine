@@ -86,6 +86,25 @@ def execute_ask_model_handler(
     return humps.decamelize(execute_ask_model)
 
 
+def get_tool_call_list(
+    logger: logging.Logger,
+    endpoint_id: str,
+    setting: Dict[str, Any] = None,
+    **variables: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Creates or updates a tool call and returns decamelized response"""
+    tool_call_list = execute_graphql_query(
+        logger,
+        endpoint_id,
+        "ai_agent_core_graphql",
+        "toolCallList",
+        "Query",
+        variables,
+        setting=setting,
+    )["toolCallList"]
+    return humps.decamelize(tool_call_list)
+
+
 # Handles tool call mutations
 def insert_update_tool_call(
     logger: logging.Logger,
