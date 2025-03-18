@@ -4,7 +4,9 @@ from __future__ import print_function
 __author__ = "bibow"
 
 import logging
+import threading
 import traceback
+from queue import Queue
 from typing import Any, Dict
 
 from graphene import ResolveInfo
@@ -106,8 +108,30 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskT
         )
         ai_agent_handler.run = run.__dict__
 
-        # Process query through AI model
-        run_id = ai_agent_handler.ask_model(input_messages)
+        if not arguments.get("stream", False):
+            # Process query through AI model
+            run_id = ai_agent_handler.ask_model(input_messages)
+        else:
+            stream_queue = Queue()
+            stream_event = threading.Event()
+
+            # Trigger a streaming ask_model in a separate thread if desired:
+            stream_thread = threading.Thread(
+                target=ai_agent_handler.ask_model,
+                args=[input_messages, stream_queue, stream_event],
+                daemon=True,
+            )
+            stream_thread.start()
+
+            # Wait until we get the run_id from the queue
+            current_run = stream_queue.get()
+            if current_run["name"] == "run_id":
+                run_id = current_run["value"]
+                info.context["logger"].info(f"Current Run ID: {current_run['value']}")
+
+            # Wait until streaming is done
+            stream_event.wait()
+            info.context["logger"].info("Streaming ask_model finished.")
 
         # Record AI assistant response
         assistant_message = insert_update_message(
