@@ -21,15 +21,23 @@ from .config import Config
 
 def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
     """
-    Resolver function for the AskModelType.
+    Process a user query through an AI model and return the response asynchronously.
+
     Args:
-        obj: The object being resolved.
-        info: Information about the GraphQL query.
-        **kwargs: Additional keyword arguments.
+        info: GraphQL resolver context containing logger, endpoint and connection info
+        **kwargs: Parameters including:
+            - thread_uuid: Optional ID of existing conversation thread
+            - agent_uuid: ID of AI agent to use
+            - user_id: Optional ID of the user
+            - user_query: The actual query text
+            - stream: Whether to stream responses (default False)
+            - updated_by: User making the request
+
     Returns:
-        An instance of AskModelType.
+        AskModelType containing thread, task and run identifiers
     """
     try:
+        # Log request details
         info.context.get("logger").info(
             f"endpoint_id: {info.context.get('endpoint_id')}"
         )
@@ -37,6 +45,7 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
             f"connection_id: {info.context.get('connectionId')}"
         )
 
+        # Get or create conversation thread
         thread = None
         if "thread_uuid" in kwargs:
             thread = resolve_thread(
@@ -53,6 +62,7 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
                 },
             )
 
+        # Create new run instance for this request
         run = insert_update_run(
             info,
             **{
@@ -61,6 +71,7 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
             },
         )
 
+        # Prepare arguments for async processing
         arguments = {
             "thread_uuid": thread.thread_uuid,
             "run_uuid": run.run_uuid,
@@ -70,11 +81,13 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
             "updated_by": kwargs["updated_by"],
         }
 
+        # Start async task and get identifiers
         function_name, async_task_uuid = start_async_task(
             info,
             **arguments,
         )
 
+        # Return response with all relevant IDs
         return AskModelType(
             agent_uuid=kwargs["agent_uuid"],
             thread_uuid=thread.thread_uuid,
@@ -92,14 +105,21 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
 
 def start_async_task(info: ResolveInfo, **arguments: Dict[str, Any]) -> Tuple[str, str]:
     """
-    Start an asynchronous task.
+    Initialize and trigger an asynchronous task for processing the model request.
+
     Args:
-        info: Information about the GraphQL query.
-        **arguments: Additional keyword arguments.
+        info: GraphQL resolver context with AWS Lambda configuration
+        **arguments: Task parameters including thread, run and query details
+
     Returns:
-        A tuple containing the function name, asynchronous task UUID, and current run ID.
+        Tuple containing:
+            - function_name: Name of async handler function
+            - async_task_uuid: Unique identifier for tracking the task
     """
+    # Set async function name
     function_name = "async_ask_model"
+
+    # Create task record in database
     async_task = insert_update_async_task(
         info,
         **{
@@ -109,6 +129,7 @@ def start_async_task(info: ResolveInfo, **arguments: Dict[str, Any]) -> Tuple[st
         },
     )
 
+    # Prepare parameters for Lambda invocation
     params = {
         "async_task_uuid": async_task.async_task_uuid,
         "arguments": arguments,
@@ -116,6 +137,7 @@ def start_async_task(info: ResolveInfo, **arguments: Dict[str, Any]) -> Tuple[st
     if info.context.get("connectionId"):
         params["connection_id"] = info.context.get("connectionId")
 
+    # Invoke Lambda function asynchronously
     Utility.invoke_funct_on_aws_lambda(
         info.context["logger"],
         info.context["endpoint_id"],

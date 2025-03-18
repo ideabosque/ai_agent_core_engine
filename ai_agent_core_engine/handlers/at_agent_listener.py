@@ -24,7 +24,21 @@ from .ai_agent_utility import (
 
 
 def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskType:
+    """
+    Execute an AI model query and handle the response asynchronously.
+
+    Args:
+        info: GraphQL resolve info containing context and connection details
+        kwargs: Dictionary containing async_task_uuid and arguments
+
+    Returns:
+        AsyncTaskType: The async task object with query results
+
+    Raises:
+        Exception: If any error occurs during execution
+    """
     try:
+        # Log endpoint and connection IDs for tracing
         info.context.get("logger").info(
             f"endpoint_id: {info.context.get('endpoint_id')}"
         )
@@ -35,7 +49,7 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskT
         async_task_uuid = kwargs["async_task_uuid"]
         arguments = kwargs["arguments"]
 
-        # Update the status of the async_task to "in_progress".
+        # Initialize async task as in-progress
         info.context.get("logger").info(
             f"async_task_uuid: {async_task_uuid}/in_progress."
         )
@@ -49,13 +63,14 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskT
             },
         )
 
-        # Get Agent.
+        # Retrieve AI agent configuration
         agent = resolve_agent(info, **{"agent_uuid": arguments["agent_uuid"]})
 
-        # Get all messages of the thread_id.
+        # Build conversation history and add new user query
         input_messages = get_input_messages(info, arguments["thread_uuid"])
         input_messages.append({"role": "user", "content": arguments["user_query"]})
 
+        # Record user message in thread
         user_message = insert_update_message(
             info,
             **{
@@ -66,17 +81,19 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskT
                 "updated_by": arguments["updated_by"],
             },
         )
+
+        # Initialize run record
         run = insert_update_run(
             info,
             **{
                 "thread_uuid": arguments["thread_uuid"],
                 "run_uuid": arguments["run_uuid"],
-                "prompt_tokens": 0,  # TODO: Calculate the tokens of arguments["user_query"]
+                "prompt_tokens": 0,  # TODO: Implement token counting for user query
                 "updated_by": arguments["updated_by"],
             },
         )
 
-        # Import the agent handler.
+        # Dynamically load and initialize AI agent handler
         ai_agent_handler_class = getattr(
             __import__(agent.llm["module_name"]),
             agent.llm["class_name"],
@@ -88,12 +105,10 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskT
             **info.context.get("setting", {}),
         )
 
-        ## no-stream.
-        # Call ask_model to have the response with run_id.
-
+        # Process query through AI model
         run_id = ai_agent_handler.ask_model(input_messages)
 
-        # Insert message for the role: assistant.
+        # Record AI assistant response
         assistant_message = insert_update_message(
             info,
             **{
@@ -106,20 +121,20 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskT
             },
         )
 
-        # Insert run with run_id and thread_id.
+        # Update run with completion details
         run = insert_update_run(
             info,
             **{
                 "thread_uuid": arguments["thread_uuid"],
                 "run_uuid": arguments["run_uuid"],
                 "run_id": run_id,
-                "completion_tokens": 0,  # TODO: Calculate the tokens of ai_agent_handler.final_output["content"]
-                "total_tokens": 0,  # TODO: Calculate the total tokens of ai_agent_handler.final_output["content"] and arguments["user_query"]
+                "completion_tokens": 0,  # TODO: Implement token counting for AI response
+                "total_tokens": 0,  # TODO: Implement total token calculation
                 "updated_by": arguments["updated_by"],
             },
         )
 
-        # Update async_task.
+        # Mark async task as completed with results
         async_task = insert_update_async_task(
             info,
             **{
@@ -133,9 +148,8 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskT
 
         return async_task
 
-        ## stream.
-
     except Exception as e:
+        # Log and record any errors
         log = traceback.format_exc()
         info.context["logger"].error(log)
         async_task = insert_update_async_task(
@@ -152,6 +166,13 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskT
 
 
 def async_execute_ask_model(logger: logging.Logger, **kwargs: Dict[str, Any]) -> None:
+    """
+    Wrapper function to execute ask_model asynchronously.
+
+    Args:
+        logger: Logger instance for tracking execution
+        kwargs: Dictionary containing execution parameters
+    """
     endpoint_id = kwargs.get("endpoint_id")
     async_task_uuid = kwargs["async_task_uuid"]
     arguments = kwargs["arguments"]
@@ -173,6 +194,13 @@ def async_execute_ask_model(logger: logging.Logger, **kwargs: Dict[str, Any]) ->
 def async_insert_update_tool_call(
     logger: logging.Logger, **kwargs: Dict[str, Any]
 ) -> None:
+    """
+    Asynchronously insert or update a tool call record.
+
+    Args:
+        logger: Logger instance for tracking execution
+        kwargs: Dictionary containing tool call parameters
+    """
     endpoint_id = kwargs.get("endpoint_id")
     setting = kwargs.get("setting", {})
     tool_call = insert_update_tool_call(
