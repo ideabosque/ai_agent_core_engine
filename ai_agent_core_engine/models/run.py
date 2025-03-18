@@ -37,6 +37,7 @@ class RunModel(BaseModel):
     completion_tokens = NumberAttribute(default=0)
     prompt_tokens = NumberAttribute(default=0)
     total_tokens = NumberAttribute(default=0)
+    time_spent = NumberAttribute(null=True)
     updated_by = UnicodeAttribute()
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()
@@ -163,6 +164,9 @@ def insert_update_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
         return
 
     run = kwargs.get("entity")
+    if "completion_tokens" in kwargs and kwargs["completion_tokens"] > 0:
+        kwargs["total_tokens"] = kwargs["completion_tokens"] + run.prompt_tokens
+        kwargs["time_spent"] = pendulum.now("UTC").diff(run.created_at).in_seconds()
     actions = [
         RunModel.updated_by.set(kwargs["updated_by"]),
         RunModel.updated_at.set(pendulum.now("UTC")),

@@ -89,7 +89,7 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskT
             **{
                 "thread_uuid": arguments["thread_uuid"],
                 "run_uuid": arguments["run_uuid"],
-                "prompt_tokens": 0,  # TODO: Implement token counting for user query
+                "prompt_tokens": 50,  # TODO: Implement token counting for user query
                 "updated_by": arguments["updated_by"],
             },
         )
@@ -129,8 +129,7 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskT
                 "thread_uuid": arguments["thread_uuid"],
                 "run_uuid": arguments["run_uuid"],
                 "run_id": run_id,
-                "completion_tokens": 0,  # TODO: Implement token counting for AI response
-                "total_tokens": 0,  # TODO: Implement total token calculation
+                "completion_tokens": 100,  # TODO: Implement token counting for AI response
                 "updated_by": arguments["updated_by"],
             },
         )

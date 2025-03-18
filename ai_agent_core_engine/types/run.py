@@ -17,6 +17,7 @@ class RunType(ObjectType):
     completion_tokens = Int()
     prompt_tokens = Int()
     total_tokens = Int()
+    time_spent = Int()
     updated_by = String()
     created_at = DateTime()
     updated_at = DateTime()

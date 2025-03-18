@@ -10,7 +10,12 @@ from typing import Any, Dict
 
 import pendulum
 from graphene import ResolveInfo
-from pynamodb.attributes import MapAttribute, UnicodeAttribute, UTCDateTimeAttribute
+from pynamodb.attributes import (
+    MapAttribute,
+    NumberAttribute,
+    UnicodeAttribute,
+    UTCDateTimeAttribute,
+)
 from pynamodb.indexes import AllProjection, LocalSecondaryIndex
 from tenacity import retry, stop_after_attempt, wait_exponential
 
@@ -56,6 +61,7 @@ class ToolCallModel(BaseModel):
     content = UnicodeAttribute(null=True)
     status = UnicodeAttribute(default="initial")
     notes = UnicodeAttribute(null=True)
+    time_spent = NumberAttribute(null=True)
     updated_by = UnicodeAttribute()
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()
@@ -185,6 +191,10 @@ def insert_update_tool_call(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None
         return
 
     tool_call = kwargs.get("entity")
+    if "status" in kwargs and kwargs["status"] == "completed":
+        kwargs["time_spent"] = (
+            pendulum.now("UTC").diff(tool_call.created_at).in_seconds()
+        )
     actions = [
         ToolCallModel.updated_by.set(kwargs["updated_by"]),
         ToolCallModel.updated_at.set(pendulum.now("UTC")),
@@ -199,6 +209,7 @@ def insert_update_tool_call(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None
         "content": ToolCallModel.content,
         "status": ToolCallModel.status,
         "notes": ToolCallModel.notes,
+        "time_spent": ToolCallModel.time_spent,
     }
 
     # Check if a key exists in kwargs before adding it to the update actions

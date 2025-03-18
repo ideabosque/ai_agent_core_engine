@@ -9,7 +9,12 @@ from typing import Any, Dict
 
 import pendulum
 from graphene import ResolveInfo
-from pynamodb.attributes import MapAttribute, UnicodeAttribute, UTCDateTimeAttribute
+from pynamodb.attributes import (
+    MapAttribute,
+    NumberAttribute,
+    UnicodeAttribute,
+    UTCDateTimeAttribute,
+)
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from silvaengine_dynamodb_base import (
@@ -35,6 +40,7 @@ class AsyncTaskModel(BaseModel):
     result = UnicodeAttribute(null=True)
     status = UnicodeAttribute(default="initial")
     notes = UnicodeAttribute(null=True)
+    time_spent = NumberAttribute(null=True)
     updated_by = UnicodeAttribute()
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()
@@ -144,6 +150,10 @@ def insert_update_async_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Non
         return
 
     async_task = kwargs.get("entity")
+    if "status" in kwargs and kwargs["status"] == "completed":
+        kwargs["time_spent"] = (
+            pendulum.now("UTC").diff(async_task.created_at).in_seconds()
+        )
     actions = [
         AsyncTaskModel.updated_by.set(kwargs["updated_by"]),
         AsyncTaskModel.updated_at.set(pendulum.now("UTC")),
@@ -155,6 +165,7 @@ def insert_update_async_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Non
         "result": AsyncTaskModel.result,
         "status": AsyncTaskModel.status,
         "notes": AsyncTaskModel.notes,
+        "time_spent": AsyncTaskModel.time_spent,
     }
 
     # Check if a key exists in kwargs before adding it to the update actions
