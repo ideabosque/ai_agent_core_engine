@@ -84,6 +84,7 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskT
                 "updated_by": arguments["updated_by"],
             },
         )
+        info.context.get("logger").info(f"User Message: {user_message.__dict__}.")
 
         # Initialize run record
         run = insert_update_run(
@@ -145,6 +146,9 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskT
                 "updated_by": arguments["updated_by"],
             },
         )
+        info.context.get("logger").info(
+            f"Assistant Message: {assistant_message.__dict__}."
+        )
 
         # Update run with completion details
         run = insert_update_run(
@@ -169,6 +173,8 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskT
                 "updated_by": arguments["updated_by"],
             },
         )
+
+        info.context.get("logger").info(f"Async Task: {async_task.__dict__}.")
 
         return True
 
@@ -213,6 +219,8 @@ def async_execute_ask_model(logger: logging.Logger, **kwargs: Dict[str, Any]) ->
             "arguments": arguments,
         },
     )
+
+    logger.info(f"Execute Ask Model: {execute_ask_model}.")
 
 
 def async_insert_update_tool_call(
@@ -259,3 +267,5 @@ def async_insert_update_tool_call(
             "updatedBy": kwargs.get("updated_by"),
         },
     )
+
+    logger.info(f"Tool Call: {tool_call}.")
