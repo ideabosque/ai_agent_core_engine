@@ -78,7 +78,7 @@ def execute_ask_model_handler(
         endpoint_id,
         "ai_agent_core_graphql",
         "executeAskModel",
-        "Query",
+        "Mutation",
         variables,
         setting=setting,
         connection_id=connection_id,

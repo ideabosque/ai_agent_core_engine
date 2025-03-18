@@ -146,7 +146,7 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskT
             },
         )
 
-        return async_task
+        return True
 
     except Exception as e:
         # Log and record any errors

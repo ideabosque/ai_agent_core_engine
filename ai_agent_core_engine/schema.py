@@ -21,6 +21,7 @@ from graphene import (
 from silvaengine_utility import JSON
 
 from .mutations.agent import DeleteAgent, InsertUpdateAgent
+from .mutations.ai_agent import ExecuteAskModel
 from .mutations.async_task import DeleteAsyncTask, InsertUpdateAsyncTask
 from .mutations.fine_tuning_message import (
     DeleteFineTuningMessage,
@@ -32,7 +33,7 @@ from .mutations.run import DeleteRun, InsertUpdateRun
 from .mutations.thread import DeleteThread, InsertThread
 from .mutations.tool_call import DeleteToolCall, InsertUpdateToolCall
 from .queries.agent import resolve_agent, resolve_agent_list
-from .queries.ai_agent import resolve_ask_model, resolve_execute_ask_model
+from .queries.ai_agent import resolve_ask_model
 from .queries.async_task import resolve_async_task, resolve_async_task_list
 from .queries.fine_tuning_message import (
     resolve_fine_tuning_message,
@@ -216,12 +217,6 @@ class Query(ObjectType):
         updated_by=String(required=True),
     )
 
-    execute_ask_model = Field(
-        AskModelType,
-        async_task_uuid=String(required=True),
-        arguments=JSON(required=True),
-    )
-
     def resolve_ping(self, info: ResolveInfo) -> str:
         return f"Hello at {time.strftime('%X')}!!"
 
@@ -302,11 +297,6 @@ class Query(ObjectType):
     ) -> AskModelType:
         return resolve_ask_model(info, **kwargs)
 
-    def resolve_execute_ask_model(
-        self, info: ResolveInfo, **kwargs: Dict[str, Any]
-    ) -> AsyncTaskType:
-        return resolve_execute_ask_model(info, **kwargs)
-
 
 class Mutations(ObjectType):
     insert_update_llm = InsertUpdateLlm.Field()
@@ -325,3 +315,4 @@ class Mutations(ObjectType):
     delete_fine_tuning_message = DeleteFineTuningMessage.Field()
     insert_update_async_task = InsertUpdateAsyncTask.Field()
     delete_async_task = DeleteAsyncTask.Field()
+    execute_ask_model = ExecuteAskModel.Field()
