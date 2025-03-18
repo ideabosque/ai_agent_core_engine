@@ -117,7 +117,7 @@ def start_async_task(info: ResolveInfo, **arguments: Dict[str, Any]) -> Tuple[st
             - async_task_uuid: Unique identifier for tracking the task
     """
     # Set async function name
-    function_name = "async_ask_model"
+    function_name = "async_execute_ask_model"
 
     # Create task record in database
     async_task = insert_update_async_task(

@@ -152,8 +152,14 @@ def insert_update_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
             "message": kwargs["message"],
             "updated_by": kwargs["updated_by"],
             "created_at": pendulum.now("UTC"),
-            "updated_at": pendulum.now("UTC")
+            "updated_at": pendulum.now("UTC"),
         }
+        for key in [
+            "message_id",
+        ]:
+            if key in kwargs:
+                cols[key] = kwargs[key]
+
         MessageModel(
             thread_uuid,
             message_uuid,
@@ -171,10 +177,10 @@ def insert_update_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
         "run_uuid": MessageModel.run_uuid,
         "message_id": MessageModel.message_id,
         "role": MessageModel.role,
-        "message": MessageModel.message
+        "message": MessageModel.message,
     }
 
-    # Check if a key exists in kwargs before adding it to the update actions 
+    # Check if a key exists in kwargs before adding it to the update actions
     for key, field in field_map.items():
         if key in kwargs:  # Check if the key exists in kwargs
             actions.append(field.set(kwargs[key]))

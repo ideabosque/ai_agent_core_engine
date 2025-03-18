@@ -57,7 +57,7 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskT
         async_task = insert_update_async_task(
             info,
             **{
-                "function_name": "async_ask_model",
+                "function_name": "async_execute_ask_model",
                 "async_task_uuid": async_task_uuid,
                 "status": "in_progress",
                 "updated_by": arguments["updated_by"],
@@ -102,9 +102,9 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskT
         ai_agent_handler = ai_agent_handler_class(
             info.context.get("logger"),
             agent.__dict__,
-            run.__dict__,
             **info.context.get("setting", {}),
         )
+        ai_agent_handler.run = run.__dict__
 
         # Process query through AI model
         run_id = ai_agent_handler.ask_model(input_messages)
@@ -139,7 +139,7 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskT
         async_task = insert_update_async_task(
             info,
             **{
-                "function_name": "async_ask_model",
+                "function_name": "async_execute_ask_model",
                 "async_task_uuid": async_task_uuid,
                 "result": ai_agent_handler.final_output["content"],
                 "status": "completed",
@@ -156,7 +156,7 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskT
         async_task = insert_update_async_task(
             info,
             **{
-                "function_name": "async_ask_model",
+                "function_name": "async_execute_ask_model",
                 "async_task_uuid": async_task_uuid,
                 "status": "failed",
                 "updated_by": arguments["updated_by"],
