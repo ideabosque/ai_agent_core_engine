@@ -18,6 +18,8 @@ from graphene import (
     String,
 )
 
+from silvaengine_utility import JSON
+
 from .mutations.agent import DeleteAgent, InsertUpdateAgent
 from .mutations.async_task import DeleteAsyncTask, InsertUpdateAsyncTask
 from .mutations.fine_tuning_message import (
@@ -25,11 +27,12 @@ from .mutations.fine_tuning_message import (
     InsertUpdateFineTuningMessage,
 )
 from .mutations.llm import DeleteLlm, InsertUpdateLlm
-from .mutations.message import DeleteMessage, InsertMessage
+from .mutations.message import DeleteMessage, InsertUpdateMessage
 from .mutations.run import DeleteRun, InsertUpdateRun
 from .mutations.thread import DeleteThread, InsertThread
-from .mutations.tool_call import DeleteToolCall, InsertToolCall
+from .mutations.tool_call import DeleteToolCall, InsertUpdateToolCall
 from .queries.agent import resolve_agent, resolve_agent_list
+from .queries.ai_agent import resolve_ask_model, resolve_execute_ask_model
 from .queries.async_task import resolve_async_task, resolve_async_task_list
 from .queries.fine_tuning_message import (
     resolve_fine_tuning_message,
@@ -41,6 +44,7 @@ from .queries.run import resolve_run, resolve_run_list
 from .queries.thread import resolve_thread, resolve_thread_list
 from .queries.tool_call import resolve_tool_call, resolve_tool_call_list
 from .types.agent import AgentListType, AgentType
+from .types.ai_agent import AskModelType
 from .types.async_task import AsyncTaskListType, AsyncTaskType
 from .types.fine_tuning_message import FineTuningMessageListType, FineTuningMessageType
 from .types.llm import LlmListType, LlmType
@@ -68,6 +72,7 @@ def type_class():
         AsyncTaskListType,
         FineTuningMessageType,
         FineTuningMessageListType,
+        AskModelType,
     ]
 
 
@@ -202,6 +207,21 @@ class Query(ObjectType):
         to_date=DateTime(required=False),
     )
 
+    ask_model = Field(
+        AskModelType,
+        agent_uuid=String(required=True),
+        thread_uuid=String(required=False),
+        user_query=String(required=True),
+        stream=Boolean(required=False),
+        updated_by=String(required=True),
+    )
+
+    execute_ask_model = Field(
+        AskModelType,
+        async_task_uuid=String(required=True),
+        arguments=JSON(required=True),
+    )
+
     def resolve_ping(self, info: ResolveInfo) -> str:
         return f"Hello at {time.strftime('%X')}!!"
 
@@ -277,6 +297,16 @@ class Query(ObjectType):
     ) -> FineTuningMessageListType:
         return resolve_fine_tuning_message_list(info, **kwargs)
 
+    def resolve_ask_model(
+        self, info: ResolveInfo, **kwargs: Dict[str, Any]
+    ) -> AskModelType:
+        return resolve_ask_model(info, **kwargs)
+
+    def resolve_execute_ask_model(
+        self, info: ResolveInfo, **kwargs: Dict[str, Any]
+    ) -> AsyncTaskType:
+        return resolve_execute_ask_model(info, **kwargs)
+
 
 class Mutations(ObjectType):
     insert_update_llm = InsertUpdateLlm.Field()
@@ -287,9 +317,9 @@ class Mutations(ObjectType):
     delete_thread = DeleteThread.Field()
     insert_update_run = InsertUpdateRun.Field()
     delete_run = DeleteRun.Field()
-    insert_message = InsertMessage.Field()
+    insert_update_message = InsertUpdateMessage.Field()
     delete_message = DeleteMessage.Field()
-    insert_tool_call = InsertToolCall.Field()
+    insert_update_tool_call = InsertUpdateToolCall.Field()
     delete_tool_call = DeleteToolCall.Field()
     insert_update_fine_tuning_message = InsertUpdateFineTuningMessage.Field()
     delete_fine_tuning_message = DeleteFineTuningMessage.Field()

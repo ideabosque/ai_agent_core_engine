@@ -14,7 +14,7 @@ from ..models.message import delete_message, insert_update_message
 from ..types.message import MessageType
 
 
-class InsertMessage(Mutation):
+class InsertUpdateMessage(Mutation):
     message = Field(MessageType)
 
     class Arguments:
@@ -27,7 +27,7 @@ class InsertMessage(Mutation):
         updated_by = String(required=True)
 
     @staticmethod
-    def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "InsertMessage":
+    def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "InsertUpdateMessage":
         try:
             message = insert_update_message(info, **kwargs)
         except Exception as e:
@@ -35,7 +35,7 @@ class InsertMessage(Mutation):
             info.context.get("logger").error(log)
             raise e
 
-        return InsertMessage(message=message)
+        return InsertUpdateMessage(message=message)
 
 
 class DeleteMessage(Mutation):

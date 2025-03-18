@@ -11,6 +11,7 @@ from graphene import Schema
 
 from silvaengine_dynamodb_base import SilvaEngineDynamoDBBase
 
+from .handlers import at_agent_listener
 from .handlers.config import Config
 from .schema import Mutations, Query, type_class
 
@@ -29,6 +30,28 @@ class AIAgentCoreEngine(SilvaEngineDynamoDBBase):
 
         self.logger = logger
         self.setting = setting
+
+    def async_execute_ask_model(self, **params: Dict[str, Any]) -> Any:
+        ## Test the waters 🧪 before diving in!
+        ##<--Testing Data-->##
+        if params.get("endpoint_id") is None:
+            params["setting"] = self.setting
+            params["endpoint_id"] = self.setting.get("endpoint_id")
+        ##<--Testing Data-->##
+
+        at_agent_listener.async_execute_ask_model(self.logger, **params)
+        return
+
+    def async_insert_update_tool_call(self, **params: Dict[str, Any]) -> Any:
+        ## Test the waters 🧪 before diving in!
+        ##<--Testing Data-->##
+        if params.get("endpoint_id") is None:
+            params["setting"] = self.setting
+            params["endpoint_id"] = self.setting.get("endpoint_id")
+        ##<--Testing Data-->##
+
+        at_agent_listener.async_insert_update_tool_call(self.logger, **params)
+        return
 
     def ai_agent_core_graphql(self, **params: Dict[str, Any]) -> Any:
         ## Test the waters 🧪 before diving in!

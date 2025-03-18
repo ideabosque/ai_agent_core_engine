@@ -35,7 +35,6 @@ class InsertUpdateAgent(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "InsertUpdateAgent":
         try:
-            kwargs["endpoint_id"] = info.context.get("endpoint_id")
             agent = insert_update_agent(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
@@ -54,7 +53,6 @@ class DeleteAgent(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteAgent":
         try:
-            kwargs["endpoint_id"] = info.context.get("endpoint_id")
             ok = delete_agent(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()

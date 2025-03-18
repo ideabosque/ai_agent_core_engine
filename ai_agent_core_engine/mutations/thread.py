@@ -22,7 +22,6 @@ class InsertThread(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "InsertThread":
         try:
-            kwargs["endpoint_id"] = info.context.get("endpoint_id")
             thread = insert_thread(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
@@ -41,7 +40,6 @@ class DeleteThread(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteThread":
         try:
-            kwargs["endpoint_id"] = info.context.get("endpoint_id")
             ok = delete_thread(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()

@@ -14,7 +14,7 @@ from ..models.tool_call import delete_tool_call, insert_update_tool_call
 from ..types.tool_call import ToolCallType
 
 
-class InsertToolCall(Mutation):
+class InsertUpdateToolCall(Mutation):
     tool_call = Field(ToolCallType)
 
     class Arguments:
@@ -29,7 +29,9 @@ class InsertToolCall(Mutation):
         updated_by = String(required=True)
 
     @staticmethod
-    def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "InsertToolCall":
+    def mutate(
+        root: Any, info: Any, **kwargs: Dict[str, Any]
+    ) -> "InsertUpdateToolCall":
         try:
             tool_call = insert_update_tool_call(info, **kwargs)
         except Exception as e:
@@ -37,7 +39,7 @@ class InsertToolCall(Mutation):
             info.context.get("logger").error(log)
             raise e
 
-        return InsertToolCall(tool_call=tool_call)
+        return InsertUpdateToolCall(tool_call=tool_call)
 
 
 class DeleteToolCall(Mutation):
