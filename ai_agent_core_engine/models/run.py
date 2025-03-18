@@ -177,6 +177,7 @@ def insert_update_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
         "completion_tokens": RunModel.completion_tokens,
         "prompt_tokens": RunModel.prompt_tokens,
         "total_tokens": RunModel.total_tokens,
+        "time_spent": RunModel.time_spent,
     }
 
     # Check if a key exists in kwargs before adding it to the update actions

@@ -146,14 +146,11 @@ def get_input_messages(info: ResolveInfo, thread_uuid: str) -> List[Dict[str, an
             for message in message_list.message_list
         ]
 
-        # Return last 10 messages sorted by creation time
+        # Return last 10 messages sorted by creation time (most recent first)
         return [
             {"role": msg["role"], "content": msg["message"]}
-            for msg in sorted(messages, key=lambda x: x["created_at"], reverse=True)[
-                :10
-            ]
-        ]
-
+            for msg in sorted(messages, key=lambda x: x["created_at"], reverse=True)
+        ][:10][::-1]
     except Exception as e:
         # Log error and re-raise
         info.context["logger"].error(traceback.format_exc())
