@@ -18,7 +18,171 @@ from .schema import Mutations, Query, type_class
 
 # Hook function applied to deployment
 def deploy() -> List:
-    return []
+    return [
+        {
+            "service": "AI Assistant",
+            "class": "AIAgentCoreEngine",
+            "functions": {
+                "ai_agent_core_graphql": {
+                    "is_static": False,
+                    "label": "AI Agent Core GraphQL",
+                    "query": [
+                        {"action": "ping", "label": "Ping"},
+                        {
+                            "action": "llm",
+                            "label": "View LLM",
+                        },
+                        {
+                            "action": "llmList",
+                            "label": "View LLM List",
+                        },
+                        {
+                            "action": "agent",
+                            "label": "View Agent",
+                        },
+                        {
+                            "action": "agentList",
+                            "label": "View Agent List",
+                        },
+                        {
+                            "action": "thread",
+                            "label": "View Thread",
+                        },
+                        {
+                            "action": "threadList",
+                            "label": "View Thread List",
+                        },
+                        {
+                            "action": "run",
+                            "label": "View Run",
+                        },
+                        {
+                            "action": "runList",
+                            "label": "View Run List",
+                        },
+                        {
+                            "action": "toolCall",
+                            "label": "View Tool Call",
+                        },
+                        {
+                            "action": "toolCallList",
+                            "label": "View Tool Call List",
+                        },
+                        {
+                            "action": "asyncTask",
+                            "label": "View Async Task",
+                        },
+                        {
+                            "action": "asyncTaskList",
+                            "label": "View Async Task List",
+                        },
+                        {
+                            "action": "fineTuningMessage",
+                            "label": "View Fine Tuning Message",
+                        },
+                        {
+                            "action": "fineTuningMessageList",
+                            "label": "View Fine Tuning Message List",
+                        },
+                    ],
+                    "mutation": [
+                        {
+                            "action": "insertUpdateLlm",
+                            "label": "Create Update LLM",
+                        },
+                        {
+                            "action": "deleteLlm",
+                            "label": "Delete LLM",
+                        },
+                        {
+                            "action": "insertUpdateAgent",
+                            "label": "Create Update Agent",
+                        },
+                        {
+                            "action": "deleteAgent",
+                            "label": "Delete Agent",
+                        },
+                        {
+                            "action": "insertUpdateThread",
+                            "label": "Create Update Thread",
+                        },
+                        {
+                            "action": "deleteThread",
+                            "label": "Delete Thread",
+                        },
+                        {
+                            "action": "insertUpdateRun",
+                            "label": "Create Update Run",
+                        },
+                        {
+                            "action": "deleteRun",
+                            "label": "Delete Run",
+                        },
+                        {
+                            "action": "insertUpdateToolCall",
+                            "label": "Create Update Tool Call",
+                        },
+                        {
+                            "action": "deleteToolCall",
+                            "label": "Delete Tool Call",
+                        },
+                        {
+                            "action": "insertUpdateAsyncTask",
+                            "label": "Create Update Async Task",
+                        },
+                        {
+                            "action": "deleteAsyncTask",
+                            "label": "Delete Async Task",
+                        },
+                        {
+                            "action": "insertUpdateFineTuningMessage",
+                            "label": "Create Update Fine Tuning Message",
+                        },
+                        {
+                            "action": "deleteFineTuningMessage",
+                            "label": "Delete Fine Tuning Message",
+                        },
+                    ],
+                    "type": "RequestResponse",
+                    "support_methods": ["POST"],
+                    "is_auth_required": False,
+                    "is_graphql": True,
+                    "settings": "beta_core_ai_agent",
+                    "disabled_in_resources": True,  # Ignore adding to resource list.
+                },
+                "async_execute_ask_model": {
+                    "is_static": False,
+                    "label": "Async Execute Ask Model",
+                    "type": "Event",
+                    "support_methods": ["POST"],
+                    "is_auth_required": False,
+                    "is_graphql": False,
+                    "settings": "beta_core_ai_agent",
+                    "disabled_in_resources": True,  # Ignore adding to resource list.
+                },
+                "async_insert_update_tool_call": {
+                    "is_static": False,
+                    "label": "Async Insert Update Tool Call",
+                    "type": "Event",
+                    "support_methods": ["POST"],
+                    "is_auth_required": False,
+                    "is_graphql": False,
+                    "settings": "beta_core_ai_agent",
+                    "disabled_in_resources": True,  # Ignore adding to resource list.
+                },
+                "send_data_to_websocket": {
+                    "is_static": False,
+                    "label": "Send Data To WebSocket",
+                    "type": "Event",
+                    "support_methods": ["POST"],
+                    "is_auth_required": False,
+                    "is_graphql": False,
+                    "settings": "beta_core_ai_agent",
+                    "disabled_in_resources": True,  # Ignore adding to resource list.
+                },
+            },
+        }
+    ]
 
 
 class AIAgentCoreEngine(SilvaEngineDynamoDBBase):

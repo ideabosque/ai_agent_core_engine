@@ -18,8 +18,6 @@ from graphene import (
     String,
 )
 
-from silvaengine_utility import JSON
-
 from .mutations.agent import DeleteAgent, InsertUpdateAgent
 from .mutations.ai_agent import ExecuteAskModel
 from .mutations.async_task import DeleteAsyncTask, InsertUpdateAsyncTask

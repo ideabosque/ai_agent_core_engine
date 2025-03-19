@@ -19,7 +19,7 @@ from ..models.run import insert_update_run
 from ..models.thread import insert_thread, resolve_thread
 from ..types.ai_agent import AskModelType
 from ..types.async_task import AsyncTaskType
-from .ai_agent_utility import get_input_messages
+from .ai_agent_utility import calculate_num_tokens, get_input_messages
 from .config import Config
 
 
@@ -197,6 +197,7 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskT
 
         # Retrieve AI agent configuration
         agent = resolve_agent(info, **{"agent_uuid": arguments["agent_uuid"]})
+        llm_model = agent.llm_configuration.get("model", "gpt-4o")
 
         # Build conversation history and add new user query
         input_messages = get_input_messages(info, arguments["thread_uuid"])
@@ -221,7 +222,9 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskT
             **{
                 "thread_uuid": arguments["thread_uuid"],
                 "run_uuid": arguments["run_uuid"],
-                "prompt_tokens": 50,  # TODO: Implement token counting for user query
+                "prompt_tokens": calculate_num_tokens(
+                    llm_model, arguments["user_query"]
+                ),
                 "updated_by": arguments["updated_by"],
             },
         )
@@ -286,7 +289,9 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskT
                 "thread_uuid": arguments["thread_uuid"],
                 "run_uuid": arguments["run_uuid"],
                 "run_id": run_id,
-                "completion_tokens": 100,  # TODO: Implement token counting for AI response
+                "completion_tokens": calculate_num_tokens(
+                    llm_model, ai_agent_handler.final_output["content"]
+                ),
                 "updated_by": arguments["updated_by"],
             },
         )

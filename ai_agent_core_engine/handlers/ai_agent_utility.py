@@ -9,6 +9,7 @@ import traceback
 from typing import Any, Dict, List
 
 import humps
+import tiktoken
 from graphene import ResolveInfo
 
 from silvaengine_utility import Utility
@@ -154,4 +155,26 @@ def get_input_messages(info: ResolveInfo, thread_uuid: str) -> List[Dict[str, an
     except Exception as e:
         # Log error and re-raise
         info.context["logger"].error(traceback.format_exc())
+        raise e
+
+
+def calculate_num_tokens(model: str, text: str) -> int:
+    """Calculates the number of tokens for a given model
+
+    Args:
+        model (str): The name of the model to calculate tokens for (e.g. 'gpt-3.5-turbo')
+        text (str): The input text to tokenize
+
+    Returns:
+        int: Number of tokens in the text for the specified model
+
+    Raises:
+        Exception: If there is an error getting the encoding or calculating tokens
+    """
+    try:
+        encoding = tiktoken.encoding_for_model(model)
+        num_tokens = len(encoding.encode(text))
+        return num_tokens
+    except Exception as e:
+        # Log error and re-raise
         raise e
