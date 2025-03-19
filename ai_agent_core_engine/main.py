@@ -224,6 +224,8 @@ class AIAgentCoreEngine(SilvaEngineDynamoDBBase):
     def ai_agent_core_graphql(self, **params: Dict[str, Any]) -> Any:
         ## Test the waters 🧪 before diving in!
         ##<--Testing Data-->##
+        if params.get("connection_id") is None:
+            params["connection_id"] = self.setting.get("connection_id")
         if params.get("endpoint_id") is None:
             params["endpoint_id"] = self.setting.get("endpoint_id")
         ##<--Testing Data-->##

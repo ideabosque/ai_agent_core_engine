@@ -212,7 +212,6 @@ class Query(ObjectType):
         agent_uuid=String(required=True),
         thread_uuid=String(required=False),
         user_query=String(required=True),
-        stream=Boolean(required=False),
         updated_by=String(required=True),
     )
 

@@ -177,6 +177,7 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskT
         info.context.get("logger").info(
             f"connection_id: {info.context.get('connectionId')}"
         )
+        endpoint_id = info.context.get("endpoint_id")
         connection_id = info.context.get("connectionId")
         async_task_uuid = kwargs["async_task_uuid"]
         arguments = kwargs["arguments"]
@@ -239,11 +240,12 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskT
             agent.__dict__,
             **info.context.get("setting", {}),
         )
+        ai_agent_handler.endpoint_id = endpoint_id
         ai_agent_handler.run = run.__dict__
         ai_agent_handler.connection_id = connection_id
         ai_agent_handler.task_queue = Config.task_queue
 
-        if not arguments.get("stream", False):
+        if connection_id is None:
             # Process query through AI model
             run_id = ai_agent_handler.ask_model(input_messages)
         else:
