@@ -266,9 +266,15 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskT
                 run_id = current_run["value"]
                 info.context["logger"].info(f"Current Run ID: {current_run['value']}")
 
-            # Wait until streaming is done
-            stream_event.wait()
+            # Wait until streaming is done, timeout after 60 second
+            stream_event.wait(timeout=60)
             info.context["logger"].info("Streaming ask_model finished.")
+
+        # Verify final_output is a dict and contains required fields message_id, role, content with non-empty values
+        assert isinstance(ai_agent_handler.final_output, dict) and all(
+            key in ai_agent_handler.final_output and ai_agent_handler.final_output[key]
+            for key in ["message_id", "role", "content"]
+        ), "final_output must be a dict containing non-empty values for message_id, role and content fields"
 
         # Record AI assistant response
         assistant_message = insert_update_message(
