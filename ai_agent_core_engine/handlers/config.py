@@ -72,7 +72,7 @@ class Config:
             aws_credentials = {}
 
         cls.aws_lambda = boto3.client("lambda", **aws_credentials)
-        cls.aws_s3 = boto3.client("s3", **aws_credentials)
+        cls.aws_sqs = boto3.resource("sqs", **aws_credentials)
 
     @classmethod
     def _initialize_task_queue(cls, setting: Dict[str, Any]) -> None:
