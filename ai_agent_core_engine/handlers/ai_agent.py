@@ -240,6 +240,8 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskT
             **info.context.get("setting", {}),
         )
         ai_agent_handler.run = run.__dict__
+        ai_agent_handler.connection_id = connection_id
+        ai_agent_handler.task_queue = Config.task_queue
 
         if not arguments.get("stream", False):
             # Process query through AI model

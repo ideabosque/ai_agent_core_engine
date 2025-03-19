@@ -18,6 +18,8 @@ class Config:
     """
 
     aws_lambda = None
+    aws_sqs = None
+    task_queue = None
     apigw_client = None
     schemas = {}
 
@@ -32,6 +34,7 @@ class Config:
         try:
             cls._set_parameters(setting)
             cls._initialize_aws_services(setting)
+            cls._initialize_task_queue(setting)
             cls._initialize_apigw_client(setting)
             if setting.get("test_mode") == "local_for_all":
                 cls._initialize_tables(logger)
@@ -69,9 +72,28 @@ class Config:
             aws_credentials = {}
 
         cls.aws_lambda = boto3.client("lambda", **aws_credentials)
+        cls.aws_s3 = boto3.client("s3", **aws_credentials)
+
+    @classmethod
+    def _initialize_task_queue(cls, setting: Dict[str, Any]) -> None:
+        """
+        Initialize SQS task queue if task_queue_name is provided in settings.
+        Args:
+            setting (Dict[str, Any]): Configuration dictionary containing task queue settings.
+        """
+        if "task_queue_name" in setting:
+            cls.task_queue = cls.aws_sqs.get_queue_by_name(
+                QueueName=setting["task_queue_name"]
+            )
 
     @classmethod
     def _initialize_apigw_client(cls, setting: Dict[str, Any]) -> None:
+        """
+        Initialize API Gateway Management API client if required settings are present.
+        Args:
+            setting (Dict[str, Any]): Configuration dictionary containing API Gateway settings
+                                    including api_id, api_stage, region_name and AWS credentials.
+        """
         if all(
             setting.get(k)
             for k in [
