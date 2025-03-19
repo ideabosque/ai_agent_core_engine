@@ -54,7 +54,6 @@ class AgentModel(BaseModel):
     agent_description = UnicodeAttribute(null=True)
     llm_provider = UnicodeAttribute()
     llm_name = UnicodeAttribute()
-    llm_configuration = MapAttribute(default={})
     instructions = UnicodeAttribute(null=True)
     configuration = MapAttribute(default={})
     function_configuration = MapAttribute(default={})
@@ -171,7 +170,7 @@ def resolve_agent_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     if llm_name:
         the_filters &= AgentModel.llm_name == llm_name
     if model:
-        the_filters &= AgentModel.llm_configuration["model"] == model
+        the_filters &= AgentModel.configuration["model"] == model
     if statuses:
         the_filters &= AgentModel.status.is_in(*statuses)
     if the_filters is not None:
@@ -256,7 +255,6 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
             "agent_description",
             "llm_provider",
             "llm_name",
-            "llm_configuration",
             "instructions",
             "configuration",
             "function_configuration",
@@ -289,7 +287,6 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
         "agent_description": AgentModel.agent_description,
         "llm_provider": AgentModel.llm_provider,
         "llm_name": AgentModel.llm_name,
-        "llm_configuration": AgentModel.llm_configuration,
         "instructions": AgentModel.instructions,
         "configuration": AgentModel.configuration,
         "function_configuration": AgentModel.function_configuration,

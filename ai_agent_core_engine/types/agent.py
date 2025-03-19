@@ -17,7 +17,6 @@ class AgentType(ObjectType):
     agent_name = String()
     agent_description = String()
     llm = JSON()
-    llm_configuration = JSON()
     instructions = String()
     configuration = JSON()
     function_configuration = JSON()

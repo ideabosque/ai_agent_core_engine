@@ -198,7 +198,7 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskT
 
         # Retrieve AI agent configuration
         agent = resolve_agent(info, **{"agent_uuid": arguments["agent_uuid"]})
-        llm_model = agent.llm_configuration.get("model", "gpt-4o")
+        llm_model = agent.configuration.get("model", "gpt-4o")
 
         # Build conversation history and add new user query
         input_messages = get_input_messages(info, arguments["thread_uuid"])
@@ -245,10 +245,7 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskT
         ai_agent_handler.connection_id = connection_id
         ai_agent_handler.task_queue = Config.task_queue
 
-        if connection_id is None:
-            # Process query through AI model
-            run_id = ai_agent_handler.ask_model(input_messages)
-        else:
+        if connection_id or arguments.get("stream", False):
             stream_queue = Queue()
             stream_event = threading.Event()
 
@@ -269,6 +266,9 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskT
             # Wait until streaming is done, timeout after 60 second
             stream_event.wait(timeout=120)
             info.context["logger"].info("Streaming ask_model finished.")
+        else:
+            # Process query through AI model
+            run_id = ai_agent_handler.ask_model(input_messages)
 
         # Verify final_output is a dict and contains required fields message_id, role, content with non-empty values
         assert isinstance(ai_agent_handler.final_output, dict) and all(

@@ -54,7 +54,6 @@ def _get_agent(endpoint_id: str, agent_uuid: str) -> Dict[str, Any]:
         "llm_provider": agent.llm_provider,
         "llm_name": agent.llm_name,
         "llm": _get_llm(agent.llm_provider, agent.llm_name),
-        "llm_configuration": agent.llm_configuration,
         "instructions": agent.instructions,
         "configuration": agent.configuration,
         "function_configuration": agent.function_configuration,

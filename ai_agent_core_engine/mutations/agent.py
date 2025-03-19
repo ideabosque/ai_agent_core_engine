@@ -24,7 +24,6 @@ class InsertUpdateAgent(Mutation):
         agent_description = String(required=False)
         llm_provider = String(required=False)
         llm_name = String(required=False)
-        llm_configuration = JSON(required=False)
         instructions = String(required=False)
         configuration = JSON(required=False)
         function_configuration = JSON(required=False)
