@@ -267,7 +267,7 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskT
                 info.context["logger"].info(f"Current Run ID: {current_run['value']}")
 
             # Wait until streaming is done, timeout after 60 second
-            stream_event.wait(timeout=60)
+            stream_event.wait(timeout=120)
             info.context["logger"].info("Streaming ask_model finished.")
 
         # Verify final_output is a dict and contains required fields message_id, role, content with non-empty values
