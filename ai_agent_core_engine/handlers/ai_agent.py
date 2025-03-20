@@ -224,7 +224,10 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskT
                 "thread_uuid": arguments["thread_uuid"],
                 "run_uuid": arguments["run_uuid"],
                 "prompt_tokens": calculate_num_tokens(
-                    llm_model, arguments["user_query"]
+                    llm_model,
+                    "\n".join(
+                        [msg["content"] for msg in input_messages if "content" in msg]
+                    ),
                 ),
                 "updated_by": arguments["updated_by"],
             },

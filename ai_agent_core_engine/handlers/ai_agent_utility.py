@@ -15,6 +15,7 @@ from graphene import ResolveInfo
 from silvaengine_utility import Utility
 
 from ..models.message import resolve_message_list
+from ..models.tool_call import resolve_tool_call_list
 from .config import Config
 
 
@@ -131,29 +132,47 @@ def get_input_messages(info: ResolveInfo, thread_uuid: str) -> List[Dict[str, an
     """Retrieves the last 10 messages from a thread in chronological order"""
     try:
         # Get message list for thread
-        message_list = resolve_message_list(info, **{"threadUuid": thread_uuid})
+        message_list = resolve_message_list(info, **{"thread_uuid": thread_uuid})
+        # Get tool call list for thread
+        tool_call_list = resolve_tool_call_list(info, **{"thread_uuid": thread_uuid})
 
-        # Return empty list if no messages found
-        if message_list.total == 0:
+        # Return empty list if no messages or no tool_call found
+        if message_list.total == 0 and tool_call_list.total == 0:
             return []
 
         # Format messages with role, content and timestamp
         messages = [
             {
-                "role": message.role,
-                "message": message.message,
+                "message": {
+                    "role": message.role,
+                    "content": message.message,
+                },
                 "created_at": message.created_at,
             }
             for message in message_list.message_list
         ]
 
+        # Add tool call messages to the list
+        for tool_call in tool_call_list.tool_call_list:
+            # Add tool response message
+            messages.append(
+                {
+                    "message": {
+                        "role": "system",
+                        "content": tool_call.content,
+                    },
+                    "created_at": tool_call.created_at,
+                }
+            )
+
         # Return last 10 messages sorted by creation time (most recent first)
+        # Remove timestamps and reverse to get chronological order
         return [
-            {"role": msg["role"], "content": msg["message"]}
+            msg["message"]
             for msg in sorted(messages, key=lambda x: x["created_at"], reverse=True)
         ][:10][::-1]
     except Exception as e:
-        # Log error and re-raise
+        # Log error and re-raise with full traceback
         info.context["logger"].error(traceback.format_exc())
         raise e
 
