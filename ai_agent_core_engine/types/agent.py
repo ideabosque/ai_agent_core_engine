@@ -22,6 +22,7 @@ class AgentType(ObjectType):
     function_configuration = JSON()
     functions = JSON()
     num_of_messages = Int()
+    tool_call_role = String()
     status = String()
     updated_by = String()
     created_at = DateTime()

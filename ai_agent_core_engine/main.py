@@ -154,7 +154,7 @@ def deploy() -> List:
                 "ai_agent_core_graphql_query": {
                     "is_static": False,
                     "label": "Send Data To WebSocket",
-                    "type": "Event",
+                    "type": "RequestResponse",
                     "support_methods": ["POST"],
                     "is_auth_required": False,
                     "is_graphql": False,
@@ -220,9 +220,13 @@ class AIAgentCoreEngine(SilvaEngineDynamoDBBase):
             "ai_agent_core_graphql",
             setting=self.setting,
         )
-        return Utility.generate_graphql_operation(
-            params.get("operation_name"), params.get("operation_type"), schema
-        )
+        return {
+            "operation_name": params.get("operation_name"),
+            "operation_type": params.get("operation_type"),
+            "query": Utility.generate_graphql_operation(
+                params.get("operation_name"), params.get("operation_type"), schema
+            ),
+        }
 
     def async_execute_ask_model(self, **params: Dict[str, Any]) -> Any:
         ## Test the waters 🧪 before diving in!

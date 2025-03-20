@@ -214,7 +214,10 @@ def insert_update_tool_call(
 
 # Retrieves and formats message history for a thread
 def get_input_messages(
-    info: ResolveInfo, thread_uuid: str, num_of_messages: int
+    info: ResolveInfo,
+    thread_uuid: str,
+    num_of_messages: int,
+    tool_call_role: str,
 ) -> List[Dict[str, any]]:
     """
     Retrieves message history for a thread.
@@ -223,12 +226,14 @@ def get_input_messages(
         info: GraphQL resolver info
         thread_uuid: UUID of the thread to get messages for
         num_of_messages: Number of messages to retrieve
+        tool_call_role: Role to assign to tool call messages
 
     Returns:
-        List of message dictionaries in chronological order
+        List of message dictionaries in chronological order, combining both regular messages
+        and tool call messages. Each message contains role and content fields.
 
     Raises:
-        Exception: If there is an error retrieving messages
+        Exception: If there is an error retrieving messages from either message_list or tool_call_list
     """
     try:
         # Get message list for thread
@@ -269,8 +274,17 @@ def get_input_messages(
             messages.append(
                 {
                     "message": {
-                        "role": "system",
-                        "content": tool_call.content,
+                        "role": tool_call_role,
+                        "content": Utility.json_dumps(
+                            {
+                                "tool": {
+                                    "tool_type": tool_call.tool_type,
+                                    "name": tool_call.name,
+                                    "arguments": tool_call.arguments,
+                                },
+                                "output": tool_call.content,
+                            }
+                        ),
                     },
                     "created_at": tool_call.created_at,
                 }
@@ -281,6 +295,12 @@ def get_input_messages(
         # 2. Retrieve relevant long-term memory based on message content
         # 3. Integrate memory retrieval with vector embeddings for semantic search
         # 4. Handle memory pruning/summarization for efficient storage
+        # Notes:
+        # Asynchronously update long-term memory with new conversation context
+        # Synchronously fetch relevant historical context from long-term memory store
+        # Combine historical context with current conversation thread
+        # Use semantic similarity to prioritize most relevant memories
+        # Prune and summarize older memories to maintain storage efficiency
 
         # Return last 10 messages sorted by creation time (most recent first)
         # Remove timestamps and reverse to get chronological order

@@ -64,6 +64,7 @@ class AgentModel(BaseModel):
     function_configuration = MapAttribute(default={})
     functions = MapAttribute(default={})
     num_of_messages = NumberAttribute(default=10)
+    tool_call_role = UnicodeAttribute(default="developer")
     status = UnicodeAttribute(default="active")
     updated_by = UnicodeAttribute()
     created_at = UTCDateTimeAttribute()
@@ -266,6 +267,7 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
             "function_configuration",
             "functions",
             "num_of_messages",
+            "tool_call_role",
         ]:
             if key in kwargs:
                 cols[key] = kwargs[key]
@@ -299,6 +301,7 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
         "function_configuration": AgentModel.function_configuration,
         "functions": AgentModel.functions,
         "num_of_messages": AgentModel.num_of_messages,
+        "tool_call_role": AgentModel.tool_call_role,
         "status": AgentModel.status,
     }
 
