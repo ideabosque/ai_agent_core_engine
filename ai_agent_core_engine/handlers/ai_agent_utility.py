@@ -170,7 +170,7 @@ def get_input_messages(info: ResolveInfo, thread_uuid: str) -> List[Dict[str, an
         return [
             msg["message"]
             for msg in sorted(messages, key=lambda x: x["created_at"], reverse=True)
-        ][:10][::-1]
+        ][:30][::-1]
     except Exception as e:
         # Log error and re-raise with full traceback
         info.context["logger"].error(traceback.format_exc())
