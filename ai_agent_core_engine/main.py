@@ -220,13 +220,15 @@ class AIAgentCoreEngine(SilvaEngineDynamoDBBase):
             "ai_agent_core_graphql",
             setting=self.setting,
         )
-        return {
-            "operation_name": params.get("operation_name"),
-            "operation_type": params.get("operation_type"),
-            "query": Utility.generate_graphql_operation(
-                params.get("operation_name"), params.get("operation_type"), schema
-            ),
-        }
+        return Utility.json_dumps(
+            {
+                "operation_name": params.get("operation_name"),
+                "operation_type": params.get("operation_type"),
+                "query": Utility.generate_graphql_operation(
+                    params.get("operation_name"), params.get("operation_type"), schema
+                ),
+            }
+        )
 
     def async_execute_ask_model(self, **params: Dict[str, Any]) -> Any:
         ## Test the waters 🧪 before diving in!
