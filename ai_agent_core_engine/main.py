@@ -10,6 +10,7 @@ from typing import Any, Dict, List
 from graphene import Schema
 
 from silvaengine_dynamodb_base import SilvaEngineDynamoDBBase
+from silvaengine_utility import Utility
 
 from .handlers import at_agent_listener
 from .handlers.config import Config
@@ -150,6 +151,16 @@ def deploy() -> List:
                     "settings": "beta_core_ai_agent",
                     "disabled_in_resources": True,  # Ignore adding to resource list.
                 },
+                "ai_agent_core_graphql_query": {
+                    "is_static": False,
+                    "label": "Send Data To WebSocket",
+                    "type": "Event",
+                    "support_methods": ["POST"],
+                    "is_auth_required": False,
+                    "is_graphql": False,
+                    "settings": "beta_core_ai_agent",
+                    "disabled_in_resources": True,  # Ignore adding to resource list.
+                },
                 "async_execute_ask_model": {
                     "is_static": False,
                     "label": "Async Execute Ask Model",
@@ -194,6 +205,24 @@ class AIAgentCoreEngine(SilvaEngineDynamoDBBase):
 
         self.logger = logger
         self.setting = setting
+
+    def ai_agent_core_graphql_query(self, **params: Dict[str, Any]):
+        endpoint_id = params.get("endpoint_id")
+        ## Test the waters 🧪 before diving in!
+        ##<--Testing Data-->##
+        if endpoint_id is None:
+            endpoint_id = self.setting.get("endpoint_id")
+        ##<--Testing Data-->##
+
+        schema = Config.fetch_graphql_schema(
+            self.logger,
+            params.get("endpoint_id"),
+            "ai_agent_core_graphql",
+            setting=self.setting,
+        )
+        return Utility.generate_graphql_operation(
+            params.get("operation_name"), params.get("operation_type"), schema
+        )
 
     def async_execute_ask_model(self, **params: Dict[str, Any]) -> Any:
         ## Test the waters 🧪 before diving in!

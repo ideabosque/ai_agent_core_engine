@@ -58,6 +58,7 @@ def _get_agent(endpoint_id: str, agent_uuid: str) -> Dict[str, Any]:
         "configuration": agent.configuration,
         "function_configuration": agent.function_configuration,
         "functions": agent.functions,
+        "num_of_messages": agent.num_of_messages,
         "status": agent.status,
     }
 

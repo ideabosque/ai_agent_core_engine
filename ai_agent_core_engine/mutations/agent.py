@@ -6,7 +6,7 @@ __author__ = "bibow"
 import traceback
 from typing import Any, Dict
 
-from graphene import Boolean, Field, List, Mutation, String
+from graphene import Boolean, Field, Int, Mutation, String
 
 from silvaengine_utility import JSON
 
@@ -28,6 +28,7 @@ class InsertUpdateAgent(Mutation):
         configuration = JSON(required=False)
         function_configuration = JSON(required=False)
         functions = JSON(required=False)
+        num_of_messages = Int(required=False)
         status = String(required=False)
         updated_by = String(required=True)
 

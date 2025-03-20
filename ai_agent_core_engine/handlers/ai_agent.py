@@ -19,7 +19,7 @@ from ..models.run import insert_update_run
 from ..models.thread import insert_thread, resolve_thread
 from ..types.ai_agent import AskModelType
 from ..types.async_task import AsyncTaskType
-from .ai_agent_utility import calculate_num_tokens, get_input_messages
+from .ai_agent_utility import calculate_num_tokens, get_input_messages, start_async_task
 from .config import Config
 
 
@@ -86,8 +86,10 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
         }
 
         # Start async task and get identifiers
-        function_name, async_task_uuid = start_async_task(
+        function_name = "async_execute_ask_model"
+        async_task_uuid = start_async_task(
             info,
+            function_name,
             **arguments,
         )
 
@@ -105,54 +107,6 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
         log = traceback.format_exc()
         info.context.get("logger").error(log)
         raise e
-
-
-def start_async_task(info: ResolveInfo, **arguments: Dict[str, Any]) -> Tuple[str, str]:
-    """
-    Initialize and trigger an asynchronous task for processing the model request.
-
-    Args:
-        info: GraphQL resolver context with AWS Lambda configuration
-        **arguments: Task parameters including thread, run and query details
-
-    Returns:
-        Tuple containing:
-            - function_name: Name of async handler function
-            - async_task_uuid: Unique identifier for tracking the task
-    """
-    # Set async function name
-    function_name = "async_execute_ask_model"
-
-    # Create task record in database
-    async_task = insert_update_async_task(
-        info,
-        **{
-            "function_name": function_name,
-            "arguments": arguments,
-            "updated_by": arguments["updated_by"],
-        },
-    )
-
-    # Prepare parameters for Lambda invocation
-    params = {
-        "async_task_uuid": async_task.async_task_uuid,
-        "arguments": arguments,
-    }
-    if info.context.get("connectionId"):
-        params["connection_id"] = info.context.get("connectionId")
-
-    # Invoke Lambda function asynchronously
-    Utility.invoke_funct_on_aws_lambda(
-        info.context["logger"],
-        info.context["endpoint_id"],
-        "async_execute_ask_model",
-        params=params,
-        setting=info.context["setting"],
-        test_mode=info.context["setting"].get("test_mode"),
-        aws_lambda=Config.aws_lambda,
-    )
-
-    return function_name, async_task.async_task_uuid
 
 
 def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskType:
@@ -201,8 +155,16 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskT
         llm_model = agent.configuration.get("model", "gpt-4o")
 
         # Build conversation history and add new user query
-        input_messages = get_input_messages(info, arguments["thread_uuid"])
+        input_messages = get_input_messages(
+            info, arguments["thread_uuid"], int(agent.num_of_messages)
+        )
         input_messages.append({"role": "user", "content": arguments["user_query"]})
+
+        # TODO: Implement message evaluation system to:
+        #  1. Evaluate all system messages and instructions with last assistant message
+        #  2. Analyze if current user query relates to previous context
+        #  3. Add metadata flags for conversation flow and context tracking
+        #  4. Enable smarter handling of follow-up questions vs new topics
 
         # Record user message in thread
         user_message = insert_update_message(

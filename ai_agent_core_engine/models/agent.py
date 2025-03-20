@@ -11,7 +11,12 @@ from typing import Any, Dict
 
 import pendulum
 from graphene import ResolveInfo
-from pynamodb.attributes import MapAttribute, UnicodeAttribute, UTCDateTimeAttribute
+from pynamodb.attributes import (
+    MapAttribute,
+    NumberAttribute,
+    UnicodeAttribute,
+    UTCDateTimeAttribute,
+)
 from pynamodb.indexes import AllProjection, LocalSecondaryIndex
 from tenacity import retry, stop_after_attempt, wait_exponential
 
@@ -58,6 +63,7 @@ class AgentModel(BaseModel):
     configuration = MapAttribute(default={})
     function_configuration = MapAttribute(default={})
     functions = MapAttribute(default={})
+    num_of_messages = NumberAttribute(default=10)
     status = UnicodeAttribute(default="active")
     updated_by = UnicodeAttribute()
     created_at = UTCDateTimeAttribute()
@@ -259,6 +265,7 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
             "configuration",
             "function_configuration",
             "functions",
+            "num_of_messages",
         ]:
             if key in kwargs:
                 cols[key] = kwargs[key]
@@ -291,6 +298,7 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
         "configuration": AgentModel.configuration,
         "function_configuration": AgentModel.function_configuration,
         "functions": AgentModel.functions,
+        "num_of_messages": AgentModel.num_of_messages,
         "status": AgentModel.status,
     }
 
