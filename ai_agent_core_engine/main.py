@@ -151,7 +151,7 @@ def deploy() -> List:
                     "settings": "beta_core_ai_agent",
                     "disabled_in_resources": True,  # Ignore adding to resource list.
                 },
-                "ai_agent_core_graphql_query": {
+                "ai_agent_build_graphql_query": {
                     "is_static": False,
                     "label": "Send Data To WebSocket",
                     "type": "RequestResponse",
@@ -206,7 +206,7 @@ class AIAgentCoreEngine(SilvaEngineDynamoDBBase):
         self.logger = logger
         self.setting = setting
 
-    def ai_agent_core_graphql_query(self, **params: Dict[str, Any]):
+    def ai_agent_build_graphql_query(self, **params: Dict[str, Any]):
         endpoint_id = params.get("endpoint_id")
         ## Test the waters 🧪 before diving in!
         ##<--Testing Data-->##
@@ -217,7 +217,7 @@ class AIAgentCoreEngine(SilvaEngineDynamoDBBase):
         schema = Config.fetch_graphql_schema(
             self.logger,
             params.get("endpoint_id"),
-            "ai_agent_core_graphql",
+            params.get("function_name"),
             setting=self.setting,
         )
         return Utility.json_dumps(
