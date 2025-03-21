@@ -30,6 +30,7 @@ from silvaengine_dynamodb_base import (
 from silvaengine_utility import Utility
 
 from ..types.agent import AgentListType, AgentType
+from .thread import resolve_thread_list
 from .utils import _get_llm
 
 
@@ -323,6 +324,16 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     model_funct=get_agent,
 )
 def delete_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
+    thread_list = resolve_thread_list(
+        info,
+        **{
+            "endpoint_id": kwargs["entity"].endpoint_id,
+            "agent_uuid": kwargs["entity"].agent_version_uuid,
+        },
+    )
+    if thread_list.total > 0:
+        return False
+
     if kwargs["entity"].status == "active":
         results = AgentModel.agent_uuid_index.query(
             kwargs["entity"].endpoint_id,

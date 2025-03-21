@@ -23,6 +23,8 @@ from silvaengine_dynamodb_base import (
 from silvaengine_utility import Utility
 
 from ..types.run import RunListType, RunType
+from .message import resolve_message_list
+from .tool_call import resolve_tool_call_list
 from .utils import _get_thread
 
 
@@ -198,5 +200,25 @@ def insert_update_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     model_funct=get_run,
 )
 def delete_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
-    kwargs.get("entity").delete()
+    message_list = resolve_message_list(
+        info,
+        **{
+            "thread_uuid": kwargs["entity"].thread_uuid,
+            "run_uuid": kwargs["entity"].run_uuid,
+        },
+    )
+    if message_list.total > 0:
+        return False
+
+    tool_call_list = resolve_tool_call_list(
+        info,
+        **{
+            "thread_uuid": kwargs["entity"].thread_uuid,
+            "run_uuid": kwargs["entity"].run_uuid,
+        },
+    )
+    if tool_call_list.total > 0:
+        return False
+
+    kwargs["entity"].delete()
     return True

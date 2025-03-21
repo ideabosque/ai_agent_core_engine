@@ -24,6 +24,7 @@ from silvaengine_dynamodb_base import (
 from silvaengine_utility import Utility
 
 from ..types.thread import ThreadListType, ThreadType
+from .run import resolve_run_list
 from .utils import _get_agent
 
 
@@ -168,5 +169,15 @@ def insert_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     model_funct=get_thread,
 )
 def delete_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
-    kwargs.get("entity").delete()
+    run_list = resolve_run_list(
+        info,
+        **{
+            "endpoint_id": kwargs["entity"].endpoint_id,
+            "thread_uuid": kwargs["entity"].thread_uuid,
+        },
+    )
+    if run_list.total > 0:
+        return False
+
+    kwargs["entity"].delete()
     return True

@@ -22,6 +22,7 @@ from silvaengine_dynamodb_base import (
 from silvaengine_utility import Utility
 
 from ..types.llm import LlmListType, LlmType
+from .agent import resolve_agent_list
 
 
 class LlmModel(BaseModel):
@@ -156,5 +157,15 @@ def insert_update_llm(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     model_funct=get_llm,
 )
 def delete_llm(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
-    kwargs.get("entity").delete()
+    agent_list = resolve_agent_list(
+        info,
+        **{
+            "llm_provider": kwargs["entity"].llm_provider,
+            "llm_name": kwargs["entity"].llm_name,
+        },
+    )
+    if agent_list.total > 0:
+        return False
+
+    kwargs["entity"].delete()
     return True
