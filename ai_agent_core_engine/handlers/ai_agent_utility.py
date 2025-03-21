@@ -275,7 +275,16 @@ def get_input_messages(
                 {
                     "message": {
                         "role": tool_call_role,
-                        "content": tool_call.content,
+                        "content": Utility.json_dumps(
+                            {
+                                "tool": {
+                                    "tool_type": tool_call.tool_type,
+                                    "name": tool_call.name,
+                                    "arguments": tool_call.arguments,
+                                },
+                                "output": tool_call.content,
+                            }
+                        ),
                     },
                     "created_at": tool_call.created_at,
                 }
