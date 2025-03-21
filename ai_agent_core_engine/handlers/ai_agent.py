@@ -156,7 +156,10 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskT
 
         # Build conversation history and add new user query
         input_messages = get_input_messages(
-            info, arguments["thread_uuid"], int(agent.num_of_messages)
+            info,
+            arguments["thread_uuid"],
+            int(agent.num_of_messages),
+            agent.tool_call_role,
         )
         input_messages.append({"role": "user", "content": arguments["user_query"]})
 
