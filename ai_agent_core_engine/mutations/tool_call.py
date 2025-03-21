@@ -24,7 +24,7 @@ class InsertUpdateToolCall(Mutation):
         tool_call_id = String(required=False)
         tool_type = String(required=False)
         name = String(required=False)
-        arguments = JSON(required=False)
+        arguments = String(required=False)
         content = String(required=False)
         status = String(required=False)
         notes = String(required=False)

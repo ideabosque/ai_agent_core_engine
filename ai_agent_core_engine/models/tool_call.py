@@ -57,7 +57,7 @@ class ToolCallModel(BaseModel):
     tool_call_id = UnicodeAttribute(null=True)
     tool_type = UnicodeAttribute()
     name = UnicodeAttribute()
-    arguments = MapAttribute(null=True)
+    arguments = UnicodeAttribute(null=True)
     content = UnicodeAttribute(null=True)
     status = UnicodeAttribute(default="initial")
     notes = UnicodeAttribute(null=True)

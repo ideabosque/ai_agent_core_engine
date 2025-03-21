@@ -16,7 +16,7 @@ class ToolCallType(ObjectType):
     tool_call_id = String()
     tool_type = String()
     name = String()
-    arguments = JSON()
+    arguments = String()
     content = String()
     status = String()
     notes = String()
