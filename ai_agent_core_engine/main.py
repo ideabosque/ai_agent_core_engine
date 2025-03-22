@@ -216,7 +216,7 @@ class AIAgentCoreEngine(SilvaEngineDynamoDBBase):
 
         schema = Config.fetch_graphql_schema(
             self.logger,
-            params.get("endpoint_id"),
+            endpoint_id,
             params.get("function_name"),
             setting=self.setting,
         )
@@ -237,8 +237,7 @@ class AIAgentCoreEngine(SilvaEngineDynamoDBBase):
             params["endpoint_id"] = self.setting.get("endpoint_id")
         ##<--Testing Data-->##
 
-        params["setting"] = self.setting
-        at_agent_listener.async_execute_ask_model(self.logger, **params)
+        at_agent_listener.async_execute_ask_model(self.logger, self.setting, **params)
         return
 
     def async_insert_update_tool_call(self, **params: Dict[str, Any]) -> Any:
@@ -248,8 +247,9 @@ class AIAgentCoreEngine(SilvaEngineDynamoDBBase):
             params["endpoint_id"] = self.setting.get("endpoint_id")
         ##<--Testing Data-->##
 
-        params["setting"] = self.setting
-        at_agent_listener.async_insert_update_tool_call(self.logger, **params)
+        at_agent_listener.async_insert_update_tool_call(
+            self.logger, self.setting, **params
+        )
         return
 
     def send_data_to_websocket(self, **params: Dict[str, Any]) -> Any:

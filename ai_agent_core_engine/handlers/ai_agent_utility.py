@@ -20,7 +20,10 @@ from .config import Config
 
 
 def create_listener_info(
-    logger: logging.Logger, field_name: str, **kwargs: Dict[str, Any]
+    logger: logging.Logger,
+    field_name: str,
+    setting: Dict[str, Any],
+    **kwargs: Dict[str, Any]
 ) -> ResolveInfo:
     # Minimal example: some parameters can be None if you're only testing
     info = ResolveInfo(
@@ -34,7 +37,7 @@ def create_listener_info(
         operation=None,
         variable_values={},
         context={
-            "setting": kwargs.get("setting", {}),
+            "setting": setting,
             "endpoint_id": kwargs.get("endpoint_id"),
             "logger": logger,
             "connectionId": kwargs.get("connection_id"),
