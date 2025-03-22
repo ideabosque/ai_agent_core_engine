@@ -4,11 +4,9 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
-import logging
 import traceback
 from typing import Any, Dict, List
 
-import humps
 import tiktoken
 from graphene import ResolveInfo
 
@@ -18,6 +16,24 @@ from ..models.async_task import insert_update_async_task
 from ..models.message import resolve_message_list
 from ..models.tool_call import resolve_tool_call_list
 from .config import Config
+
+
+def create_dummy_info():
+    # Minimal example: some parameters can be None if you're only testing
+    info = ResolveInfo(
+        field_name="dummpy_field",
+        field_asts=[],  # or [some_field_node]
+        return_type=None,  # e.g., GraphQLString
+        parent_type=None,  # e.g., schema.get_type("Query")
+        schema=None,  # your GraphQLSchema
+        fragments={},
+        root_value=None,
+        operation=None,
+        variable_values={},
+        context=None,
+        path=None,
+    )
+    return info
 
 
 def start_async_task(
@@ -71,146 +87,6 @@ def start_async_task(
     )
 
     return async_task.async_task_uuid
-
-
-# Executes a GraphQL query with the given parameters
-def execute_graphql_query(
-    logger: logging.Logger,
-    endpoint_id: str,
-    function_name: str,
-    operation_name: str,
-    operation_type: str,
-    variables: Dict[str, Any],
-    setting: Dict[str, Any] = {},
-    connection_id: str = None,
-) -> Dict[str, Any]:
-    """
-    Executes a GraphQL query with the provided parameters.
-
-    Args:
-        logger: Logger instance for error reporting
-        endpoint_id: ID of the endpoint to execute query against
-        function_name: Name of function to execute
-        operation_name: Name of the GraphQL operation
-        operation_type: Type of operation (query/mutation)
-        variables: Variables to pass to the query
-        setting: Optional settings dictionary
-        connection_id: Optional connection ID
-
-    Returns:
-        Dict containing the query results
-    """
-    # Get schema and execute query
-    schema = Config.fetch_graphql_schema(
-        logger, endpoint_id, function_name, setting=setting
-    )
-    result = Utility.execute_graphql_query(
-        logger,
-        endpoint_id,
-        function_name,
-        Utility.generate_graphql_operation(operation_name, operation_type, schema),
-        variables,
-        setting=setting,
-        aws_lambda=Config.aws_lambda,
-        connection_id=connection_id,
-        test_mode=setting.get("test_mode"),
-    )
-    return result
-
-
-# Handles execution of AI model queries
-def execute_ask_model_handler(
-    logger: logging.Logger,
-    endpoint_id: str,
-    setting: Dict[str, Any] = None,
-    connection_id: str = None,
-    **variables: Dict[str, Any],
-) -> Dict[str, Any]:
-    """
-    Executes an AI model query and returns decamelized response.
-
-    Args:
-        logger: Logger instance for error reporting
-        endpoint_id: ID of the endpoint to execute query against
-        setting: Optional settings dictionary
-        connection_id: Optional connection ID
-        **variables: Variables to pass to the query
-
-    Returns:
-        Dict containing the decamelized query response
-    """
-    execute_ask_model = execute_graphql_query(
-        logger,
-        endpoint_id,
-        "ai_agent_core_graphql",
-        "executeAskModel",
-        "Mutation",
-        variables,
-        setting=setting,
-        connection_id=connection_id,
-    )["executeAskModel"]
-    return humps.decamelize(execute_ask_model)
-
-
-def get_tool_call_list(
-    logger: logging.Logger,
-    endpoint_id: str,
-    setting: Dict[str, Any] = None,
-    **variables: Dict[str, Any],
-) -> Dict[str, Any]:
-    """
-    Retrieves a list of tool calls.
-
-    Args:
-        logger: Logger instance for error reporting
-        endpoint_id: ID of the endpoint to query
-        setting: Optional settings dictionary
-        **variables: Variables to pass to the query
-
-    Returns:
-        Dict containing the decamelized tool call list
-    """
-    tool_call_list = execute_graphql_query(
-        logger,
-        endpoint_id,
-        "ai_agent_core_graphql",
-        "toolCallList",
-        "Query",
-        variables,
-        setting=setting,
-    )["toolCallList"]
-    return humps.decamelize(tool_call_list)
-
-
-# Handles tool call mutations
-def insert_update_tool_call(
-    logger: logging.Logger,
-    endpoint_id: str,
-    setting: Dict[str, Any] = None,
-    **variables: Dict[str, Any],
-) -> Dict[str, Any]:
-    """
-    Creates or updates a tool call.
-
-    Args:
-        logger: Logger instance for error reporting
-        endpoint_id: ID of the endpoint to execute mutation against
-        setting: Optional settings dictionary
-        **variables: Variables to pass to the mutation
-
-    Returns:
-        Dict containing the decamelized tool call data
-    """
-    tool_call = execute_graphql_query(
-        logger,
-        endpoint_id,
-        "ai_agent_core_graphql",
-        "insertUpdateToolCall",
-        "Mutation",
-        variables,
-        setting=setting,
-    )["insertUpdateToolCall"]["toolCall"]
-    return humps.decamelize(tool_call)
 
 
 # Retrieves and formats message history for a thread

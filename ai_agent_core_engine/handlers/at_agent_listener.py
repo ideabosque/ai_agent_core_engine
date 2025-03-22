@@ -9,11 +9,9 @@ from typing import Any, Dict
 
 from silvaengine_utility import Utility
 
-from .ai_agent_utility import (
-    execute_ask_model_handler,
-    get_tool_call_list,
-    insert_update_tool_call,
-)
+from ..models.tool_call import insert_update_tool_call, resolve_tool_call_list
+from .ai_agent import execute_ask_model
+from .ai_agent_utility import create_dummy_info
 from .config import Config
 
 
@@ -23,26 +21,28 @@ def async_execute_ask_model(logger: logging.Logger, **kwargs: Dict[str, Any]) ->
 
     Args:
         logger: Logger instance for tracking execution
-        kwargs: Dictionary containing execution parameters
+        kwargs: Dictionary containing:
+            - endpoint_id: Endpoint identifier
+            - async_task_uuid: Async task UUID (required)
+            - arguments: Execution arguments (required)
+            - connection_id: Connection identifier
+            - setting: Additional settings dict
     """
-    endpoint_id = kwargs.get("endpoint_id")
-    async_task_uuid = kwargs["async_task_uuid"]
-    arguments = kwargs["arguments"]
-    connection_id = kwargs.get("connection_id")
-    setting = kwargs.get("setting", {})
+    info = create_dummy_info()
+    info.context = {
+        "setting": kwargs.get("setting", {}),
+        "endpoint_id": kwargs.get("endpoint_id"),
+        "logger": logger,
+        "connectionId": kwargs.get("connection_id"),
+    }
 
-    execute_ask_model = execute_ask_model_handler(
-        logger,
-        endpoint_id,
-        setting=setting,
-        connection_id=connection_id,
+    execute_ask_model(
+        info,
         **{
-            "asyncTaskUuid": async_task_uuid,
-            "arguments": arguments,
+            "async_task_uuid": kwargs["async_task_uuid"],
+            "arguments": kwargs["arguments"],
         },
     )
-
-    logger.info(f"Execute Ask Model: {execute_ask_model}.")
 
 
 def async_insert_update_tool_call(
@@ -55,42 +55,47 @@ def async_insert_update_tool_call(
         logger: Logger instance for tracking execution
         kwargs: Dictionary containing tool call parameters
     """
-    endpoint_id = kwargs.get("endpoint_id")
-    setting = kwargs.get("setting", {})
-    tool_call_list = get_tool_call_list(
-        logger,
-        endpoint_id,
-        setting=setting,
-        **{
-            "threadUuid": kwargs.get("thread_uuid"),
-            "toolCallId": kwargs.get("tool_call_id"),
-        },
+    # Create info object with context
+    info = create_dummy_info()
+    info.context = {
+        "setting": kwargs.get("setting", {}),
+        "endpoint_id": kwargs.get("endpoint_id"),
+        "logger": logger,
+    }
+
+    # Get existing tool call if it exists
+    tool_call_list = resolve_tool_call_list(
+        info,
+        thread_uuid=kwargs.get("thread_uuid"),
+        tool_call_id=kwargs.get("tool_call_id"),
     )
 
-    tool_call_uuid = None
-    if tool_call_list["total"] > 0:
-        tool_call_uuid = tool_call_list["tool_call_list"][0]["tool_call_uuid"]
+    tool_call_uuid = (
+        tool_call_list.tool_call_list[0].tool_call_uuid
+        if tool_call_list.total > 0
+        else None
+    )
+
+    # Insert/update tool call with filtered parameters
+    tool_call_params = {
+        "thread_uuid": kwargs.get("thread_uuid"),
+        "tool_call_uuid": tool_call_uuid,
+        "run_uuid": kwargs.get("run_uuid"),
+        "tool_call_id": kwargs.get("tool_call_id"),
+        "tool_type": kwargs.get("tool_type"),
+        "name": kwargs.get("name"),
+        "arguments": kwargs.get("arguments"),
+        "content": kwargs.get("content"),
+        "status": kwargs.get("status"),
+        "notes": kwargs.get("notes"),
+        "updated_by": kwargs.get("updated_by"),
+    }
 
     tool_call = insert_update_tool_call(
-        logger,
-        endpoint_id,
-        setting=setting,
-        **{
-            "threadUuid": kwargs.get("thread_uuid"),
-            "toolCallUuid": tool_call_uuid,
-            "runUuid": kwargs.get("run_uuid"),
-            "toolCallId": kwargs.get("tool_call_id"),
-            "toolType": kwargs.get("tool_type"),
-            "name": kwargs.get("name"),
-            "arguments": kwargs.get("arguments"),
-            "content": kwargs.get("content"),
-            "status": kwargs.get("status"),
-            "notes": kwargs.get("notes"),
-            "updatedBy": kwargs.get("updated_by"),
-        },
+        info, **{k: v for k, v in tool_call_params.items() if v is not None}
     )
 
-    logger.info(f"Tool Call: {tool_call}.")
+    logger.info(f"Tool Call: {tool_call.__dict__}.")
 
 
 def send_data_to_websocket(logger: logging.Logger, **kwargs: Dict[str, Any]) -> None:
