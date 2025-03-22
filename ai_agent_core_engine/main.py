@@ -234,10 +234,10 @@ class AIAgentCoreEngine(SilvaEngineDynamoDBBase):
         ## Test the waters 🧪 before diving in!
         ##<--Testing Data-->##
         if params.get("endpoint_id") is None:
-            params["setting"] = self.setting
             params["endpoint_id"] = self.setting.get("endpoint_id")
         ##<--Testing Data-->##
 
+        params["setting"] = self.setting
         at_agent_listener.async_execute_ask_model(self.logger, **params)
         return
 
@@ -245,10 +245,10 @@ class AIAgentCoreEngine(SilvaEngineDynamoDBBase):
         ## Test the waters 🧪 before diving in!
         ##<--Testing Data-->##
         if params.get("endpoint_id") is None:
-            params["setting"] = self.setting
             params["endpoint_id"] = self.setting.get("endpoint_id")
         ##<--Testing Data-->##
 
+        params["setting"] = self.setting
         at_agent_listener.async_insert_update_tool_call(self.logger, **params)
         return
 
