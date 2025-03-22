@@ -4,6 +4,7 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
+import logging
 import traceback
 from typing import Any, Dict, List
 
@@ -18,10 +19,12 @@ from ..models.tool_call import resolve_tool_call_list
 from .config import Config
 
 
-def create_dummy_info():
+def create_listener_info(
+    logger: logging.Logger, field_name: str, **kwargs: Dict[str, Any]
+) -> ResolveInfo:
     # Minimal example: some parameters can be None if you're only testing
     info = ResolveInfo(
-        field_name="dummpy_field",
+        field_name=field_name,
         field_asts=[],  # or [some_field_node]
         return_type=None,  # e.g., GraphQLString
         parent_type=None,  # e.g., schema.get_type("Query")
@@ -30,7 +33,12 @@ def create_dummy_info():
         root_value=None,
         operation=None,
         variable_values={},
-        context=None,
+        context={
+            "setting": kwargs.get("setting", {}),
+            "endpoint_id": kwargs.get("endpoint_id"),
+            "logger": logger,
+            "connectionId": kwargs.get("connection_id"),
+        },
         path=None,
     )
     return info

@@ -11,7 +11,7 @@ from silvaengine_utility import Utility
 
 from ..models.tool_call import insert_update_tool_call, resolve_tool_call_list
 from .ai_agent import execute_ask_model
-from .ai_agent_utility import create_dummy_info
+from .ai_agent_utility import create_listener_info
 from .config import Config
 
 
@@ -28,13 +28,7 @@ def async_execute_ask_model(logger: logging.Logger, **kwargs: Dict[str, Any]) ->
             - connection_id: Connection identifier
             - setting: Additional settings dict
     """
-    info = create_dummy_info()
-    info.context = {
-        "setting": kwargs.get("setting", {}),
-        "endpoint_id": kwargs.get("endpoint_id"),
-        "logger": logger,
-        "connectionId": kwargs.get("connection_id"),
-    }
+    info = create_listener_info(logger, "ask_model", **kwargs)
 
     execute_ask_model(
         info,
@@ -56,12 +50,7 @@ def async_insert_update_tool_call(
         kwargs: Dictionary containing tool call parameters
     """
     # Create info object with context
-    info = create_dummy_info()
-    info.context = {
-        "setting": kwargs.get("setting", {}),
-        "endpoint_id": kwargs.get("endpoint_id"),
-        "logger": logger,
-    }
+    info = create_info(logger, "tool_call", **kwargs)
 
     # Get existing tool call if it exists
     tool_call_list = resolve_tool_call_list(
