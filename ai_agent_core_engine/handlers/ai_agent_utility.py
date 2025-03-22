@@ -67,6 +67,7 @@ def start_async_task(
         setting=info.context["setting"],
         test_mode=info.context["setting"].get("test_mode"),
         aws_lambda=Config.aws_lambda,
+        invocation_type="Event",
     )
 
     return async_task.async_task_uuid
