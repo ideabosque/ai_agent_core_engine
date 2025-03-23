@@ -52,7 +52,7 @@ def async_insert_update_tool_call(
         kwargs: Dictionary containing tool call parameters
     """
     # Create info object with context
-    info = create_listener_info(logger, "tool_call", setting, **kwargs)
+    info = create_listener_info(logger, "insert_update_tool_call", setting, **kwargs)
 
     # Get existing tool call if it exists
     tool_call_list = resolve_tool_call_list(
