@@ -72,7 +72,7 @@ def start_async_task(
         info,
         **{
             "function_name": function_name,
-            "arguments": arguments,
+            "arguments": {k: v for k, v in arguments.items() if k != "updated_by"},
             "updated_by": arguments["updated_by"],
         },
     )
