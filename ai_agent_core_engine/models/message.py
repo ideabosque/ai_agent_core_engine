@@ -119,6 +119,7 @@ def resolve_message_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
         args = [thread_uuid, None]
         inquiry_funct = MessageModel.query
         if run_uuid:
+            inquiry_funct = MessageModel.run_uuid_index.query
             args[1] = MessageModel.run_uuid == run_uuid
             count_funct = MessageModel.run_uuid_index.count
 

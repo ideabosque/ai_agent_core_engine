@@ -133,6 +133,7 @@ def resolve_tool_call_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
         args = [thread_uuid, None]
         inquiry_funct = ToolCallModel.query
         if run_uuid:
+            inquiry_funct = ToolCallModel.run_uuid_index.query
             args[1] = ToolCallModel.run_uuid == run_uuid
             count_funct = ToolCallModel.run_uuid_index.count
 
