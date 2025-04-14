@@ -61,9 +61,9 @@ class AgentModel(BaseModel):
     llm_provider = UnicodeAttribute()
     llm_name = UnicodeAttribute()
     instructions = UnicodeAttribute(null=True)
-    configuration = MapAttribute(default={})
-    function_configuration = MapAttribute(default={})
-    functions = MapAttribute(default={})
+    configuration = MapAttribute()
+    function_configuration = MapAttribute()
+    functions = MapAttribute()
     num_of_messages = NumberAttribute(default=10)
     tool_call_role = UnicodeAttribute(default="developer")
     status = UnicodeAttribute(default="active")
@@ -222,6 +222,9 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     agent_version_uuid = kwargs.get("agent_version_uuid")
     if kwargs.get("entity") is None:
         cols = {
+            "configuration": {},
+            "function_configuration": {},
+            "functions": {},
             "updated_by": kwargs["updated_by"],
             "created_at": pendulum.now("UTC"),
             "updated_at": pendulum.now("UTC"),
