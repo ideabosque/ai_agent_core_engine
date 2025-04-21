@@ -152,7 +152,6 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskT
 
         # Retrieve AI agent configuration
         agent = resolve_agent(info, **{"agent_uuid": arguments["agent_uuid"]})
-        llm_model = agent.configuration.get("model", "gpt-4o")
 
         # Build conversation history and add new user query
         input_messages = get_input_messages(
@@ -189,7 +188,7 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskT
                 "thread_uuid": arguments["thread_uuid"],
                 "run_uuid": arguments["run_uuid"],
                 "prompt_tokens": calculate_num_tokens(
-                    llm_model,
+                    agent,
                     "\n".join(
                         [msg["content"] for msg in input_messages if "content" in msg]
                     ),
@@ -268,7 +267,7 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskT
                 "run_uuid": arguments["run_uuid"],
                 "run_id": run_id,
                 "completion_tokens": calculate_num_tokens(
-                    llm_model, ai_agent_handler.final_output["content"]
+                    agent, ai_agent_handler.final_output["content"]
                 ),
                 "updated_by": arguments["updated_by"],
             },

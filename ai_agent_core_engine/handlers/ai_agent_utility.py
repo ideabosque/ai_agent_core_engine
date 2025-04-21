@@ -9,6 +9,7 @@ import traceback
 from typing import Any, Dict, List
 
 import tiktoken
+from google import genai
 from graphene import ResolveInfo
 
 from silvaengine_utility import Utility
@@ -23,7 +24,7 @@ def create_listener_info(
     logger: logging.Logger,
     field_name: str,
     setting: Dict[str, Any],
-    **kwargs: Dict[str, Any]
+    **kwargs: Dict[str, Any],
 ) -> ResolveInfo:
     # Minimal example: some parameters can be None if you're only testing
     info = ResolveInfo(
@@ -202,12 +203,12 @@ def get_input_messages(
         raise e
 
 
-def calculate_num_tokens(model: str, text: str) -> int:
+def calculate_num_tokens(agent: dict[str, Any], text: str) -> int:
     """
     Calculates the number of tokens for a given model.
 
     Args:
-        model: The name of the model to calculate tokens for (e.g. 'gpt-3.5-turbo')
+        agent: Dictionary containing LLM configuration including model name and API key
         text: The input text to tokenize
 
     Returns:
@@ -217,9 +218,20 @@ def calculate_num_tokens(model: str, text: str) -> int:
         Exception: If there is an error getting the encoding or calculating tokens
     """
     try:
-        encoding = tiktoken.encoding_for_model(model)
-        num_tokens = len(encoding.encode(text))
-        return num_tokens
+        if agent.llm["llm_name"] == "openai":
+            encoding = tiktoken.encoding_for_model(agent.configuration["model"])
+            num_tokens = len(encoding.encode(text))
+            return num_tokens
+        elif agent.llm["llm_name"] == "gemini":
+            client = genai.Client(api_key=agent.configuration["api_key"])
+
+            # Count tokens using the new client method.
+            num_tokens = client.models.count_tokens(
+                model=agent.configuration["model"], contents=text
+            ).total_tokens
+            return num_tokens
+        else:
+            raise Exception(f"Unsupported LLM: {agent.llm['llm_name']}")
     except Exception as e:
         # Log error and re-raise
         raise e
