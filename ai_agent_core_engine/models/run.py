@@ -82,6 +82,10 @@ def get_run_type(info: ResolveInfo, run: RunModel) -> RunType:
 
 
 def resolve_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> RunType:
+    count = get_run_count(kwargs["thread_uuid"], kwargs["run_uuid"])
+    if count == 0:
+        return None
+
     return get_run_type(info, get_run(kwargs["thread_uuid"], kwargs["run_uuid"]))
 
 

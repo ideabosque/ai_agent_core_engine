@@ -107,6 +107,10 @@ def get_tool_call_type(info: ResolveInfo, tool_call: ToolCallModel) -> ToolCallT
 
 
 def resolve_tool_call(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ToolCallType:
+    count = get_tool_call_count(kwargs["thread_uuid"], kwargs["tool_call_uuid"])
+    if count == 0:
+        return None
+
     return get_tool_call_type(
         info, get_tool_call(kwargs["thread_uuid"], kwargs["tool_call_uuid"])
     )

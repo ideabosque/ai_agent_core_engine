@@ -138,6 +138,10 @@ def resolve_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AgentType:
             info, _get_active_agent(info.context["endpoint_id"], kwargs["agent_uuid"])
         )
 
+    count = get_agent_count(info.context["endpoint_id"], kwargs["agent_version_uuid"])
+    if count == 0:
+        return None
+
     return get_agent_type(
         info,
         get_agent(info.context["endpoint_id"], kwargs["agent_version_uuid"]),

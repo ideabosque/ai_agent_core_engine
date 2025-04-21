@@ -121,6 +121,10 @@ def get_fine_tuning_message_type(
 def resolve_fine_tuning_message(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> FineTuningMessageType:
+    count = get_fine_tuning_message_count(kwargs["agent_uuid"], kwargs["message_uuid"])
+    if count == 0:
+        return None
+
     return get_fine_tuning_message_type(
         info,
         get_fine_tuning_message(kwargs["agent_uuid"], kwargs["message_uuid"]),

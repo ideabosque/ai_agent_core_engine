@@ -66,6 +66,10 @@ def get_llm_type(info: ResolveInfo, llm: LlmModel) -> LlmType:
 
 
 def resolve_llm(info: ResolveInfo, **kwargs: Dict[str, Any]) -> LlmType:
+    count = get_llm_count(kwargs["llm_provider"], kwargs["llm_name"])
+    if count == 0:
+        return None
+
     return get_llm_type(info, get_llm(kwargs["llm_provider"], kwargs["llm_name"]))
 
 

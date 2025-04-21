@@ -95,6 +95,10 @@ def get_message_type(info: ResolveInfo, message: MessageModel) -> MessageType:
 
 
 def resolve_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> MessageType:
+    count = get_message_count(kwargs["thread_uuid"], kwargs["message_uuid"])
+    if count == 0:
+        return None
+
     return get_message_type(
         info, get_message(kwargs["thread_uuid"], kwargs["message_uuid"])
     )
