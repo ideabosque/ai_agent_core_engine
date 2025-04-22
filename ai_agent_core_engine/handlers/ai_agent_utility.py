@@ -229,7 +229,7 @@ def calculate_num_tokens(agent: dict[str, Any], text: str) -> int:
                 model=agent.configuration["model"], contents=text
             ).total_tokens
             return num_tokens
-        elif agent.llm["llm_name"] == "anthropic":
+        elif agent.llm["llm_name"] == "claude":
             client = anthropic.Anthropic(api_key=agent.configuration["api_key"])
             num_tokens = client.messages.count_tokens(
                 model=agent.configuration["model"],
