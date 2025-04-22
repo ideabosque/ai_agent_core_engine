@@ -8,6 +8,7 @@ import logging
 import traceback
 from typing import Any, Dict, List
 
+import anthropic
 import tiktoken
 from google import genai
 from graphene import ResolveInfo
@@ -224,11 +225,16 @@ def calculate_num_tokens(agent: dict[str, Any], text: str) -> int:
             return num_tokens
         elif agent.llm["llm_name"] == "gemini":
             client = genai.Client(api_key=agent.configuration["api_key"])
-
-            # Count tokens using the new client method.
             num_tokens = client.models.count_tokens(
                 model=agent.configuration["model"], contents=text
             ).total_tokens
+            return num_tokens
+        elif agent.llm["llm_name"] == "anthropic":
+            client = anthropic.Anthropic(api_key=agent.configuration["api_key"])
+            num_tokens = client.messages.count_tokens(
+                model=agent.configuration["model"],
+                messages=[{"role": "user", "content": text}],
+            ).input_tokens
             return num_tokens
         else:
             raise Exception(f"Unsupported LLM: {agent.llm['llm_name']}")
