@@ -108,7 +108,7 @@ class Query(ObjectType):
         llm_provider=String(required=False),
         llm_name=String(required=False),
         model=String(required=False),
-        statues=List(String, required=False),
+        statuses=List(String, required=False),
     )
 
     thread = Field(
