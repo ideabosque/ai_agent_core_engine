@@ -168,6 +168,7 @@ def get_input_messages(
                         "content": Utility.json_dumps(
                             {
                                 "tool": {
+                                    "tool_call_id": tool_call.tool_call_id,
                                     "tool_type": tool_call.tool_type,
                                     "name": tool_call.name,
                                     "arguments": tool_call.arguments,
