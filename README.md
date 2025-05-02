@@ -6,8 +6,11 @@ Run and scale intelligent agents across **multiple LLMs** — without managing s
 Built on the **SilvaEngine serverless framework**, our platform delivers **rolling context memory**, modular **function calling**, and real-time **conversation monitoring** — all in one unified, AI-native control plane.
 
 **⚡ Stateless by design** – infinite scale, instant recovery
+
 **🧠 Model-agnostic** – OpenAI, Anthropic, Gemini, and more
+
 **🔌 Modular architecture** – plug-and-play function routing
+
 **📈 Fully observable** – every conversation, recorded and traceable
 
 ## **Introduction**
