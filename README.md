@@ -37,5 +37,7 @@ Designed to meet the needs of mission-critical applications, our platform embrac
 ### Key Features
 
 ### Architecture Diagram
+![AI Agent Core Engine Architecture Diagram](/images/ai_agent_core_engine_architecture.jpg)
 
 ### Sequence Diagram
+![AI Agent Core Engine Sequence Diagram](/images/ai_agent_core_engine_sequence_diagram.jpg)
