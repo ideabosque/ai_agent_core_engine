@@ -156,5 +156,75 @@ Each handler formats, sends, and processes responses independently, enabling **m
 
 ---
 
-### Sequence Diagram
+### 🔄 **AI Agent Orchestration: Sequence Flow Description**
 ![AI Agent Core Engine Sequence Diagram](/images/ai_agent_core_engine_sequence_diagram.jpg)
+
+#### 🧍‍♂️ **1. User Initiates Query**
+
+* The **user** sends a query via WebSocket.
+* The message is received by the system and triggers the **Resolve Ask Model** step.
+
+---
+
+#### 🔁 **2. Model Resolution & Execution Initiation**
+
+| Step | Component                   | Description                                                                     |
+| ---- | --------------------------- | ------------------------------------------------------------------------------- |
+| ✅    | **Resolve Ask Model**       | Identifies which AI model (e.g., OpenAI, Gemini, Claude) to use.                |
+| 🔄   | **Async Execute Ask Model** | Asynchronously invokes execution logic.                                         |
+| 🚀   | **Execute Ask Model**       | Begins actual agent processing and prepares the message for the selected model. |
+
+---
+
+#### 🧠 **3. Language Model Interaction**
+
+| Step | Component               | Description                                                                                         |
+| ---- | ----------------------- | --------------------------------------------------------------------------------------------------- |
+| 📩   | **OpenAIEventHandler**  | Handles communication with the OpenAI API.                                                          |
+| 🤖   | **OpenAI Response API** | Processes the query and returns a structured response, potentially with function call instructions. |
+
+---
+
+#### 🔧 **4. Function Calling Workflow (if applicable)**
+
+* If the response includes a **tool/function call**, it’s passed to the **Function Calling Module**.
+* This module:
+
+  * Executes the requested tool/module logic.
+  * Triggers **multiple async updates** to the system about the tool's status:
+
+    * 🔸 *Initial*
+    * 🔸 *In Progress*
+    * 🔸 *Completed*
+
+---
+
+#### 🔄 **5. Tool Call Handling and Agent Coordination**
+
+| Component                         | Description                                                                                        |
+| --------------------------------- | -------------------------------------------------------------------------------------------------- |
+| **AI Agent Handler**              | Orchestrates the tool call update flow and prepares the final response.                            |
+| **AWS SQS**                       | Used for decoupled communication and state update queuing.                                         |
+| **Async Insert Update Tool Call** | Lambda functions or microservices that handle stepwise updates (initial → in progress → complete). |
+
+---
+
+#### 📤 **6. Final Delivery via WebSocket**
+
+* Once the task is completed and results are ready:
+
+  * The system asynchronously triggers **Send Data to WebSocket**.
+  * The **user receives the final response** through the established WSS connection.
+
+---
+
+### 🧩 **Key Flow Highlights**
+
+| Area                        | Purpose                                                                        |
+| --------------------------- | ------------------------------------------------------------------------------ |
+| ✅ Model Decoupling          | The LLM model execution is abstracted away from the user-facing logic.         |
+| 🔄 Asynchronous Operations  | All tool updates and executions are handled via async invokes for scalability. |
+| 🔌 Modular Function Calling | Allows LLM responses to dynamically trigger domain-specific operations.        |
+| 📡 Real-time Delivery       | Results are delivered back to the user over the original WebSocket channel.    |
+
+---
