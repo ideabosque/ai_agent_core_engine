@@ -135,17 +135,6 @@ Each handler formats, sends, and processes responses independently, enabling **m
 
 ---
 
-#### 📦 **Key Component Updates**
-
-| Component                        | Description                                                            |
-| -------------------------------- | ---------------------------------------------------------------------- |
-| **Gemini Agent Handler**         | Handles interaction with **Google Gemini API** for text generation.    |
-| **Anthropic Agent Handler**      | Sends queries to **Anthropic Claude API**, receives and parses output. |
-| **LLM Agent Handler Hub**        | Routes tasks to the correct model-specific handler.                    |
-| **SilvaEngine MicroCore OpenAI** | Lightweight Lambda core specifically for OpenAI-based tasks.           |
-
----
-
 #### 🌐 **New Capabilities Highlighted**
 
 | Feature                    | Description                                                                         |
