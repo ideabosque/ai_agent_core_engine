@@ -80,8 +80,78 @@ Designed to meet the needs of mission-critical applications, our platform embrac
 | **Future-Proof Compatibility** | Adapts to evolving AI models and enterprise infrastructure needs.          |
 
 
-### Architecture Diagram
+### 🧠 **Stateless Multi-LLM AI Agent Core Engine — Architecture Overview**
 ![AI Agent Core Engine Architecture Diagram](/images/ai_agent_core_engine_architecture.jpg)
+
+This diagram illustrates a **serverless, stateless, and modular AI orchestration architecture** built on AWS, powered by **SilvaEngine** and capable of handling **real-time WebSocket-based user interactions** with **multi-LLM agent routing and execution**.
+
+---
+
+#### 🔄 **End-to-End Flow Description**
+
+##### 1. **User Interaction (WebSocket Connection)**
+
+* A **user** sends a query via **WebSocket (WSS)**.
+* The message is routed through **Amazon API Gateway**, which acts as the real-time entry point for WebSocket messages.
+
+##### 2. **Request Routing and Task Queueing**
+
+* The **API Gateway** forwards the incoming WebSocket message to an **AWS Lambda function** (`SilvaEngine Area Resource`).
+* This Lambda function handles **initial routing and validation**, then pushes the task to **Amazon SQS** (`SilvaEngineTask Queue`) for asynchronous processing.
+
+##### 3. **Agent Invocation via Lambda (Async Pattern)**
+
+* Messages in the task queue are picked up by another **Lambda function** (`SilvaEngine Agent Task`), which:
+
+  * Performs **async tool calling**, **agent model invocation**, or **task execution**.
+  * Communicates with the **AI Agent Core Engine** to coordinate model interactions.
+
+##### 4. **Core Agent Logic (Stateless AI Orchestration)**
+
+* The **AI Agent Core Engine**:
+
+  * Acts as the orchestrator of the stateless AI agent workflow.
+  * Retrieves context from **Amazon DynamoDB** (used for rolling memory).
+  * Sends the user's request to the appropriate **(LLM) Agent Handler**, based on model compatibility or routing logic.
+
+##### 5. **Model-Specific Handler (e.g., OpenAI)**
+
+* The **OpenAI Agent Handler**:
+
+  * Manages the request formatting and token control.
+  * Sends the query to the **OpenAI Response API**.
+  * Upon receiving the response, returns it to the **AI Agent Core Engine**.
+
+##### 6. **Final Response Handling**
+
+* The **AI Agent Handler** (green box) performs:
+
+  * **Final formatting**, **tool call updates**, or **agent behavior post-processing**.
+  * Initiates **async WebSocket responses** to send data back to the user via API Gateway.
+
+---
+
+#### 📦 **Key Components Explained**
+
+| Component                       | Description                                                                |
+| ------------------------------- | -------------------------------------------------------------------------- |
+| **Amazon API Gateway**          | Manages WebSocket communication with users in real time.                   |
+| **SilvaEngine Area Resource**   | Lambda handler for routing and preprocessing incoming WebSocket messages.  |
+| **SilvaEngineTask Queue (SQS)** | Queues tasks to decouple WebSocket events from processing logic.           |
+| **SilvaEngine Agent Task**      | Lambda that executes async tasks like tool calls or agent actions.         |
+| **AI Agent Core Engine**        | Stateless core orchestrator that controls context, logic, and LLM routing. |
+| **Amazon DynamoDB**             | Stores **rolling memory context** and metadata for agents.                 |
+| **OpenAI Agent Handler**        | Dedicated LLM wrapper to send/receive data from OpenAI API.                |
+| **AI Agent Handler**            | Handles the last mile — updates context, logs, or sends final responses.   |
+
+---
+
+#### 🔁 **Asynchronous & Modular Execution**
+
+* All Lambda functions are **asynchronously invoked**, enabling **scalable execution without session locking**.
+* Tool calling, result updates, and responses are **decoupled and modular**, supporting dynamic task execution, retries, and model switching.
+
+---
 
 ### Sequence Diagram
 ![AI Agent Core Engine Sequence Diagram](/images/ai_agent_core_engine_sequence_diagram.jpg)
