@@ -36,6 +36,50 @@ Designed to meet the needs of mission-critical applications, our platform embrac
 
 ### Key Features
 
+#### 🔧 **Core Features**
+
+| **Feature**                            | **Description**                                                              |
+| -------------------------------------- | ---------------------------------------------------------------------------- |
+| **Stateless Architecture**             | Eliminates session handling for infinite scalability and instant recovery.   |
+| **Rolling Context Memory**             | Maintains conversational context without persisting full session state.      |
+| **Multi-LLM Orchestration**            | Real-time switching and integration across OpenAI, Anthropic, Gemini, etc.   |
+| **Modular Function Calling**           | Plug-and-play routing of tool/function calls across different models.        |
+| **Serverless Framework (SilvaEngine)** | Built on a scalable, lightweight, cloud-native infrastructure.               |
+| **Model-Agnostic Compatibility**       | Supports diverse LLM providers with seamless fallback or parallel execution. |
+
+---
+
+#### 🧠 **Intelligence & Functionality**
+
+| **Feature**                              | **Description**                                                                |
+| ---------------------------------------- | ------------------------------------------------------------------------------ |
+| **Thread-Aware Conversation Monitoring** | Tracks and logs conversations with full visibility and lineage.                |
+| **Real-Time Decision Traceability**      | Each agent interaction is versioned and auditable for debugging or compliance. |
+| **Autonomous Agent Enablement**          | Designed to support agent autonomy with dynamic decision-making.               |
+| **Domain-Specific Tool Invocation**      | Agents can call tools dynamically based on domain and user context.            |
+
+---
+
+#### 📊 **Observability & Control**
+
+| **Feature**                      | **Description**                                                     |
+| -------------------------------- | ------------------------------------------------------------------- |
+| **Full Interaction Logging**     | Stores every user-agent exchange for analytics and optimization.    |
+| **Versioned Execution Contexts** | Enables replay and regression testing of agent decisions.           |
+| **Live Conversation Monitoring** | Allows real-time viewing and intervention of ongoing agent threads. |
+
+---
+
+#### 🔐 **Enterprise-Grade Infrastructure**
+
+| **Feature**                    | **Description**                                                            |
+| ------------------------------ | -------------------------------------------------------------------------- |
+| **Security-First Design**      | Includes audit trails, identity boundaries, and secure execution policies. |
+| **Auto-Scaling**               | Grows with usage demand without manual provisioning.                       |
+| **Modular Integration Layer**  | Easily connects to internal tools, APIs, or databases.                     |
+| **Future-Proof Compatibility** | Adapts to evolving AI models and enterprise infrastructure needs.          |
+
+
 ### Architecture Diagram
 ![AI Agent Core Engine Architecture Diagram](/images/ai_agent_core_engine_architecture.jpg)
 
