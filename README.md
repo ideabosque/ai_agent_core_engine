@@ -83,73 +83,76 @@ Designed to meet the needs of mission-critical applications, our platform embrac
 ### 🧠 **Stateless Multi-LLM AI Agent Core Engine — Architecture Overview**
 ![AI Agent Core Engine Architecture Diagram](/images/ai_agent_core_engine_architecture.jpg)
 
-This diagram illustrates a **serverless, stateless, and modular AI orchestration architecture** built on AWS, powered by **SilvaEngine** and capable of handling **real-time WebSocket-based user interactions** with **multi-LLM agent routing and execution**.
+This diagram showcases a **serverless, multi-LLM AI agent orchestration system** powered by **SilvaEngine**. It supports **real-time interactions over WebSocket**, integrates **multiple LLMs (OpenAI, Gemini, Claude)**, and executes tasks using **asynchronous Lambda functions and modular handlers**.
 
 ---
 
-#### 🔄 **End-to-End Flow Description**
+#### 🔄 **End-to-End Flow Description (Updated)**
 
-##### 1. **User Interaction (WebSocket Connection)**
+##### 1. **User Interaction (WebSocket Query)**
 
-* A **user** sends a query via **WebSocket (WSS)**.
-* The message is routed through **Amazon API Gateway**, which acts as the real-time entry point for WebSocket messages.
+* The **User** initiates a query via **WebSocket (WSS)**.
+* The query is routed through **Amazon API Gateway**, acting as a real-time interface for bidirectional communication.
 
-##### 2. **Request Routing and Task Queueing**
+##### 2. **Initial Message Routing**
 
-* The **API Gateway** forwards the incoming WebSocket message to an **AWS Lambda function** (`SilvaEngine Area Resource`).
-* This Lambda function handles **initial routing and validation**, then pushes the task to **Amazon SQS** (`SilvaEngineTask Queue`) for asynchronous processing.
+* API Gateway forwards the request to an **AWS Lambda** (`SilvaEngine Area Resource`) for validation, routing logic, and enqueueing.
+* The message is pushed to **Amazon SQS** (`SilvaEngineTask Queue`) for asynchronous, decoupled task execution.
 
-##### 3. **Agent Invocation via Lambda (Async Pattern)**
+##### 3. **Agent Task Execution (Async)**
 
-* Messages in the task queue are picked up by another **Lambda function** (`SilvaEngine Agent Task`), which:
+* **SilvaEngine Agent Task**, another Lambda function, dequeues the message and invokes:
 
-  * Performs **async tool calling**, **agent model invocation**, or **task execution**.
-  * Communicates with the **AI Agent Core Engine** to coordinate model interactions.
+  * Tool calling logic.
+  * AI agent orchestration.
+  * External function integrations.
 
-##### 4. **Core Agent Logic (Stateless AI Orchestration)**
+##### 4. **AI Agent Core Orchestration**
 
-* The **AI Agent Core Engine**:
+* The **AI Agent Core Engine** acts as the **stateless orchestrator**. Responsibilities include:
 
-  * Acts as the orchestrator of the stateless AI agent workflow.
-  * Retrieves context from **Amazon DynamoDB** (used for rolling memory).
-  * Sends the user's request to the appropriate **(LLM) Agent Handler**, based on model compatibility or routing logic.
+  * Managing **conversation context** using **Amazon DynamoDB**.
+  * Delegating the query to the appropriate **LLM Agent Handler** based on routing rules or model availability.
 
-##### 5. **Model-Specific Handler (e.g., OpenAI)**
+##### 5. **Multi-LLM Routing via Agent Handlers**
 
-* The **OpenAI Agent Handler**:
+* The platform supports multiple language models via **dedicated handlers**:
 
-  * Manages the request formatting and token control.
-  * Sends the query to the **OpenAI Response API**.
-  * Upon receiving the response, returns it to the **AI Agent Core Engine**.
+  * **OpenAI Agent Handler** → routes to **OpenAI Response API**
+  * **Gemini Agent Handler** → routes to **Google Gemini API**
+  * **Anthropic Agent Handler** → routes to **Anthropic Claude API**
 
-##### 6. **Final Response Handling**
+Each handler formats, sends, and processes responses independently, enabling **model-agnostic orchestration**.
 
-* The **AI Agent Handler** (green box) performs:
+##### 6. **Final AI Response Handling**
 
-  * **Final formatting**, **tool call updates**, or **agent behavior post-processing**.
-  * Initiates **async WebSocket responses** to send data back to the user via API Gateway.
+* The **AI Agent Handler** (green box) handles:
 
----
-
-#### 📦 **Key Components Explained**
-
-| Component                       | Description                                                                |
-| ------------------------------- | -------------------------------------------------------------------------- |
-| **Amazon API Gateway**          | Manages WebSocket communication with users in real time.                   |
-| **SilvaEngine Area Resource**   | Lambda handler for routing and preprocessing incoming WebSocket messages.  |
-| **SilvaEngineTask Queue (SQS)** | Queues tasks to decouple WebSocket events from processing logic.           |
-| **SilvaEngine Agent Task**      | Lambda that executes async tasks like tool calls or agent actions.         |
-| **AI Agent Core Engine**        | Stateless core orchestrator that controls context, logic, and LLM routing. |
-| **Amazon DynamoDB**             | Stores **rolling memory context** and metadata for agents.                 |
-| **OpenAI Agent Handler**        | Dedicated LLM wrapper to send/receive data from OpenAI API.                |
-| **AI Agent Handler**            | Handles the last mile — updates context, logs, or sends final responses.   |
+  * Response post-processing.
+  * Tool call updates.
+  * State updates and results formatting.
+  * Sends **WebSocket replies** to the user via the original API Gateway connection.
 
 ---
 
-#### 🔁 **Asynchronous & Modular Execution**
+#### 📦 **Key Component Updates**
 
-* All Lambda functions are **asynchronously invoked**, enabling **scalable execution without session locking**.
-* Tool calling, result updates, and responses are **decoupled and modular**, supporting dynamic task execution, retries, and model switching.
+| Component                        | Description                                                            |
+| -------------------------------- | ---------------------------------------------------------------------- |
+| **Gemini Agent Handler**         | Handles interaction with **Google Gemini API** for text generation.    |
+| **Anthropic Agent Handler**      | Sends queries to **Anthropic Claude API**, receives and parses output. |
+| **LLM Agent Handler Hub**        | Routes tasks to the correct model-specific handler.                    |
+| **SilvaEngine MicroCore OpenAI** | Lightweight Lambda core specifically for OpenAI-based tasks.           |
+
+---
+
+#### 🌐 **New Capabilities Highlighted**
+
+| Feature                    | Description                                                                         |
+| -------------------------- | ----------------------------------------------------------------------------------- |
+| **True Multi-LLM Support** | Unified engine dynamically selects and communicates with OpenAI, Gemini, or Claude. |
+| **Modular Handler Layer**  | Handlers for each model can be independently managed, scaled, or extended.          |
+| **Extensible Backend**     | Easily add future models or vendors by plugging in new handler modules.             |
 
 ---
 
