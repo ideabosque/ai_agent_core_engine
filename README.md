@@ -23,7 +23,7 @@ Welcome to the future of AI agent infrastructure — a revolutionary platform th
 Say goodbye to complex session management. Our platform enables **rolling context memory**, ensuring every conversation retains critical relevance — without the weight of persistent storage. This lets you scale infinitely, recover instantly, and run lightweight AI agents that remain deeply aware and responsive.
 
 🧠 **Multi-Model Intelligence. Modular Functionality.**
-Orchestrate and switch between top-tier LLMs — OpenAI, Anthropic, Gemini, Cohere, and more — in real time. Our modular function-calling engine enables **plug-and-play capabilities**, allowing agents to invoke domain-specific tools and workflows, no matter which model powers the response.
+Orchestrate and switch between top-tier LLMs — OpenAI, Anthropic, Gemini, and more — in real time. Our modular function-calling engine enables **plug-and-play capabilities**, allowing agents to invoke domain-specific tools and workflows, no matter which model powers the response.
 
 🔍 **Thread-Aware Monitoring & Observability**
 Every conversation is **recorded, versioned, and monitored**, giving your teams full visibility into interaction history, decision logic, and user intent. Gain insights, audit compliance, and optimize performance with intelligent observability built into the core.
@@ -298,9 +298,9 @@ This ER diagram structures the system into the following core **logical domains*
 * Key: `function_name`
 * Includes: `function` object with `module_name`, `class_name`, and `configuration`.
 
-##### **`configuration (OpenAI)`**
+##### **`configuration (OpenAI) as an example`**
 
-* A nested structure defining configuration options specific to OpenAI integration.
+* A nested structure defining configuration options specific to OpenAI integration as an example.
 * Includes: `openai_api_key`, `tools`, `max_output_tokens`, `temperature`, etc.
 
 ---
