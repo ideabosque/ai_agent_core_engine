@@ -217,3 +217,110 @@ Each handler formats, sends, and processes responses independently, enabling **m
 | 📡 Real-time Delivery       | Results are delivered back to the user over the original WebSocket channel.    |
 
 ---
+
+### 🧩 **ER Diagram Overview: Modular AI Agent Orchestration System**
+![AI Agent Core Engine ER Diagram](/images/ai_agent_core_engine_er_diagram.jpg)
+
+This ER diagram structures the system into the following core **logical domains**:
+
+---
+
+#### 🔵 **1. Language Models & Agent Definitions**
+
+##### **`llms`**
+
+* Stores metadata about each supported language model (OpenAI, Anthropic, Gemini, etc.).
+* Keys: `llm_provider`, `llm_name`
+* Includes: `module_name`, `class_name`, `updated_by`, `created_at`
+
+##### **`agents`**
+
+* Defines each AI agent version and its configuration.
+* Keys: `endpoint_id`, `agent_version_uuid`, `agent_uuid`
+* Maps to: `llm_provider`, `llm_name`
+* Includes function mappings, tool call behavior, and message limits.
+
+---
+
+#### 🧠 **2. Thread & Message Management**
+
+##### **`threads`**
+
+* Represents a full conversation session (thread) for a user-agent pair.
+* Keys: `endpoint_id`, `thread_uuid`
+* Associates with: `agent_uuid`, `user_id`
+
+##### **`messages`**
+
+* Stores each individual message in a thread.
+* Keys: `thread_uuid`, `message_uuid`, `run_uuid`
+* Includes: `role`, `message`, `created_at`, etc.
+
+##### **`runs`**
+
+* Represents a single inference call in a conversation (mapped to a model request).
+* Keys: `thread_uuid`, `run_uuid`
+* Tracks: token usage, duration, endpoint\_id, etc.
+
+---
+
+#### ⚙️ **3. Tool Calling & Async Execution**
+
+##### **`tool_calls`**
+
+* Tracks all function/tool calls invoked by the agent within a thread and run.
+* Keys: `thread_uuid`, `tool_call_uuid`, `run_uuid`
+* Attributes: `tool_type`, `arguments`, `content`, `status`, `notes`, `time_spent`
+
+##### **`async_tasks`**
+
+* Logs background async operations such as tool executions or external API calls.
+* Keys: `function_name`, `async_task_uuid`
+* Includes: `endpoint_id`, `arguments`, `result`, `status`, `notes`, `time_spent`
+
+---
+
+#### 🧪 **4. Fine-Tuning Data Management**
+
+##### **`fine_tuning_messages`**
+
+* Stores structured messages and tool calls for supervised fine-tuning.
+* Keys: `agent_uuid`, `message_uuid`, `thread_uuid`, `timestamp`
+* Attributes: `role`, `tool_calls`, `weight`, `trained`
+
+---
+
+#### 🔄 **5. Modular Function Configuration**
+
+##### **`functions`**
+
+* Registry of callable functions used in tool calling.
+* Key: `function_name`
+* Includes: `function` object with `module_name`, `class_name`, and `configuration`.
+
+##### **`configuration (OpenAI)`**
+
+* A nested structure defining configuration options specific to OpenAI integration.
+* Includes: `openai_api_key`, `tools`, `max_output_tokens`, `temperature`, etc.
+
+---
+
+### 🔗 **Entity Relationships Summary**
+
+| Relationship                                | Description                                                   |
+| ------------------------------------------- | ------------------------------------------------------------- |
+| `agents ↔ llms`                             | Each agent maps to a specific LLM definition.                 |
+| `threads ↔ agents`                          | A thread is linked to the agent version and endpoint.         |
+| `messages ↔ threads`                        | Messages are grouped by thread and run.                       |
+| `runs ↔ threads`                            | Each model inference (run) occurs in a thread context.        |
+| `tool_calls ↔ runs/messages`                | Tool calls are tied to a specific run and message.            |
+| `async_tasks ↔ tool_calls`                  | Background tasks are logged independently and asynchronously. |
+| `fine_tuning_messages ↔ threads/tool_calls` | Enables training data extraction per thread.                  |
+
+---
+
+## **Deployment and Setup**
+
+## **Agent Define and Configuration**
+
+## **Testing and Prototype**
