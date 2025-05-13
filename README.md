@@ -371,6 +371,8 @@ Each subclass provides a concrete implementation of `invoke_model()` for the des
   * Supports token tracking, function calling (`tool_calls`), and streaming.
   * Invokes OpenAI's Chat API using system/user messages.
 
+Follow the detailed instructions for configration provided in the [OpenAI Agent Handler](https://github.com/ideabosque/openai_agent_handler)
+
 ---
 
 #### 🌐 **`GeminiEventHandler`**
@@ -380,6 +382,8 @@ Each subclass provides a concrete implementation of `invoke_model()` for the des
 * **Method: `invoke_model(...)`**
 
   * Executes Gemini chat model with `prompt`, `tools`, and event streaming support.
+
+Follow the detailed instructions for configration provided in the [Gemini Agent Handler](https://github.com/ideabosque/gemini_agent_handler)
 
 ---
 
@@ -392,6 +396,8 @@ Each subclass provides a concrete implementation of `invoke_model()` for the des
   * Interacts with Claude via streaming or synchronous completions.
   * Handles threading and function return parsing.
 
+Follow the detailed instructions for configration provided in the [Anthropic Agent Handler](https://github.com/ideabosque/anthropic_agent_handler)
+
 ---
 
 #### 🧪 **`OllamaEventHandler`**
@@ -402,6 +408,8 @@ Each subclass provides a concrete implementation of `invoke_model()` for the des
 
   * Integrates with locally hosted models via Ollama (e.g., LLaMA, Mistral).
   * Tool call handling supported through `tool_call`.
+
+Follow the detailed instructions for configration provided in the [Ollama Agent Handler](https://github.com/ideabosque/ollama_agent_handler)
 
 ---
 
