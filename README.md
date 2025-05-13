@@ -319,7 +319,13 @@ This ER diagram structures the system into the following core **logical domains*
 
 ---
 
+Certainly! Here's a rephrased and enhanced version:
+
+---
+
 ## **Deployment and Setup**
+
+To successfully deploy and configure the AI Agent, please follow the detailed instructions provided in the [AI Agent Deployment Guide](https://github.com/ideabosque/ai_agent_deployment). This resource includes step-by-step guidance to ensure a smooth and efficient setup process.
 
 ## **Agent Define and Configuration**
 
