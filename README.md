@@ -336,7 +336,7 @@ This section defines the architecture for how agents are implemented, extended, 
 
 ### 🧩 **1. Base Class: `AIAgentEventHandler`**
 
-The `AIAgentEventHandler` serves as the **abstract base class** for all model-specific agent handlers. It defines the common interface and shared utilities required to run an agent against a target LLM.
+The [`AIAgentEventHandler`](https://github.com/ideabosque/ai_agent_handler) serves as the **abstract base class** for all model-specific agent handlers. It defines the common interface and shared utilities required to run an agent against a target LLM.
 
 #### **Core Attributes**
 
