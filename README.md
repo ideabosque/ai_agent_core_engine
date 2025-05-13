@@ -327,6 +327,92 @@ Certainly! Here's a rephrased and enhanced version:
 
 To successfully deploy and configure the AI Agent, please follow the detailed instructions provided in the [AI Agent Deployment Guide](https://github.com/ideabosque/ai_agent_deployment). This resource includes step-by-step guidance to ensure a smooth and efficient setup process.
 
-## **Agent Define and Configuration**
+## 🤖 **Agent Definition & Configuration (Event Handler Layer)**
+![AI Agent Event Handler Class Diagram](/images/ai_agent_event_handler_class_diagram.jpg)
+
+This section defines the architecture for how agents are implemented, extended, and executed using a modular, class-based event handling system. It enables **runtime polymorphism** across different language model providers such as OpenAI, Gemini, Anthropic, and Ollama.
+
+---
+
+### 🧩 **1. Base Class: `AIAgentEventHandler`**
+
+The `AIAgentEventHandler` serves as the **abstract base class** for all model-specific agent handlers. It defines the common interface and shared utilities required to run an agent against a target LLM.
+
+#### **Core Attributes**
+
+* `endpoint_id`: Identifier for the active agent.
+* `agent_name`, `agent_description`: Metadata for logging and auditing.
+* `token_memory`: Runtime memory or summarization store.
+* `settings_dict`: Loaded model configuration.
+* `accumulated_json`: Structured context/data accumulated across turns.
+* `view_as_bots`: Role-based visibility config.
+
+#### **Key Methods**
+
+* `invoke_async_func(...)`: Dynamically invokes a registered Python function.
+* `send_data_to_websocket(...)`: Streams output back to the user in real time.
+* `index_json(...)`, `accumulate_partial_json(...)`: Handlers for structured data processing.
+* `done(...)`: Signals the end of the streaming or interaction loop.
+
+---
+
+### 🧠 **2. Model-Specific Agent Handlers**
+
+Each subclass provides a concrete implementation of `invoke_model()` for the designated provider.
+
+---
+
+#### ✅ **`OpenAIEventHandler`**
+
+* **Client:** `openai.OpenAI`
+* **Attributes:** `model_settings`
+* **Method: `invoke_model(...)`**
+
+  * Supports token tracking, function calling (`tool_calls`), and streaming.
+  * Invokes OpenAI's Chat API using system/user messages.
+
+---
+
+#### 🌐 **`GeminiEventHandler`**
+
+* **Client:** `genai.Client`
+* **Attributes:** `model_settings`, `assistant_messages`
+* **Method: `invoke_model(...)`**
+
+  * Executes Gemini chat model with `prompt`, `tools`, and event streaming support.
+
+---
+
+#### 🧬 **`AnthropicEventHandler`**
+
+* **Client:** `anthropic.Anthropic`
+* **Attributes:** `model_settings`, `assistant_messages`
+* **Method: `invoke_model(...)`**
+
+  * Interacts with Claude via streaming or synchronous completions.
+  * Handles threading and function return parsing.
+
+---
+
+#### 🧪 **`OllamaEventHandler`**
+
+* **Client:** Embedded/local runtime (no external API)
+* **Attributes:** `system_message`, `model_settings`, `tools`
+* **Method: `invoke_model(...)`**
+
+  * Integrates with locally hosted models via Ollama (e.g., LLaMA, Mistral).
+  * Tool call handling supported through `tool_call`.
+
+---
+
+## 🔄 **Key Design Benefits**
+
+| Feature                    | Description                                             |
+| -------------------------- | ------------------------------------------------------- |
+| **Pluggable Architecture** | Add support for any new LLM by implementing a subclass. |
+| **Unified Runtime API**    | Standardized agent behavior across models.              |
+| **Streaming & Async**      | Natively supports event streaming and async updates.    |
+| **Tool Calling**           | Fully integrated function call support across models.   |
+
 
 ## **Testing and Prototype**
