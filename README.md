@@ -323,7 +323,7 @@ Certainly! Here's a rephrased and enhanced version:
 
 ---
 
-## ⚙️ **Deployment and Setup**
+## ⚙️**Deployment and Setup**
 
 To successfully deploy and configure the AI Agent, please follow the detailed instructions provided in the [AI Agent Deployment Guide](https://github.com/ideabosque/ai_agent_deployment). This resource includes step-by-step guidance to ensure a smooth and efficient setup process.
 
@@ -342,17 +342,16 @@ The `AIAgentEventHandler` serves as the **abstract base class** for all model-sp
 
 * `endpoint_id`: Identifier for the active agent.
 * `agent_name`, `agent_description`: Metadata for logging and auditing.
-* `token_memory`: Runtime memory or summarization store.
+* `short_term_memory`: Runtime memory or summarization store.
 * `settings_dict`: Loaded model configuration.
 * `accumulated_json`: Structured context/data accumulated across turns.
-* `view_as_bots`: Role-based visibility config.
 
 #### **Key Methods**
 
 * `invoke_async_func(...)`: Dynamically invokes a registered Python function.
 * `send_data_to_websocket(...)`: Streams output back to the user in real time.
-* `index_json(...)`, `accumulate_partial_json(...)`: Handlers for structured data processing.
-* `done(...)`: Signals the end of the streaming or interaction loop.
+* `get_function(...)`: Retrieve and load the target function to enable dynamic invocation during runtime, ensuring it's prepared and ready for execution as part of the function-calling workflow.
+* `accumulate_partial_json(...)`: Handlers for structured data processing.
 
 ---
 
