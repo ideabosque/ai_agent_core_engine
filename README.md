@@ -421,5 +421,175 @@ Follow the detailed instructions for configration provided in the [Ollama Agent 
 | **Streaming & Async**      | Natively supports event streaming and async updates.    |
 | **Tool Calling**           | Fully integrated function call support across models.   |
 
+---
 
-## **Testing and Prototype**
+## 🧪 Testing and Prototype
+
+This script provides a unified test harness for validating AI agent orchestration in both:
+
+1. **Local Function Invocation Mode** (`test_run_chatbot_loop_local`)
+   - Runs against local GraphQL endpoint and lambda-mimicking functions.
+   - Validates internal integration between `askModel`, `asyncTask`, and the core orchestration engine.
+   - Useful for debugging logic, schema mapping, and tool execution in development environments.
+
+2. **External Request Mode** (`test_run_chatbot_loop_by_request`)
+   - Interacts with deployed GraphQL API via HTTP requests.
+   - Emulates real user interactions through RESTful communication.
+   - Ideal for testing deployment correctness and system-wide flow.
+
+🔧 **Environment Variables Required**:
+- `base_dir`, `agent_uuid`, `user_id`
+- AWS credentials: `region_name`, `aws_access_key_id`, `aws_secret_access_key`
+- API test setup: `api_url`, `api_key`, `endpoint_id`
+
+🧩 **Key Integrations**:
+- SilvaEngine GraphQL schema loader (`Utility.fetch_graphql_schema`)
+- AIAgentCoreEngine task dispatcher and resolver
+- Support for multiple LLM backends (OpenAI, Gemini, Anthropic, Ollama) via handler system
+
+```python
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
+import os
+import sys
+import requests
+import unittest
+import logging
+from dotenv import load_dotenv
+
+load_dotenv()
+
+sys.path.insert(0, f"{os.getenv('base_dir')}/silvaengine_utility")
+sys.path.insert(1, f"{os.getenv('base_dir')}/silvaengine_dynamodb_base")
+sys.path.insert(2, f"{os.getenv('base_dir')}/ai_agent_core_engine")
+sys.path.insert(3, f"{os.getenv('base_dir')}/ai_agent_handler")
+sys.path.insert(4, f"{os.getenv('base_dir')}/openai_agent_handler")
+sys.path.insert(5, f"{os.getenv('base_dir')}/gemini_agent_handler")
+sys.path.insert(6, f"{os.getenv('base_dir')}/anthropic_agent_handler")
+sys.path.insert(7, f"{os.getenv('base_dir')}/ollama_agent_handler")
+
+from ai_agent_core_engine import AIAgentCoreEngine
+from silvaengine_utility import Utility
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger()
+
+setting = {
+    "region_name": os.getenv("region_name"),
+    "aws_access_key_id": os.getenv("aws_access_key_id"),
+    "aws_secret_access_key": os.getenv("aws_secret_access_key"),
+    "endpoint_id": os.getenv("endpoint_id"),
+    "connection_id": os.getenv("connection_id"),
+    "test_mode": os.getenv("test_mode"),
+}
+
+class GenericChatbotTest(unittest.TestCase):
+    def setUp(self):
+        self.ai_agent_core_engine = AIAgentCoreEngine(logger, **setting)
+        self.endpoint_id = setting.get("endpoint_id")
+        self.schema = Utility.fetch_graphql_schema(
+            logger,
+            self.endpoint_id,
+            "ai_agent_core_graphql",
+            setting=setting,
+            test_mode="local_for_all",
+        )
+
+    def test_run_chatbot_loop_local(self):
+        logger.info("Starting chatbot (local loop mode)...")
+        thread_uuid = None
+
+        while True:
+            user_input = input("User: ")
+            if user_input.strip().lower() in ["exit", "quit"]:
+                print("Chatbot: Goodbye!")
+                break
+
+            ask_query = Utility.generate_graphql_operation("askModel", "Query", self.schema)
+            ask_payload = {
+                "query": ask_query,
+                "variables": {
+                    "agentUuid": os.getenv("agent_uuid"),
+                    "threadUuid": thread_uuid,
+                    "userQuery": user_input,
+                    "userId": os.getenv("user_id"),
+                    "stream": False,
+                    "updatedBy": "test_user",
+                },
+            }
+            ask_response = Utility.json_loads(self.ai_agent_core_engine.ai_agent_core_graphql(**ask_payload))
+            thread_uuid = ask_response["data"]["askModel"]["threadUuid"]
+
+            task_query = Utility.generate_graphql_operation("asyncTask", "Query", self.schema)
+            task_payload = {
+                "query": task_query,
+                "variables": {
+                    "functionName": "async_execute_ask_model",
+                    "asyncTaskUuid": ask_response["data"]["askModel"]["asyncTaskUuid"],
+                },
+            }
+            task_response = Utility.json_loads(self.ai_agent_core_engine.ai_agent_core_graphql(**task_payload))
+            print("Chatbot:", task_response["data"]["asyncTask"]["result"])
+
+    def test_run_chatbot_loop_by_request(self):
+        logger.info("Starting chatbot (external request mode)...")
+
+        url = os.getenv("api_url")
+        headers = {
+            "x-api-key": os.getenv("api_key"),
+            "Content-Type": "application/json",
+        }
+
+        ask_query = """query askModel($agentUuid: String!, $threadUuid: String, $userQuery: String!, $stream: Boolean, $updatedBy: String!) {
+            askModel(agentUuid: $agentUuid, threadUuid: $threadUuid, userQuery: $userQuery, stream: $stream, updatedBy: $updatedBy) {
+                agentUuid threadUuid userQuery functionName asyncTaskUuid currentRunUuid
+            }
+        }"""
+
+        task_query = """query asyncTask($functionName: String!, $asyncTaskUuid: String!) {
+            asyncTask(functionName: $functionName, asyncTaskUuid: $asyncTaskUuid) {
+                result status
+            }
+        }"""
+
+        thread_uuid = None
+        while True:
+            user_input = input("User: ")
+            if user_input.strip().lower() in ["exit", "quit"]:
+                print("Chatbot: Goodbye!")
+                break
+
+            ask_payload = {
+                "query": ask_query,
+                "variables": {
+                    "agentUuid": os.getenv("agent_uuid"),
+                    "threadUuid": thread_uuid,
+                    "userQuery": user_input,
+                    "stream": False,
+                    "updatedBy": "test_user",
+                },
+            }
+            ask_response = requests.post(url, json=ask_payload, headers=headers).json()
+            thread_uuid = ask_response["data"]["askModel"]["threadUuid"]
+
+            task_payload = {
+                "query": task_query,
+                "variables": {
+                    "functionName": "async_execute_ask_model",
+                    "asyncTaskUuid": ask_response["data"]["askModel"]["asyncTaskUuid"],
+                },
+            }
+            while True:
+                task_response = requests.post(url, json=task_payload, headers=headers).json()
+                if task_response["data"]["asyncTask"]["status"] in ["completed", "failed"]:
+                    break
+
+            print("Chatbot:", task_response["data"]["asyncTask"]["result"])
+
+
+if __name__ == '__main__':
+    unittest.main()
+```
+
+---
