@@ -349,7 +349,7 @@ The [`AIAgentEventHandler`](https://github.com/ideabosque/ai_agent_handler) serv
 #### **Key Methods**
 
 * `invoke_async_func(...)`: Dynamically invokes a registered Python function.
-* `send_data_to_websocket(...)`: Streams output back to the user in real time.
+* `send_data_to_stream(...)`: Streams output back to the user in real time.
 * `get_function(...)`: Retrieve and load the target function to enable dynamic invocation during runtime, ensuring it's prepared and ready for execution as part of the function-calling workflow.
 * `accumulate_partial_json(...)`: Handlers for structured data processing.
 

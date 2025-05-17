@@ -181,7 +181,7 @@ def deploy() -> List:
                     "settings": "beta_core_ai_agent",
                     "disabled_in_resources": True,  # Ignore adding to resource list.
                 },
-                "send_data_to_websocket": {
+                "send_data_to_stream": {
                     "is_static": False,
                     "label": "Send Data To WebSocket",
                     "type": "Event",
@@ -252,8 +252,8 @@ class AIAgentCoreEngine(SilvaEngineDynamoDBBase):
         )
         return
 
-    def send_data_to_websocket(self, **params: Dict[str, Any]) -> Any:
-        at_agent_listener.send_data_to_websocket(self.logger, **params)
+    def send_data_to_stream(self, **params: Dict[str, Any]) -> Any:
+        at_agent_listener.send_data_to_stream(self.logger, **params)
         return
 
     def ai_agent_core_graphql(self, **params: Dict[str, Any]) -> Any:

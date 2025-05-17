@@ -89,7 +89,7 @@ def async_insert_update_tool_call(
     logger.info(f"Tool Call: {tool_call.__dict__}.")
 
 
-def send_data_to_websocket(logger: logging.Logger, **kwargs: Dict[str, Any]) -> None:
+def send_data_to_stream(logger: logging.Logger, **kwargs: Dict[str, Any]) -> None:
     try:
         # Send the message to the WebSocket client using the connection ID
         connection_id = kwargs["connection_id"]
