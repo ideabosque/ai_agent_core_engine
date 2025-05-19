@@ -126,60 +126,7 @@ def get_input_messages(
         Exception: If there is an error retrieving messages from either message_list or tool_call_list
     """
     try:
-        # Get message list for thread
-        message_list = resolve_message_list(info, **{"thread_uuid": thread_uuid})
-        # Get tool call list for thread
-        tool_call_list = resolve_tool_call_list(info, **{"thread_uuid": thread_uuid})
-
-        # Return empty list if no messages or no tool_call found
-        if message_list.total == 0 and tool_call_list.total == 0:
-            return []
-
-        # Combine messages from both message_list and tool_call_list
-        seen_contents = set()
-        messages = []
-
-        # Add regular messages
-        for message in message_list.message_list:
-            if message.message in seen_contents:
-                continue
-
-            seen_contents.add(message.message)
-            messages.append(
-                {
-                    "message": {
-                        "role": message.role,
-                        "content": message.message,
-                    },
-                    "created_at": message.created_at,
-                }
-            )
-
-        # Add tool call messages
-        for tool_call in tool_call_list.tool_call_list:
-            if tool_call.content in seen_contents:
-                continue
-
-            seen_contents.add(tool_call.content)
-            messages.append(
-                {
-                    "message": {
-                        "role": tool_call_role,
-                        "content": Utility.json_dumps(
-                            {
-                                "tool": {
-                                    "tool_call_id": tool_call.tool_call_id,
-                                    "tool_type": tool_call.tool_type,
-                                    "name": tool_call.name,
-                                    "arguments": tool_call.arguments,
-                                },
-                                "output": tool_call.content,
-                            }
-                        ),
-                    },
-                    "created_at": tool_call.created_at,
-                }
-            )
+        messages = combine_thread_messages(info, thread_uuid, tool_call_role)
 
         # TODO: Implement message processing pipeline (long term memory) to:
         # 1. Update conversation context in the graph database
@@ -193,7 +140,7 @@ def get_input_messages(
         # Use semantic similarity to prioritize most relevant memories
         # Prune and summarize older memories to maintain storage efficiency
 
-        # Return last 10 messages sorted by creation time (most recent first)
+        # Return last n messages sorted by creation time (most recent first)
         # Remove timestamps and reverse to get chronological order
         return [
             msg["message"]
@@ -203,6 +150,70 @@ def get_input_messages(
         # Log error and re-raise with full traceback
         info.context["logger"].error(traceback.format_exc())
         raise e
+
+
+def combine_thread_messages(
+    info: ResolveInfo,
+    thread_uuid: str,
+    tool_call_role: str,
+) -> List[Dict[str, any]]:
+    """Helper function to get and combine messages from message list and tool call list"""
+    # Get message list for thread
+    message_list = resolve_message_list(info, **{"thread_uuid": thread_uuid})
+    # Get tool call list for thread
+    tool_call_list = resolve_tool_call_list(info, **{"thread_uuid": thread_uuid})
+
+    # Return empty list if no messages or no tool_call found
+    if message_list.total == 0 and tool_call_list.total == 0:
+        return []
+
+    # Combine messages from both message_list and tool_call_list
+    seen_contents = set()
+    messages = []
+
+    # Add regular messages
+    for message in message_list.message_list:
+        if message.message in seen_contents:
+            continue
+
+        seen_contents.add(message.message)
+        messages.append(
+            {
+                "message": {
+                    "role": message.role,
+                    "content": message.message,
+                },
+                "created_at": message.created_at,
+            }
+        )
+
+    # Add tool call messages
+    for tool_call in tool_call_list.tool_call_list:
+        if tool_call.content in seen_contents:
+            continue
+
+        seen_contents.add(tool_call.content)
+        messages.append(
+            {
+                "message": {
+                    "role": tool_call_role,
+                    "content": Utility.json_dumps(
+                        {
+                            "tool": {
+                                "tool_call_id": tool_call.tool_call_id,
+                                "tool_type": tool_call.tool_type,
+                                "name": tool_call.name,
+                                "arguments": tool_call.arguments,
+                            },
+                            "output": tool_call.content,
+                        }
+                    ),
+                },
+                "created_at": tool_call.created_at,
+            }
+        )
+
+    return messages
 
 
 def calculate_num_tokens(agent: dict[str, Any], text: str) -> int:

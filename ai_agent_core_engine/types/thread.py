@@ -14,6 +14,7 @@ class ThreadType(ObjectType):
     agent = JSON()
     thread_uuid = String()
     user_id = String()
+    messages = List(JSON)
     created_at = DateTime()
 
 

@@ -23,6 +23,7 @@ from silvaengine_dynamodb_base import (
 )
 from silvaengine_utility import Utility
 
+from ..handlers.ai_agent_utility import combine_thread_messages
 from ..types.thread import ThreadListType, ThreadType
 from .run import resolve_run_list
 from .utils import _get_agent
@@ -80,12 +81,16 @@ def get_thread_count(endpoint_id: str, thread_uuid: str) -> int:
 def get_thread_type(info: ResolveInfo, thread: ThreadModel) -> ThreadType:
     try:
         agent = _get_agent(thread.endpoint_id, thread.agent_uuid)
+        messages = combine_thread_messages(
+            info, thread.thread_uuid, agent["tool_call_role"]
+        )
     except Exception as e:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)
         raise e
     thread = thread.__dict__["attribute_values"]
     thread["agent"] = agent
+    thread["messages"] = messages
     thread.pop("endpoint_id")
     thread.pop("agent_uuid")
     return ThreadType(**Utility.json_loads(Utility.json_dumps(thread)))
