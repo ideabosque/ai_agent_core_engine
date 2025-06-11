@@ -160,7 +160,19 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskT
             int(agent.num_of_messages),
             agent.tool_call_role,
         )
-        input_messages.append({"role": "user", "content": arguments["user_query"]})
+
+        # Check if string starts with { or [ to identify potential JSON
+        is_potential_json = arguments["user_query"].strip().startswith(("{", "["))
+
+        if is_potential_json:
+            try:
+                user_query = Utility.json_loads(arguments["user_query"])
+            except:
+                user_query = arguments["user_query"]
+        else:
+            user_query = arguments["user_query"]
+
+        input_messages.append({"role": "user", "content": user_query})
 
         # TODO: Implement message evaluation system to:
         #  1. Evaluate all system messages and instructions with last assistant message
