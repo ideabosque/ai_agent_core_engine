@@ -6,7 +6,7 @@ __author__ = "bibow"
 import threading
 import traceback
 from queue import Queue
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, List
 
 from graphene import ResolveInfo
 
@@ -19,6 +19,7 @@ from ..models.run import insert_update_run
 from ..models.thread import insert_thread, resolve_thread
 from ..types.ai_agent import AskModelType
 from ..types.async_task import AsyncTaskType
+from ..types.message import MessageType
 from .ai_agent_utility import calculate_num_tokens, get_input_messages, start_async_task
 from .config import Config
 
@@ -84,6 +85,8 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
             "stream": kwargs.get("stream", False),
             "updated_by": kwargs["updated_by"],
         }
+        if "input_files" in kwargs:
+            arguments["input_files"] = kwargs["input_files"]
 
         # Start async task and get identifiers
         function_name = "async_execute_ask_model"
@@ -160,19 +163,7 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskT
             int(agent.num_of_messages),
             agent.tool_call_role,
         )
-
-        # Check if string starts with { or [ to identify potential JSON
-        is_potential_json = arguments["user_query"].strip().startswith(("{", "["))
-
-        if is_potential_json:
-            try:
-                user_query = Utility.json_loads(arguments["user_query"])
-            except:
-                user_query = arguments["user_query"]
-        else:
-            user_query = arguments["user_query"]
-
-        input_messages.append({"role": "user", "content": user_query})
+        input_messages.append({"role": "user", "content": arguments["user_query"]})
 
         # TODO: Implement message evaluation system to:
         #  1. Evaluate all system messages and instructions with last assistant message
@@ -227,12 +218,13 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskT
         if connection_id or arguments.get("stream", False):
             stream_queue = Queue()
             stream_event = threading.Event()
+            args = [input_messages, stream_queue, stream_event]
+            if "input_files" in arguments:
+                args.append(arguments["input_files"])
 
             # Trigger a streaming ask_model in a separate thread if desired:
             stream_thread = threading.Thread(
-                target=ai_agent_handler.ask_model,
-                args=[input_messages, stream_queue, stream_event],
-                daemon=True,
+                target=ai_agent_handler.ask_model, args=args, daemon=True
             )
             stream_thread.start()
 
@@ -247,13 +239,27 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskT
             info.context["logger"].info("Streaming ask_model finished.")
         else:
             # Process query through AI model
-            run_id = ai_agent_handler.ask_model(input_messages)
+            if "input_files" in arguments:
+                run_id = ai_agent_handler.ask_model(
+                    input_messages, input_files=arguments["input_files"]
+                )
+            else:
+                run_id = ai_agent_handler.ask_model(input_messages)
 
         # Verify final_output is a dict and contains required fields message_id, role, content with non-empty values
         assert isinstance(ai_agent_handler.final_output, dict) and all(
             key in ai_agent_handler.final_output and ai_agent_handler.final_output[key]
             for key in ["message_id", "role", "content"]
         ), "final_output must be a dict containing non-empty values for message_id, role and content fields"
+
+        if ai_agent_handler.uploaded_files:
+            _update_user_message_with_files(
+                info,
+                agent,
+                user_message,
+                ai_agent_handler.uploaded_files,
+                arguments["updated_by"],
+            )
 
         # Record AI assistant response
         assistant_message = insert_update_message(
@@ -316,3 +322,41 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskT
             },
         )
         raise e
+
+
+def _update_user_message_with_files(
+    info: ResolveInfo,
+    agent: Dict[str, Any],
+    user_message: MessageType,
+    uploaded_files: List[Dict[str, Any]],
+    updated_by: str,
+) -> None:
+    """Helper function to update message content with file references"""
+    if agent.llm["llm_name"] == "openai":
+        message_content = [{"type": "input_text", "text": user_message.message}]
+
+        # Add each file reference to content array
+        for uploaded_file in uploaded_files:
+            message_content.append(
+                {"type": "input_file", "file_id": uploaded_file["id"]}
+            )
+    elif agent.llm["llm_name"] == "gemini":
+        message_content = [{"type": "input_text", "text": user_message.message}]
+
+        # Add each file reference to content array
+        for uploaded_file in uploaded_files:
+            message_content.append({"type": "input_file", "file": uploaded_file})
+    else:
+        raise Exception(f"Unsupported LLM: {agent.llm['llm_name']}")
+
+    insert_update_message(
+        info,
+        **{
+            "thread_uuid": user_message.run["thread"]["thread_uuid"],
+            "message_uuid": user_message.message_uuid,
+            "message": Utility.json_dumps(message_content),
+            "updated_by": updated_by,
+        },
+    )
+
+    return

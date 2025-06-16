@@ -18,6 +18,8 @@ from graphene import (
     String,
 )
 
+from silvaengine_utility import JSON
+
 from .mutations.agent import DeleteAgent, InsertUpdateAgent
 from .mutations.ai_agent import ExecuteAskModel
 from .mutations.async_task import DeleteAsyncTask, InsertUpdateAsyncTask
@@ -212,6 +214,7 @@ class Query(ObjectType):
         agent_uuid=String(required=True),
         thread_uuid=String(required=False),
         user_query=String(required=True),
+        input_files=List(JSON, required=False),
         stream=Boolean(required=False),
         updated_by=String(required=True),
     )
