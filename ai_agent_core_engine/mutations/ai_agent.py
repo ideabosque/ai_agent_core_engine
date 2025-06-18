@@ -6,11 +6,12 @@ __author__ = "bibow"
 import traceback
 from typing import Any, Dict
 
-from graphene import Boolean, Mutation, String
+from graphene import Boolean, Field, Mutation, String
 
 from silvaengine_utility import JSON
 
 from ..handlers import ai_agent
+from ..types.ai_agent import UploadedFileType
 
 
 class ExecuteAskModel(Mutation):
@@ -30,3 +31,22 @@ class ExecuteAskModel(Mutation):
             raise e
 
         return ExecuteAskModel(ok=ok)
+
+
+class UploadFile(Mutation):
+    uploaded_file = Field(UploadedFileType)
+
+    class Arguments:
+        agent_uuid = String(required=True)
+        arguments = JSON(required=True)
+
+    @staticmethod
+    def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "UploadFile":
+        try:
+            uploaded_file = ai_agent.upload_file(info, **kwargs)
+        except Exception as e:
+            log = traceback.format_exc()
+            info.context.get("logger").error(log)
+            raise e
+
+        return UploadFile(uploaded_file=uploaded_file)

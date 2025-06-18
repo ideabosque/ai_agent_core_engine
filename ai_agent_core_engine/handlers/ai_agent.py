@@ -17,7 +17,7 @@ from ..models.async_task import insert_update_async_task
 from ..models.message import insert_update_message
 from ..models.run import insert_update_run
 from ..models.thread import insert_thread, resolve_thread
-from ..types.ai_agent import AskModelType
+from ..types.ai_agent import AskModelType, UploadedFileType
 from ..types.async_task import AsyncTaskType
 from ..types.message import MessageType
 from .ai_agent_utility import calculate_num_tokens, get_input_messages, start_async_task
@@ -345,7 +345,9 @@ def _update_user_message_with_files(
 
         # Add each file reference to content array
         for uploaded_file in uploaded_files:
-            message_content.append({"type": "input_file", "file": uploaded_file})
+            message_content.append(
+                {"type": "input_file", "file_name": uploaded_file["file_name"]}
+            )
     else:
         raise Exception(f"Unsupported LLM: {agent.llm['llm_name']}")
 
@@ -360,3 +362,70 @@ def _update_user_message_with_files(
     )
 
     return
+
+
+def upload_file(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
+    # Retrieve AI agent configuration
+    agent = resolve_agent(info, **{"agent_uuid": kwargs["agent_uuid"]})
+
+    ai_agent_handler_class = getattr(
+        __import__(agent.llm["module_name"]),
+        agent.llm["class_name"],
+    )
+    ai_agent_handler = ai_agent_handler_class(
+        info.context.get("logger"),
+        agent.__dict__,
+        **info.context.get("setting", {}),
+    )
+    ai_agent_handler.endpoint_id = info.context["endpoint_id"]
+
+    file = ai_agent_handler.insert_file(**kwargs["arguments"])
+    if agent.llm["llm_name"] == "gemini":
+        info.context["logger"].info(f"File: {file.__dict__}.")
+        return UploadedFileType(
+            **{
+                "identity": "file_name",
+                "value": file.file_name,
+                "file_detail": file.__dict__,
+            }
+        )
+    elif agent.llm["llm_name"] == "openai":
+        info.context["logger"].info(f"File: {file}.")
+        return UploadedFileType(
+            **{"identity": "id", "value": file["id"], "file_detail": file}
+        )
+    else:
+        raise Exception(f"Unsupported LLM: {agent.llm['llm_name']}")
+
+
+def get_file(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
+    # Retrieve AI agent configuration
+    agent = resolve_agent(info, **{"agent_uuid": kwargs["agent_uuid"]})
+
+    ai_agent_handler_class = getattr(
+        __import__(agent.llm["module_name"]),
+        agent.llm["class_name"],
+    )
+    ai_agent_handler = ai_agent_handler_class(
+        info.context.get("logger"),
+        agent.__dict__,
+        **info.context.get("setting", {}),
+    )
+    ai_agent_handler.endpoint_id = info.context["endpoint_id"]
+
+    file = ai_agent_handler.get_file(**kwargs["arguments"])
+
+    if agent.llm["llm_name"] == "openai":
+        return UploadedFileType(
+            **{"identity": "id", "value": file["id"], "file_detail": file}
+        )
+    elif agent.llm["llm_name"] == "gemini":
+        return UploadedFileType(
+            **{
+                "identity": "file_name",
+                "value": file.file_name,
+                "file_detail": file.__dict__,
+            }
+        )
+    else:
+        raise Exception(f"Unsupported LLM: {agent.llm['llm_name']}")
