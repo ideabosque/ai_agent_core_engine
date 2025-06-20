@@ -23,6 +23,7 @@ class InsertUpdateAsyncTask(Mutation):
         task_type = String(required=False)
         arguments = JSON(required=False)
         result = String(required=False)
+        output_files = List(JSON, required=False)
         status = String(required=False)
         notes = String(required=False)
         updated_by = String(required=True)

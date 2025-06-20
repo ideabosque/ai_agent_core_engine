@@ -16,6 +16,7 @@ class AsyncTaskType(ObjectType):
     endpoint_id = String()
     arguments = JSON()
     result = String()
+    output_files = List(JSON)
     status = String()
     notes = String()
     time_spent = Int()

@@ -298,6 +298,7 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskT
                 "function_name": "async_execute_ask_model",
                 "async_task_uuid": async_task_uuid,
                 "result": ai_agent_handler.final_output["content"],
+                "output_files": ai_agent_handler.final_output.get("output_files", []),
                 "status": "completed",
                 "updated_by": arguments["updated_by"],
             },
@@ -336,17 +337,35 @@ def _update_user_message_with_files(
         message_content = [{"type": "input_text", "text": user_message.message}]
 
         # Add each file reference to content array
-        for uploaded_file in uploaded_files:
-            message_content.append(
-                {"type": "input_file", "file_id": uploaded_file["id"]}
-            )
+        message_content.extend(
+            {"type": "input_file", "file_id": uploaded_file["file_id"]}
+            for uploaded_file in uploaded_files
+        )
     elif agent.llm["llm_name"] == "gemini":
         message_content = [{"type": "input_text", "text": user_message.message}]
 
         # Add each file reference to content array
-        for uploaded_file in uploaded_files:
-            message_content.append(
-                {"type": "input_file", "file_name": uploaded_file["file_name"]}
+        message_content.extend(
+            {"type": "input_file", "file_name": uploaded_file["file_name"]}
+            for uploaded_file in uploaded_files
+        )
+    elif agent.llm["llm_name"] == "claude":
+        message_content = [{"type": "text", "text": user_message.message}]
+
+        # Add each file reference to content array
+        if uploaded_files[0]["code_execution_tool"]:
+            message_content.extend(
+                {"type": "container_upload", "file_id": uploaded_file["file_id"]}
+                for uploaded_file in uploaded_files
+            )
+
+        else:
+            message_content.extend(
+                {
+                    "type": "document",
+                    "source": {"type": "file", "file_id": uploaded_file["file_id"]},
+                }
+                for uploaded_file in uploaded_files
             )
     else:
         raise Exception(f"Unsupported LLM: {agent.llm['llm_name']}")

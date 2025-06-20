@@ -10,6 +10,7 @@ from typing import Any, Dict
 import pendulum
 from graphene import ResolveInfo
 from pynamodb.attributes import (
+    ListAttribute,
     MapAttribute,
     NumberAttribute,
     UnicodeAttribute,
@@ -38,6 +39,7 @@ class AsyncTaskModel(BaseModel):
     endpoint_id = UnicodeAttribute()
     arguments = MapAttribute(null=True)
     result = UnicodeAttribute(null=True)
+    output_files = ListAttribute(of=MapAttribute)
     status = UnicodeAttribute(default="initial")
     notes = UnicodeAttribute(null=True)
     time_spent = NumberAttribute(null=True)
@@ -133,6 +135,7 @@ def insert_update_async_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Non
     if kwargs.get("entity") is None:
         cols = {
             "endpoint_id": info.context["endpoint_id"],
+            "output_files": [],
             "updated_by": kwargs["updated_by"],
             "created_at": pendulum.now("UTC"),
             "updated_at": pendulum.now("UTC"),
@@ -140,6 +143,7 @@ def insert_update_async_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Non
         for key in [
             "arguments",
             "result",
+            "output_files",
             "status",
             "notes",
         ]:
@@ -167,6 +171,7 @@ def insert_update_async_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Non
         "endpoint_id": AsyncTaskModel.endpoint_id,
         "arguments": AsyncTaskModel.arguments,
         "result": AsyncTaskModel.result,
+        "output_files": AsyncTaskModel.output_files,
         "status": AsyncTaskModel.status,
         "notes": AsyncTaskModel.notes,
         "time_spent": AsyncTaskModel.time_spent,
