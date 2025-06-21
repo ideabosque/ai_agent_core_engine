@@ -4,7 +4,7 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
-from graphene import Boolean, DateTime, List, ObjectType, String
+from graphene import Boolean, DateTime, Int, List, ObjectType, String
 
 from silvaengine_utility import JSON
 
@@ -22,3 +22,9 @@ class UploadedFileType(ObjectType):
     identity = String()
     value = String()
     file_detail = JSON()
+
+
+class PresignedAWSS3UrlType(ObjectType):
+    url = String()
+    object_key = String()
+    expiration = Int()

@@ -21,6 +21,7 @@ class Config:
 
     aws_lambda = None
     aws_sqs = None
+    aws_s3 = None
     task_queue = None
     apigw_client = None
     schemas = {}
@@ -75,6 +76,11 @@ class Config:
 
         cls.aws_lambda = boto3.client("lambda", **aws_credentials)
         cls.aws_sqs = boto3.resource("sqs", **aws_credentials)
+        cls.aws_s3 = boto3.client(
+            "s3",
+            **aws_credentials,
+            config=boto3.session.Config(signature_version="s3v4"),
+        )
 
     @classmethod
     def _initialize_task_queue(cls, setting: Dict[str, Any]) -> None:

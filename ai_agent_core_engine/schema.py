@@ -40,7 +40,11 @@ from .mutations.ui_component import DeleteUIComponent, InsertUpdateUIComponent
 from .mutations.wizard import DeleteWizard, InsertUpdateWizard
 from .mutations.wizard_group import DeleteWizardGroup, InsertUpdateWizardGroup
 from .queries.agent import resolve_agent, resolve_agent_list
-from .queries.ai_agent import resolve_ask_model, resolve_uploaded_file
+from .queries.ai_agent import (
+    resolve_ask_model,
+    resolve_presigned_aws_s3_url,
+    resolve_uploaded_file,
+)
 from .queries.async_task import resolve_async_task, resolve_async_task_list
 from .queries.element import resolve_element, resolve_element_list
 from .queries.fine_tuning_message import (
@@ -62,7 +66,7 @@ from .queries.ui_component import resolve_ui_component, resolve_ui_component_lis
 from .queries.wizard import resolve_wizard, resolve_wizard_list
 from .queries.wizard_group import resolve_wizard_group, resolve_wizard_group_list
 from .types.agent import AgentListType, AgentType
-from .types.ai_agent import AskModelType, UploadedFileType
+from .types.ai_agent import AskModelType, PresignedAWSS3UrlType, UploadedFileType
 from .types.async_task import AsyncTaskListType, AsyncTaskType
 from .types.element import ElementListType, ElementType
 from .types.fine_tuning_message import FineTuningMessageListType, FineTuningMessageType
@@ -361,6 +365,13 @@ class Query(ObjectType):
         statuses=List(String, required=False),
     )
 
+    presigned_aws_s3_url = Field(
+        PresignedAWSS3UrlType,
+        required=True,
+        client_method=String(required=False),
+        object_key=String(required=True),
+    )
+
     def resolve_ping(self, info: ResolveInfo) -> str:
         return f"Hello at {time.strftime('%X')}!!"
 
@@ -513,6 +524,11 @@ class Query(ObjectType):
         self, info: ResolveInfo, **kwargs: Dict[str, Any]
     ) -> PromptTemplateListType:
         return resolve_prompt_template_list(info, **kwargs)
+
+    def resolve_presigned_aws_s3_url(
+        self, info: ResolveInfo, **kwargs: Dict[str, Any]
+    ) -> PresignedAWSS3UrlType:
+        return resolve_presigned_aws_s3_url(info, **kwargs)
 
 
 class Mutations(ObjectType):

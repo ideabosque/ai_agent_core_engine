@@ -17,7 +17,7 @@ from ..models.async_task import insert_update_async_task
 from ..models.message import insert_update_message
 from ..models.run import insert_update_run
 from ..models.thread import insert_thread, resolve_thread
-from ..types.ai_agent import AskModelType, UploadedFileType
+from ..types.ai_agent import AskModelType, PresignedAWSS3UrlType, UploadedFileType
 from ..types.async_task import AsyncTaskType
 from ..types.message import MessageType
 from .ai_agent_utility import calculate_num_tokens, get_input_messages, start_async_task
@@ -448,3 +448,42 @@ def get_file(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
         )
     else:
         raise Exception(f"Unsupported LLM: {agent.llm['llm_name']}")
+
+
+def get_presigned_aws_s3_url(
+    info: ResolveInfo, **kwargs: Dict[str, Any]
+) -> PresignedAWSS3UrlType:
+    # bucket_name, object_key, expiration=3600):
+    """
+    Generate a presigned URL to upload a file to an S3 bucket.
+
+    :param bucket_name: Name of the S3 bucket.
+    :param object_key: Name of the file to be uploaded (object key).
+    :param expiration: Time in seconds for the presigned URL to remain valid.
+    :return: Presigned URL as a string.
+    """
+    client_method = kwargs.get("client_method", "put_object")
+    bucket_name = info.context["setting"].get("aws_s3_bucket")
+    object_key = kwargs.get("object_key")
+    expiration = int(
+        info.context["setting"].get("expiration", 3600)
+    )  # Default to 1 hour
+
+    # Generate the presigned URL for put_object
+    try:
+        response = Config.aws_s3.generate_presigned_url(
+            ClientMethod=client_method,
+            Params={"Bucket": bucket_name, "Key": object_key},
+            ExpiresIn=expiration,
+            HttpMethod="PUT" if client_method == "put_object" else "GET",
+        )
+
+        return PresignedAWSS3UrlType(
+            url=response,
+            object_key=object_key,
+            expiration=expiration,
+        )
+    except Exception as e:
+        log = traceback.format_exc()
+        info.context.get("logger").error(log)
+        raise e
