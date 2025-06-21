@@ -23,36 +23,60 @@ from silvaengine_utility import JSON
 from .mutations.agent import DeleteAgent, InsertUpdateAgent
 from .mutations.ai_agent import ExecuteAskModel, UploadFile
 from .mutations.async_task import DeleteAsyncTask, InsertUpdateAsyncTask
+from .mutations.element import DeleteElement, InsertUpdateElement
 from .mutations.fine_tuning_message import (
     DeleteFineTuningMessage,
     InsertUpdateFineTuningMessage,
 )
+from .mutations.flow_snippet import DeleteFlowSnippet, InsertUpdateFlowSnippet
 from .mutations.llm import DeleteLlm, InsertUpdateLlm
+from .mutations.mcp_server import DeleteMCPServer, InsertUpdateMCPServer
 from .mutations.message import DeleteMessage, InsertUpdateMessage
+from .mutations.prompt_template import DeletePromptTemplate, InsertUpdatePromptTemplate
 from .mutations.run import DeleteRun, InsertUpdateRun
 from .mutations.thread import DeleteThread, InsertThread
 from .mutations.tool_call import DeleteToolCall, InsertUpdateToolCall
+from .mutations.ui_component import DeleteUIComponent, InsertUpdateUIComponent
+from .mutations.wizard import DeleteWizard, InsertUpdateWizard
+from .mutations.wizard_group import DeleteWizardGroup, InsertUpdateWizardGroup
 from .queries.agent import resolve_agent, resolve_agent_list
 from .queries.ai_agent import resolve_ask_model, resolve_uploaded_file
 from .queries.async_task import resolve_async_task, resolve_async_task_list
+from .queries.element import resolve_element, resolve_element_list
 from .queries.fine_tuning_message import (
     resolve_fine_tuning_message,
     resolve_fine_tuning_message_list,
 )
+from .queries.flow_snippet import resolve_flow_snippet, resolve_flow_snippet_list
 from .queries.llm import resolve_llm, resolve_llm_list
+from .queries.mcp_server import resolve_mcp_server, resolve_mcp_server_list
 from .queries.message import resolve_message, resolve_message_list
+from .queries.prompt_template import (
+    resolve_prompt_template,
+    resolve_prompt_template_list,
+)
 from .queries.run import resolve_run, resolve_run_list
 from .queries.thread import resolve_thread, resolve_thread_list
 from .queries.tool_call import resolve_tool_call, resolve_tool_call_list
+from .queries.ui_component import resolve_ui_component, resolve_ui_component_list
+from .queries.wizard import resolve_wizard, resolve_wizard_list
+from .queries.wizard_group import resolve_wizard_group, resolve_wizard_group_list
 from .types.agent import AgentListType, AgentType
 from .types.ai_agent import AskModelType, UploadedFileType
 from .types.async_task import AsyncTaskListType, AsyncTaskType
+from .types.element import ElementListType, ElementType
 from .types.fine_tuning_message import FineTuningMessageListType, FineTuningMessageType
+from .types.flow_snippet import FlowSnippetListType, FlowSnippetType
 from .types.llm import LlmListType, LlmType
+from .types.mcp_server import MCPServerListType, MCPServerType
 from .types.message import MessageListType, MessageType
+from .types.prompt_template import PromptTemplateListType, PromptTemplateType
 from .types.run import RunListType, RunType
 from .types.thread import ThreadListType, ThreadType
 from .types.tool_call import ToolCallListType, ToolCallType
+from .types.ui_component import UIComponentListType, UIComponentType
+from .types.wizard import WizardListType, WizardType
+from .types.wizard_group import WizardGroupListType, WizardGroupType
 
 
 def type_class():
@@ -73,6 +97,20 @@ def type_class():
         AsyncTaskListType,
         FineTuningMessageType,
         FineTuningMessageListType,
+        ElementType,
+        ElementListType,
+        WizardType,
+        WizardListType,
+        WizardGroupType,
+        WizardGroupListType,
+        MCPServerType,
+        MCPServerListType,
+        UIComponentType,
+        UIComponentListType,
+        FlowSnippetType,
+        FlowSnippetListType,
+        PromptTemplateType,
+        PromptTemplateListType,
         AskModelType,
         UploadedFileType,
     ]
@@ -226,6 +264,103 @@ class Query(ObjectType):
         arguments=JSON(required=True),
     )
 
+    element = Field(
+        ElementType,
+        element_uuid=String(required=True),
+    )
+
+    element_list = Field(
+        ElementListType,
+        page_number=Int(required=False),
+        limit=Int(required=False),
+        data_type=String(required=False),
+        attribute_name=String(required=False),
+    )
+
+    wizard = Field(
+        WizardType,
+        wizard_uuid=String(required=True),
+    )
+
+    wizard_list = Field(
+        WizardListType,
+        page_number=Int(required=False),
+        limit=Int(required=False),
+        wizard_type=String(required=False),
+        wizard_title=String(required=False),
+    )
+
+    wizard_group = Field(
+        WizardGroupType,
+        wizard_group_uuid=String(required=True),
+    )
+
+    wizard_group_list = Field(
+        WizardGroupListType,
+        page_number=Int(required=False),
+        limit=Int(required=False),
+        wizard_group_name=String(required=False),
+    )
+
+    mcp_server = Field(
+        MCPServerType,
+        mcp_server_uuid=String(required=True),
+    )
+
+    mcp_server_list = Field(
+        MCPServerListType,
+        page_number=Int(required=False),
+        limit=Int(required=False),
+        mcp_label=String(required=False),
+    )
+
+    ui_component = Field(
+        UIComponentType,
+        ui_component_type=String(required=True),
+        ui_component_uuid=String(required=True),
+    )
+
+    ui_component_list = Field(
+        UIComponentListType,
+        page_number=Int(required=False),
+        limit=Int(required=False),
+        ui_component_type=String(required=False),
+        tag_name=String(required=False),
+    )
+
+    flow_snippet = Field(
+        FlowSnippetType,
+        flow_snippet_version_uuid=String(required=False),
+        flow_snippet_uuid=String(required=False),
+    )
+
+    flow_snippet_list = Field(
+        FlowSnippetListType,
+        page_number=Int(required=False),
+        limit=Int(required=False),
+        flow_snippet_uuid=String(required=False),
+        prompt_version_uuid=String(required=False),
+        prompt_uuid=String(required=False),
+        flow_name=String(required=False),
+        statuses=List(String, required=False),
+    )
+
+    prompt_template = Field(
+        PromptTemplateType,
+        prompt_version_uuid=String(required=False),
+        prompt_uuid=String(required=False),
+    )
+
+    prompt_template_list = Field(
+        PromptTemplateListType,
+        page_number=Int(required=False),
+        limit=Int(required=False),
+        prompt_uuid=String(required=False),
+        prompt_type=String(required=False),
+        prompt_name=String(required=False),
+        statuses=List(String, required=False),
+    )
+
     def resolve_ping(self, info: ResolveInfo) -> str:
         return f"Hello at {time.strftime('%X')}!!"
 
@@ -311,6 +446,74 @@ class Query(ObjectType):
     ) -> UploadedFileType:
         return resolve_uploaded_file(info, **kwargs)
 
+    def resolve_element(
+        self, info: ResolveInfo, **kwargs: Dict[str, Any]
+    ) -> ElementType:
+        return resolve_element(info, **kwargs)
+
+    def resolve_element_list(
+        self, info: ResolveInfo, **kwargs: Dict[str, Any]
+    ) -> ElementListType:
+        return resolve_element_list(info, **kwargs)
+
+    def resolve_wizard(self, info: ResolveInfo, **kwargs: Dict[str, Any]) -> WizardType:
+        return resolve_wizard(info, **kwargs)
+
+    def resolve_wizard_list(
+        self, info: ResolveInfo, **kwargs: Dict[str, Any]
+    ) -> WizardListType:
+        return resolve_wizard_list(info, **kwargs)
+
+    def resolve_wizard_group(
+        self, info: ResolveInfo, **kwargs: Dict[str, Any]
+    ) -> WizardGroupType:
+        return resolve_wizard_group(info, **kwargs)
+
+    def resolve_wizard_group_list(
+        self, info: ResolveInfo, **kwargs: Dict[str, Any]
+    ) -> WizardGroupListType:
+        return resolve_wizard_group_list(info, **kwargs)
+
+    def resolve_mcp_server(
+        self, info: ResolveInfo, **kwargs: Dict[str, Any]
+    ) -> MCPServerType:
+        return resolve_mcp_server(info, **kwargs)
+
+    def resolve_mcp_server_list(
+        self, info: ResolveInfo, **kwargs: Dict[str, Any]
+    ) -> MCPServerListType:
+        return resolve_mcp_server_list(info, **kwargs)
+
+    def resolve_ui_component(
+        self, info: ResolveInfo, **kwargs: Dict[str, Any]
+    ) -> UIComponentType:
+        return resolve_ui_component(info, **kwargs)
+
+    def resolve_ui_component_list(
+        self, info: ResolveInfo, **kwargs: Dict[str, Any]
+    ) -> UIComponentListType:
+        return resolve_ui_component_list(info, **kwargs)
+
+    def resolve_flow_snippet(
+        self, info: ResolveInfo, **kwargs: Dict[str, Any]
+    ) -> FlowSnippetType:
+        return resolve_flow_snippet(info, **kwargs)
+
+    def resolve_flow_snippet_list(
+        self, info: ResolveInfo, **kwargs: Dict[str, Any]
+    ) -> FlowSnippetListType:
+        return resolve_flow_snippet_list(info, **kwargs)
+
+    def resolve_prompt_template(
+        self, info: ResolveInfo, **kwargs: Dict[str, Any]
+    ) -> PromptTemplateType:
+        return resolve_prompt_template(info, **kwargs)
+
+    def resolve_prompt_template_list(
+        self, info: ResolveInfo, **kwargs: Dict[str, Any]
+    ) -> PromptTemplateListType:
+        return resolve_prompt_template_list(info, **kwargs)
+
 
 class Mutations(ObjectType):
     insert_update_llm = InsertUpdateLlm.Field()
@@ -331,3 +534,17 @@ class Mutations(ObjectType):
     delete_async_task = DeleteAsyncTask.Field()
     execute_ask_model = ExecuteAskModel.Field()
     upload_file = UploadFile.Field()
+    insert_update_element = InsertUpdateElement.Field()
+    delete_element = DeleteElement.Field()
+    insert_update_wizard = InsertUpdateWizard.Field()
+    delete_wizard = DeleteWizard.Field()
+    insert_update_wizard_group = InsertUpdateWizardGroup.Field()
+    delete_wizard_group = DeleteWizardGroup.Field()
+    insert_update_mcp_server = InsertUpdateMCPServer.Field()
+    delete_mcp_server = DeleteMCPServer.Field()
+    insert_update_ui_component = InsertUpdateUIComponent.Field()
+    delete_ui_component = DeleteUIComponent.Field()
+    insert_update_flow_snippet = InsertUpdateFlowSnippet.Field()
+    delete_flow_snippet = DeleteFlowSnippet.Field()
+    insert_update_prompt_template = InsertUpdatePromptTemplate.Field()
+    delete_prompt_template = DeletePromptTemplate.Field()

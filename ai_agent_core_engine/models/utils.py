@@ -10,12 +10,19 @@ from typing import Any, Dict, List
 def _initialize_tables(logger: logging.Logger) -> None:
     from .agent import create_agent_table
     from .async_task import create_async_task_table
+    from .element import create_element_table
     from .fine_tuning_message import create_fine_tuning_message_table
+    from .flow_snippet import create_flow_snippet_table
     from .llm import create_llm_table
+    from .mcp_server import create_mcp_server_table
     from .message import create_message_table
+    from .prompt_template import create_prompt_template_table
     from .run import create_run_table
     from .thread import create_thread_table
     from .tool_call import create_tool_call_table
+    from .ui_component import create_ui_component_table
+    from .wizard import create_wizard_table
+    from .wizard_group import create_wizard_group_table
 
     create_llm_table(logger)
     create_agent_table(logger)
@@ -25,6 +32,13 @@ def _initialize_tables(logger: logging.Logger) -> None:
     create_message_table(logger)
     create_async_task_table(logger)
     create_fine_tuning_message_table(logger)
+    create_element_table(logger)
+    create_wizard_table(logger)
+    create_wizard_group_table(logger)
+    create_mcp_server_table(logger)
+    create_ui_component_table(logger)
+    create_flow_snippet_table(logger)
+    create_prompt_template_table(logger)
 
 
 def _get_llm(llm_provider: str, llm_name: str) -> Dict[str, Any]:
