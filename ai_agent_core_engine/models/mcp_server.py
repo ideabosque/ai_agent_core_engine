@@ -4,8 +4,8 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
+import asyncio
 import logging
-import uuid
 from typing import Any, Dict
 
 import pendulum
@@ -13,6 +13,7 @@ from graphene import ResolveInfo
 from pynamodb.attributes import MapAttribute, UnicodeAttribute, UTCDateTimeAttribute
 from tenacity import retry, stop_after_attempt, wait_exponential
 
+from mcp_http_client import MCPHttpClient
 from silvaengine_dynamodb_base import (
     BaseModel,
     delete_decorator,
@@ -33,6 +34,7 @@ class MCPServerModel(BaseModel):
     mcp_server_uuid = UnicodeAttribute(range_key=True)
     mcp_label = UnicodeAttribute()
     mcp_server_url = UnicodeAttribute()
+    bearer_token = UnicodeAttribute(null=True)
     headers = MapAttribute()
     updated_by = UnicodeAttribute()
     created_at = UTCDateTimeAttribute()
@@ -63,8 +65,29 @@ def get_mcp_server_count(endpoint_id: str, mcp_server_uuid: str) -> int:
     )
 
 
+async def _run_list_tools(info: ResolveInfo, mcp_server: MCPServerModel):
+    mcp_http_client = MCPHttpClient(
+        info.context["logger"],
+        **{
+            "base_url": mcp_server.mcp_server_url,
+            "headers": mcp_server.headers.__dict__["attribute_values"],
+        },
+    )
+    async with mcp_http_client as client:
+        return await client.list_tools()
+
+
 def get_mcp_server_type(info: ResolveInfo, mcp_server: MCPServerModel) -> MCPServerType:
+    tools = asyncio.run(_run_list_tools(info, mcp_server))
     mcp_server = mcp_server.__dict__["attribute_values"]
+    mcp_server["tools"] = [
+        {
+            "name": tool.name,
+            "description": tool.description,
+            "input_schema": tool.input_schema,
+        }
+        for tool in tools
+    ]
     return MCPServerType(**Utility.json_loads(Utility.json_dumps(mcp_server)))
 
 
@@ -121,6 +144,7 @@ def insert_update_mcp_server(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Non
         cols = {
             "mcp_label": kwargs["mcp_label"],
             "mcp_server_url": kwargs["mcp_server_url"],
+            "bearer_token": kwargs.get("bearer_token"),
             "headers": kwargs.get("headers", {}),
             "updated_by": kwargs["updated_by"],
             "created_at": pendulum.now("UTC"),
@@ -142,6 +166,7 @@ def insert_update_mcp_server(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Non
     field_map = {
         "mcp_label": MCPServerModel.mcp_label,
         "mcp_server_url": MCPServerModel.mcp_server_url,
+        "bearer_token": MCPServerModel.bearer_token,
         "headers": MCPServerModel.headers,
     }
 
