@@ -21,6 +21,7 @@ class InsertUpdateFlowSnippet(Mutation):
         prompt_version_uuid = String(required=True)
         prompt_uuid = String(required=True)
         flow_name = String(required=True)
+        flow_relationship = String(required=False)
         flow_context = String(required=True)
         status = String(required=False)
         updated_by = String(required=True)

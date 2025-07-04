@@ -17,6 +17,7 @@ class FlowSnippetType(ObjectType):
     prompt_version_uuid = String()
     prompt_uuid = String()
     flow_name = String()
+    flow_relationship = String()
     flow_context = String()
     status = String()
     updated_by = String()

@@ -70,6 +70,7 @@ class FlowSnippetModel(BaseModel):
     prompt_version_uuid = UnicodeAttribute()
     prompt_uuid = UnicodeAttribute()
     flow_name = UnicodeAttribute()
+    flow_relationship = UnicodeAttribute()
     flow_context = UnicodeAttribute()
     status = UnicodeAttribute(default="active")
     updated_by = UnicodeAttribute()
@@ -276,6 +277,7 @@ def insert_update_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
             "prompt_version_uuid",
             "prompt_uuid",
             "flow_name",
+            "flow_relationship",
             "flow_context",
         ]:
             if key in kwargs:
@@ -303,6 +305,7 @@ def insert_update_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
         "prompt_version_uuid": FlowSnippetModel.prompt_version_uuid,
         "prompt_uuid": FlowSnippetModel.prompt_uuid,
         "flow_name": FlowSnippetModel.flow_name,
+        "flow_relationship": FlowSnippetModel.flow_relationship,
         "flow_context": FlowSnippetModel.flow_context,
         "status": FlowSnippetModel.status,
     }
