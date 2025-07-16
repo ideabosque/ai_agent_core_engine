@@ -34,7 +34,6 @@ class MCPServerModel(BaseModel):
     mcp_server_uuid = UnicodeAttribute(range_key=True)
     mcp_label = UnicodeAttribute()
     mcp_server_url = UnicodeAttribute()
-    bearer_token = UnicodeAttribute(null=True)
     headers = MapAttribute()
     updated_by = UnicodeAttribute()
     created_at = UTCDateTimeAttribute()
@@ -144,7 +143,6 @@ def insert_update_mcp_server(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Non
         cols = {
             "mcp_label": kwargs["mcp_label"],
             "mcp_server_url": kwargs["mcp_server_url"],
-            "bearer_token": kwargs.get("bearer_token"),
             "headers": kwargs.get("headers", {}),
             "updated_by": kwargs["updated_by"],
             "created_at": pendulum.now("UTC"),
@@ -166,7 +164,6 @@ def insert_update_mcp_server(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Non
     field_map = {
         "mcp_label": MCPServerModel.mcp_label,
         "mcp_server_url": MCPServerModel.mcp_server_url,
-        "bearer_token": MCPServerModel.bearer_token,
         "headers": MCPServerModel.headers,
     }
 

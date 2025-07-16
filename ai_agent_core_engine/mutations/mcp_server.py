@@ -21,7 +21,6 @@ class InsertUpdateMCPServer(Mutation):
         mcp_server_uuid = String(required=False)
         mcp_label = String(required=True)
         mcp_server_url = String(required=True)
-        bearer_token = String(required=False)
         headers = JSON(required=False)
         updated_by = String(required=True)
 

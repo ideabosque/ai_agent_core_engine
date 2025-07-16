@@ -15,7 +15,6 @@ class MCPServerType(ObjectType):
     mcp_server_uuid = String()
     mcp_label = String()
     mcp_server_url = String()
-    bearer_token = String()
     headers = JSON()
     tools = List(JSON)
     updated_by = String()
