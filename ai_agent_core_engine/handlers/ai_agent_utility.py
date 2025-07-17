@@ -232,9 +232,15 @@ def calculate_num_tokens(agent: dict[str, Any], text: str) -> int:
     """
     try:
         if agent.llm["llm_name"] == "openai":
-            encoding = tiktoken.encoding_for_model(agent.configuration["model"])
-            num_tokens = len(encoding.encode(text))
+            try:
+                encoding = tiktoken.encoding_for_model(agent.configuration["model"])
+                num_tokens = len(encoding.encode(text))
+            except Exception as e:
+                encoding = tiktoken.encoding_for_model("gpt-4o")
+                num_tokens = len(encoding.encode(text))
+
             return num_tokens
+
         elif agent.llm["llm_name"] == "gemini":
             client = genai.Client(api_key=agent.configuration["api_key"])
             num_tokens = client.models.count_tokens(
