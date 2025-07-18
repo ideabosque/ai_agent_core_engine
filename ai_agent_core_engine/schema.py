@@ -42,6 +42,7 @@ from .mutations.wizard_group import DeleteWizardGroup, InsertUpdateWizardGroup
 from .queries.agent import resolve_agent, resolve_agent_list
 from .queries.ai_agent import (
     resolve_ask_model,
+    resolve_output_file,
     resolve_presigned_aws_s3_url,
     resolve_uploaded_file,
 )
@@ -66,7 +67,7 @@ from .queries.ui_component import resolve_ui_component, resolve_ui_component_lis
 from .queries.wizard import resolve_wizard, resolve_wizard_list
 from .queries.wizard_group import resolve_wizard_group, resolve_wizard_group_list
 from .types.agent import AgentListType, AgentType
-from .types.ai_agent import AskModelType, PresignedAWSS3UrlType, UploadedFileType
+from .types.ai_agent import AskModelType, FileType, PresignedAWSS3UrlType
 from .types.async_task import AsyncTaskListType, AsyncTaskType
 from .types.element import ElementListType, ElementType
 from .types.fine_tuning_message import FineTuningMessageListType, FineTuningMessageType
@@ -116,7 +117,7 @@ def type_class():
         PromptTemplateType,
         PromptTemplateListType,
         AskModelType,
-        UploadedFileType,
+        FileType,
     ]
 
 
@@ -263,7 +264,13 @@ class Query(ObjectType):
     )
 
     uploaded_file = Field(
-        UploadedFileType,
+        FileType,
+        agent_uuid=String(required=True),
+        arguments=JSON(required=True),
+    )
+
+    output_file = Field(
+        FileType,
         agent_uuid=String(required=True),
         arguments=JSON(required=True),
     )
@@ -454,8 +461,13 @@ class Query(ObjectType):
 
     def resolve_uploaded_file(
         self, info: ResolveInfo, **kwargs: Dict[str, Any]
-    ) -> UploadedFileType:
+    ) -> FileType:
         return resolve_uploaded_file(info, **kwargs)
+
+    def resolve_output_file(
+        self, info: ResolveInfo, **kwargs: Dict[str, Any]
+    ) -> FileType:
+        return resolve_output_file(info, **kwargs)
 
     def resolve_element(
         self, info: ResolveInfo, **kwargs: Dict[str, Any]

@@ -18,7 +18,7 @@ class AskModelType(ObjectType):
     current_run_uuid = String()
 
 
-class UploadedFileType(ObjectType):
+class FileType(ObjectType):
     identity = String()
     value = String()
     file_detail = JSON()

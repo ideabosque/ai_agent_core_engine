@@ -11,7 +11,7 @@ from graphene import Boolean, Field, Mutation, String
 from silvaengine_utility import JSON
 
 from ..handlers import ai_agent
-from ..types.ai_agent import UploadedFileType
+from ..types.ai_agent import FileType
 
 
 class ExecuteAskModel(Mutation):
@@ -34,7 +34,7 @@ class ExecuteAskModel(Mutation):
 
 
 class UploadFile(Mutation):
-    uploaded_file = Field(UploadedFileType)
+    uploaded_file = Field(FileType)
 
     class Arguments:
         agent_uuid = String(required=True)
