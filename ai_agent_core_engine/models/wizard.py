@@ -5,7 +5,7 @@ from __future__ import print_function
 __author__ = "bibow"
 
 import logging
-import uuid
+import traceback
 from typing import Any, Dict
 
 import pendulum
@@ -29,6 +29,7 @@ from silvaengine_dynamodb_base import (
 from silvaengine_utility import Utility
 
 from ..types.wizard import WizardListType, WizardType
+from .utils import _get_element
 
 
 class WizardModel(BaseModel):
@@ -40,10 +41,9 @@ class WizardModel(BaseModel):
     wizard_title = UnicodeAttribute()
     wizard_description = UnicodeAttribute(null=True)
     wizard_type = UnicodeAttribute()
-    form_schema = MapAttribute(null=True)
+    form_schema = UnicodeAttribute(null=True)
     priority = NumberAttribute(default=0)
     element_uuids = ListAttribute(null=True)
-    conditions = ListAttribute(null=True)
     updated_by = UnicodeAttribute()
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()
@@ -72,7 +72,18 @@ def get_wizard_count(endpoint_id: str, wizard_uuid: str) -> int:
 
 
 def get_wizard_type(info: ResolveInfo, wizard: WizardType) -> WizardType:
+    try:
+        elements = [
+            _get_element(wizard.endpoint_id, element_uuid)
+            for element_uuid in wizard.element_uuids
+        ]
+    except Exception as e:
+        log = traceback.format_exc()
+        info.context.get("logger").exception(log)
+        raise e
     wizard = wizard.__dict__["attribute_values"]
+    wizard["elements"] = elements
+    wizard.pop("element_uuids")
     return WizardType(**Utility.json_loads(Utility.json_dumps(wizard)))
 
 
@@ -136,7 +147,6 @@ def insert_update_wizard(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
             "form_schema": kwargs.get("form_schema"),
             "priority": kwargs.get("priority", 0),
             "element_uuids": kwargs.get("element_uuids", []),
-            "conditions": kwargs.get("conditions", []),
             "updated_by": kwargs["updated_by"],
             "created_at": pendulum.now("UTC"),
             "updated_at": pendulum.now("UTC"),
@@ -161,7 +171,6 @@ def insert_update_wizard(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
         "form_schema": WizardModel.form_schema,
         "priority": WizardModel.priority,
         "element_uuids": WizardModel.element_uuids,
-        "conditions": WizardModel.conditions,
     }
 
     for key, field in field_map.items():

@@ -16,7 +16,7 @@ class WizardGroupType(ObjectType):
     wizard_group_name = String()
     wizard_group_description = String()
     weight = Int()
-    wizard_uuids = List(String)
+    wizards = List(JSON)
     updated_by = String()
     created_at = DateTime()
     updated_at = DateTime()

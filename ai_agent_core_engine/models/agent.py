@@ -66,6 +66,7 @@ class AgentModel(BaseModel):
     functions = MapAttribute()
     num_of_messages = NumberAttribute(default=10)
     tool_call_role = UnicodeAttribute(default="developer")
+    flow_snippet_version_uuid = UnicodeAttribute(null=True)
     status = UnicodeAttribute(default="active")
     updated_by = UnicodeAttribute()
     created_at = UTCDateTimeAttribute()

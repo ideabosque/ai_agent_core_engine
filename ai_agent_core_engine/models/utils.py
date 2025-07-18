@@ -74,6 +74,7 @@ def _get_agent(endpoint_id: str, agent_uuid: str) -> Dict[str, Any]:
         "functions": agent.functions,
         "num_of_messages": agent.num_of_messages,
         "tool_call_role": agent.tool_call_role,
+        "flow_snippet_version_uuid": agent.flow_snippet_version_uuid,
         "status": agent.status,
     }
 
@@ -102,4 +103,40 @@ def _get_run(thread_uuid: str, run_uuid: str) -> Dict[str, Any]:
         "completion_tokens": run.completion_tokens,
         "prompt_tokens": run.prompt_tokens,
         "total_tokens": run.total_tokens,
+    }
+
+
+def _get_element(endpoint_id: str, element_uuid: str) -> Dict[str, Any]:
+    from .element import get_element
+
+    element = get_element(endpoint_id, element_uuid)
+
+    return {
+        "element_uuid": element.element_uuid,
+        "data_type": element.data_type,
+        "element_title": element.element_title,
+        "priority": element.priority,
+        "attribute_name": element.attribute_name,
+        "attribute_type": element.attribute_type,
+        "option_values": element.option_values,
+        "conditions": element.conditions,
+    }
+
+
+def _get_wizard(endpoint_id: str, wizard_uuid: str) -> Dict[str, Any]:
+    from .wizard import get_wizard
+
+    wizard = get_wizard(endpoint_id, wizard_uuid)
+    elements = [
+        _get_element(endpoint_id, element_uuid) for element_uuid in wizard.element_uuids
+    ]
+
+    return {
+        "wizard_uuid": wizard.wizard_uuid,
+        "wizard_title": wizard.wizard_title,
+        "wizard_description": wizard.wizard_description,
+        "wizard_type": wizard.wizard_type,
+        "form_schema": wizard.form_schema,
+        "priority": wizard.priority,
+        "elements": elements,
     }

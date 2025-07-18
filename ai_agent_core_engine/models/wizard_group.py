@@ -6,7 +6,6 @@ __author__ = "bibow"
 
 import logging
 import traceback
-import uuid
 from typing import Any, Dict
 
 import pendulum
@@ -31,6 +30,7 @@ from silvaengine_dynamodb_base import (
 from silvaengine_utility import Utility
 
 from ..types.wizard_group import WizardGroupListType, WizardGroupType
+from .utils import _get_wizard
 
 
 class WizardGroupModel(BaseModel):
@@ -75,7 +75,18 @@ def get_wizard_group_count(endpoint_id: str, wizard_group_uuid: str) -> int:
 def get_wizard_group_type(
     info: ResolveInfo, wizard_group: WizardGroupModel
 ) -> WizardGroupType:
+    try:
+        wizards = [
+            _get_wizard(wizard_group.endpoint_id, wizard_uuid)
+            for wizard_uuid in wizard_group.wizard_uuids
+        ]
+    except Exception as e:
+        log = traceback.format_exc()
+        info.context.get("logger").exception(log)
+        raise e
     wizard_group = wizard_group.__dict__["attribute_values"]
+    wizard_group["wizards"] = wizards
+    wizard_group.pop("wizard_uuids")
     return WizardGroupType(**Utility.json_loads(Utility.json_dumps(wizard_group)))
 
 
