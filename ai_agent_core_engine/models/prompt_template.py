@@ -143,6 +143,7 @@ def get_prompt_template_type(
                 info, **{"mcp_server_uuid": mcp_server["mcp_server_uuid"]}
             )
             for mcp_server in prompt_template.mcp_servers
+            if "mcp_server_uuid" in mcp_server
         ]
         mcp_servers = [
             {
@@ -163,6 +164,8 @@ def get_prompt_template_type(
                 },
             )
             for ui_component in prompt_template.ui_components
+            if "ui_component_type" in ui_component
+            and "ui_component_uuid" in ui_component
         ]
         ui_components = [
             {
