@@ -15,6 +15,7 @@ class ThreadType(ObjectType):
     thread_uuid = String()
     user_id = String()
     messages = List(JSON)
+    tool_calls = List(JSON)
     created_at = DateTime()
 
 

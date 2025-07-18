@@ -159,9 +159,23 @@ def combine_thread_messages(
 ) -> List[Dict[str, any]]:
     """Helper function to get and combine messages from message list and tool call list"""
     # Get message list for thread
-    message_list = resolve_message_list(info, **{"thread_uuid": thread_uuid})
+    message_list = resolve_message_list(
+        info,
+        **{
+            "thread_uuid": thread_uuid,
+            "pageNumber": 1,
+            "limit": 100,
+        },
+    )
     # Get tool call list for thread
-    tool_call_list = resolve_tool_call_list(info, **{"thread_uuid": thread_uuid})
+    tool_call_list = resolve_tool_call_list(
+        info,
+        **{
+            "thread_uuid": thread_uuid,
+            "pageNumber": 1,
+            "limit": 100,
+        },
+    )
 
     # Return empty list if no messages or no tool_call found
     if message_list.total == 0 and tool_call_list.total == 0:
@@ -180,6 +194,12 @@ def combine_thread_messages(
         messages.append(
             {
                 "message": {
+                    "run": {
+                        "run_uuid": message.run["run_uuid"],
+                        "prompt_tokens": message.run["prompt_tokens"],
+                        "completion_tokens": message.run["completion_tokens"],
+                        "total_tokens": message.run["total_tokens"],
+                    },
                     "role": message.role,
                     "content": message.message,
                 },
