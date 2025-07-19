@@ -38,9 +38,6 @@ class FlowSnippetUuidIndex(LocalSecondaryIndex):
     flow_snippet_uuid = UnicodeAttribute(range_key=True)
 
 
-
-
-
 class PromptUuidIndex(LocalSecondaryIndex):
     class Meta:
         billing_mode = "PAY_PER_REQUEST"
@@ -161,7 +158,6 @@ def resolve_flow_snippet(
 def resolve_flow_snippet_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     endpoint_id = kwargs.get("endpoint_id")
     flow_snippet_uuid = kwargs.get("flow_snippet_uuid")
-    prompt_version_uuid = kwargs.get("prompt_version_uuid")
     prompt_uuid = kwargs.get("prompt_uuid")
     flow_name = kwargs.get("flow_name")
     statuses = kwargs.get("statuses")
