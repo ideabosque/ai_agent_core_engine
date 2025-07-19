@@ -38,15 +38,7 @@ class FlowSnippetUuidIndex(LocalSecondaryIndex):
     flow_snippet_uuid = UnicodeAttribute(range_key=True)
 
 
-class PromptVersionUuidIndex(LocalSecondaryIndex):
-    class Meta:
-        billing_mode = "PAY_PER_REQUEST"
-        # All attributes are projected
-        projection = AllProjection()
-        index_name = "prompt_version_uuid-index"
 
-    endpoint_id = UnicodeAttribute(hash_key=True)
-    prompt_version_uuid = UnicodeAttribute(range_key=True)
 
 
 class PromptUuidIndex(LocalSecondaryIndex):
@@ -67,7 +59,6 @@ class FlowSnippetModel(BaseModel):
     endpoint_id = UnicodeAttribute(hash_key=True)
     flow_snippet_version_uuid = UnicodeAttribute(range_key=True)
     flow_snippet_uuid = UnicodeAttribute()
-    prompt_version_uuid = UnicodeAttribute()
     prompt_uuid = UnicodeAttribute()
     flow_name = UnicodeAttribute()
     flow_relationship = UnicodeAttribute()
@@ -77,7 +68,6 @@ class FlowSnippetModel(BaseModel):
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()
     flow_snippet_uuid_index = FlowSnippetUuidIndex()
-    prompt_version_uuid_index = PromptVersionUuidIndex()
     prompt_uuid_index = PromptUuidIndex()
 
 
@@ -186,10 +176,7 @@ def resolve_flow_snippet_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> An
             inquiry_funct = FlowSnippetModel.flow_snippet_uuid_index.query
             args[1] = FlowSnippetModel.flow_snippet_uuid == flow_snippet_uuid
             count_funct = FlowSnippetModel.flow_snippet_uuid_index.count
-        elif prompt_version_uuid:
-            inquiry_funct = FlowSnippetModel.prompt_version_uuid_index.query
-            args[1] = FlowSnippetModel.prompt_version_uuid == prompt_version_uuid
-            count_funct = FlowSnippetModel.prompt_version_uuid_index.count
+
         elif prompt_uuid:
             inquiry_funct = FlowSnippetModel.prompt_uuid_index.query
             args[1] = FlowSnippetModel.prompt_uuid == prompt_uuid
@@ -274,7 +261,6 @@ def insert_update_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
             )
 
         for key in [
-            "prompt_version_uuid",
             "prompt_uuid",
             "flow_name",
             "flow_relationship",
@@ -302,7 +288,6 @@ def insert_update_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
         _inactivate_flow_snippets(info, endpoint_id, flow_snippet.flow_snippet_uuid)
 
     field_map = {
-        "prompt_version_uuid": FlowSnippetModel.prompt_version_uuid,
         "prompt_uuid": FlowSnippetModel.prompt_uuid,
         "flow_name": FlowSnippetModel.flow_name,
         "flow_relationship": FlowSnippetModel.flow_relationship,

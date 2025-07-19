@@ -30,6 +30,7 @@ class InsertUpdateAgent(Mutation):
         functions = JSON(required=False)
         num_of_messages = Int(required=False)
         tool_call_role = String(required=False)
+        flow_snippet_version_uuid = String(required=False)
         status = String(required=False)
         updated_by = String(required=True)
 

@@ -18,7 +18,6 @@ class InsertUpdateFlowSnippet(Mutation):
     class Arguments:
         flow_snippet_version_uuid = String(required=False)
         flow_snippet_uuid = String(required=False)
-        prompt_version_uuid = String(required=True)
         prompt_uuid = String(required=True)
         flow_name = String(required=True)
         flow_relationship = String(required=False)

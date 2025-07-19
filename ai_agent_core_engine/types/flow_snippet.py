@@ -14,7 +14,6 @@ class FlowSnippetType(ObjectType):
     endpoint_id = String()
     flow_snippet_version_uuid = String()
     flow_snippet_uuid = String()
-    prompt_version_uuid = String()
     prompt_uuid = String()
     flow_name = String()
     flow_relationship = String()

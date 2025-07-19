@@ -350,7 +350,6 @@ class Query(ObjectType):
         page_number=Int(required=False),
         limit=Int(required=False),
         flow_snippet_uuid=String(required=False),
-        prompt_version_uuid=String(required=False),
         prompt_uuid=String(required=False),
         flow_name=String(required=False),
         statuses=List(String, required=False),

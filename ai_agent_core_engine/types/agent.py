@@ -23,6 +23,7 @@ class AgentType(ObjectType):
     functions = JSON()
     num_of_messages = Int()
     tool_call_role = String()
+    flow_snippet_version_uuid = String()
     status = String()
     updated_by = String()
     created_at = DateTime()

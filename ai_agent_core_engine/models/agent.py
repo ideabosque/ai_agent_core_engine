@@ -277,6 +277,7 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
             "functions",
             "num_of_messages",
             "tool_call_role",
+            "flow_snippet_version_uuid",
         ]:
             if key in kwargs:
                 cols[key] = kwargs[key]
@@ -311,6 +312,7 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
         "functions": AgentModel.functions,
         "num_of_messages": AgentModel.num_of_messages,
         "tool_call_role": AgentModel.tool_call_role,
+        "flow_snippet_version_uuid": AgentModel.flow_snippet_version_uuid,
         "status": AgentModel.status,
     }
 
