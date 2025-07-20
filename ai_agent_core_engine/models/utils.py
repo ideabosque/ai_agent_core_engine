@@ -6,6 +6,8 @@ __author__ = "bibow"
 import logging
 from typing import Any, Dict, List
 
+from graphene import ResolveInfo
+
 
 def _initialize_tables(logger: logging.Logger) -> None:
     from .agent import create_agent_table
@@ -139,4 +141,90 @@ def _get_wizard(endpoint_id: str, wizard_uuid: str) -> Dict[str, Any]:
         "form_schema": wizard.form_schema,
         "priority": wizard.priority,
         "elements": elements,
+    }
+
+
+def _get_flow_snippet(endpoint_id: str, flow_snippet_uuid: str) -> Dict[str, Any]:
+    from .flow_snippet import _get_active_flow_snippet
+
+    flow_snippet = _get_active_flow_snippet(endpoint_id, flow_snippet_uuid)
+
+    return {
+        "flow_snippet_version_uuid": flow_snippet.flow_snippet_version_uuid,
+        "flow_snippet_uuid": flow_snippet.flow_snippet_uuid,
+        "prompt_uuid": flow_snippet.prompt_uuid,
+        "flow_name": flow_snippet.flow_name,
+        "flow_relationship": flow_snippet.flow_relationship,
+        "flow_context": flow_snippet.flow_context,
+        "status": flow_snippet.status,
+    }
+
+
+def _get_mcp_servers(
+    info: ResolveInfo, mcp_servers: List[Dict[str, Any]]
+) -> List[Dict[str, Any]]:
+    from .mcp_server import resolve_mcp_server
+
+    mcp_servers = [
+        resolve_mcp_server(info, **{"mcp_server_uuid": mcp_server["mcp_server_uuid"]})
+        for mcp_server in mcp_servers
+        if "mcp_server_uuid" in mcp_server
+    ]
+    mcp_servers = [
+        {
+            k: v
+            for k, v in mcp_server.__dict__.items()
+            if k not in ["endpoint_id", "updated_by", "created_at", "updated_at"]
+            and not k.startswith("_")
+        }
+        for mcp_server in mcp_servers
+    ]
+    return mcp_servers
+
+
+def _get_ui_components(
+    info: ResolveInfo, ui_components: List[Dict[str, Any]]
+) -> List[Dict[str, Any]]:
+    from .ui_component import resolve_ui_component
+
+    ui_components = [
+        resolve_ui_component(
+            info,
+            **{
+                "ui_component_type": ui_component["ui_component_type"],
+                "ui_component_uuid": ui_component["ui_component_uuid"],
+            },
+        )
+        for ui_component in ui_components
+        if "ui_component_type" in ui_component and "ui_component_uuid" in ui_component
+    ]
+    ui_components = [
+        {
+            k: v
+            for k, v in component.__dict__.items()
+            if k not in ["endpoint_id", "updated_by", "created_at", "updated_at"]
+        }
+        for component in ui_components
+    ]
+    return ui_components
+
+
+def _get_prompt_template(info: ResolveInfo, prompt_uuid: str) -> Dict[str, Any]:
+    from .prompt_template import _get_active_prompt_template
+
+    prompt_template = _get_active_prompt_template(
+        info.context["endpoint_id"], prompt_uuid
+    )
+
+    return {
+        "prompt_version_uuid": prompt_template.prompt_version_uuid,
+        "prompt_uuid": prompt_template.prompt_uuid,
+        "prompt_type": prompt_template.prompt_type,
+        "prompt_name": prompt_template.prompt_name,
+        "prompt_description": prompt_template.prompt_description,
+        "template_context": prompt_template.template_context,
+        "variables": prompt_template.variables,
+        "mcp_servers": _get_mcp_servers(info, prompt_template.mcp_servers),
+        "ui_components": _get_ui_components(info, prompt_template.ui_components),
+        "status": prompt_template.status,
     }

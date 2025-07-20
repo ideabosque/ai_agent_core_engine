@@ -32,6 +32,7 @@ from silvaengine_utility import Utility
 from ..types.prompt_template import PromptTemplateListType, PromptTemplateType
 from .mcp_server import resolve_mcp_server
 from .ui_component import resolve_ui_component
+from .utils import _get_mcp_servers, _get_ui_components
 
 
 class PromptUuidIndex(LocalSecondaryIndex):
@@ -138,43 +139,8 @@ def get_prompt_template_type(
     info: ResolveInfo, prompt_template: PromptTemplateModel
 ) -> PromptTemplateType:
     try:
-        mcp_servers = [
-            resolve_mcp_server(
-                info, **{"mcp_server_uuid": mcp_server["mcp_server_uuid"]}
-            )
-            for mcp_server in prompt_template.mcp_servers
-            if "mcp_server_uuid" in mcp_server
-        ]
-        mcp_servers = [
-            {
-                k: v
-                for k, v in mcp_server.__dict__.items()
-                if k not in ["endpoint_id", "updated_by", "created_at", "updated_at"]
-                and not k.startswith("_")
-            }
-            for mcp_server in mcp_servers
-        ]
-
-        ui_components = [
-            resolve_ui_component(
-                info,
-                **{
-                    "ui_component_type": ui_component["ui_component_type"],
-                    "ui_component_uuid": ui_component["ui_component_uuid"],
-                },
-            )
-            for ui_component in prompt_template.ui_components
-            if "ui_component_type" in ui_component
-            and "ui_component_uuid" in ui_component
-        ]
-        ui_components = [
-            {
-                k: v
-                for k, v in component.__dict__.items()
-                if k not in ["endpoint_id", "updated_by", "created_at", "updated_at"]
-            }
-            for component in ui_components
-        ]
+        mcp_servers = _get_mcp_servers(info, prompt_template.mcp_servers)
+        ui_components = _get_ui_components(info, prompt_template.ui_components)
     except Exception as e:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)

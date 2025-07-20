@@ -31,7 +31,7 @@ from silvaengine_utility import Utility
 
 from ..types.agent import AgentListType, AgentType
 from .thread import resolve_thread_list
-from .utils import _get_llm
+from .utils import _get_flow_snippet, _get_llm
 
 
 class AgentUuidIndex(LocalSecondaryIndex):
@@ -122,14 +122,22 @@ def get_agent_count(endpoint_id: str, agent_version_uuid: str) -> int:
 def get_agent_type(info: ResolveInfo, agent: AgentModel) -> AgentType:
     try:
         llm = _get_llm(agent.llm_provider, agent.llm_name)
+        flow_snippet = None
+        if agent.flow_snippet_version_uuid:
+            flow_snippet = _get_flow_snippet(
+                agent.endpoint_id, agent.flow_snippet_version_uuid
+            )
     except Exception as e:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)
         raise e
     agent = agent.__dict__["attribute_values"]
     agent["llm"] = llm
+    agent["flow_snippet"] = flow_snippet
     agent.pop("llm_provider")
     agent.pop("llm_name")
+    if "flow_snippet_version_uuid" in agent:
+        agent.pop("flow_snippet_version_uuid")
     return AgentType(**Utility.json_loads(Utility.json_dumps(agent)))
 
 

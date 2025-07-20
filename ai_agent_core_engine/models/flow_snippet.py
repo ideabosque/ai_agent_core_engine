@@ -25,6 +25,7 @@ from silvaengine_dynamodb_base import (
 from silvaengine_utility import Utility
 
 from ..types.flow_snippet import FlowSnippetListType, FlowSnippetType
+from .utils import _get_prompt_template
 
 
 class FlowSnippetUuidIndex(LocalSecondaryIndex):
@@ -120,7 +121,15 @@ def get_flow_snippet_count(endpoint_id: str, flow_snippet_version_uuid: str) -> 
 def get_flow_snippet_type(
     info: ResolveInfo, flow_snippet: FlowSnippetModel
 ) -> FlowSnippetType:
+    try:
+        prompt_template = _get_prompt_template(info, flow_snippet.prompt_uuid)
+    except Exception as e:
+        log = traceback.format_exc()
+        info.context.get("logger").exception(log)
+        raise e
     flow_snippet = flow_snippet.__dict__["attribute_values"]
+    flow_snippet["prompt_template"] = prompt_template
+    flow_snippet.pop("prompt_uuid")
     return FlowSnippetType(**Utility.json_loads(Utility.json_dumps(flow_snippet)))
 
 
