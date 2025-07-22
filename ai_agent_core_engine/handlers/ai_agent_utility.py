@@ -143,7 +143,7 @@ def get_input_messages(
         # Return last n messages sorted by creation time (most recent first)
         # Remove timestamps and reverse to get chronological order
         return [
-            msg["message"]
+            {"role": msg["message"]["role"], "content": msg["message"]["content"]}
             for msg in sorted(messages, key=lambda x: x["created_at"], reverse=True)
         ][:num_of_messages][::-1]
     except Exception as e:

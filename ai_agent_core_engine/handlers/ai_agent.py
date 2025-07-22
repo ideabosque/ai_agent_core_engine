@@ -401,7 +401,7 @@ def upload_file(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
     file = ai_agent_handler.insert_file(**kwargs["arguments"])
     if agent.llm["llm_name"] == "gemini":
         info.context["logger"].info(f"File: {file.__dict__}.")
-        return UploadedFileType(
+        return FileType(
             **{
                 "identity": "file_name",
                 "value": file.file_name,
@@ -410,9 +410,7 @@ def upload_file(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
         )
     elif agent.llm["llm_name"] == "openai":
         info.context["logger"].info(f"File: {file}.")
-        return UploadedFileType(
-            **{"identity": "id", "value": file["id"], "file_detail": file}
-        )
+        return FileType(**{"identity": "id", "value": file["id"], "file_detail": file})
     else:
         raise Exception(f"Unsupported LLM: {agent.llm['llm_name']}")
 
