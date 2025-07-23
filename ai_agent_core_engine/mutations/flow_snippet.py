@@ -18,15 +18,17 @@ class InsertUpdateFlowSnippet(Mutation):
     class Arguments:
         flow_snippet_version_uuid = String(required=False)
         flow_snippet_uuid = String(required=False)
-        prompt_uuid = String(required=True)
-        flow_name = String(required=True)
+        prompt_uuid = String(required=False)
+        flow_name = String(required=False)
         flow_relationship = String(required=False)
-        flow_context = String(required=True)
+        flow_context = String(required=False)
         status = String(required=False)
         updated_by = String(required=True)
 
     @staticmethod
-    def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "InsertUpdateFlowSnippet":
+    def mutate(
+        root: Any, info: Any, **kwargs: Dict[str, Any]
+    ) -> "InsertUpdateFlowSnippet":
         try:
             flow_snippet = insert_update_flow_snippet(info, **kwargs)
         except Exception as e:

@@ -6,6 +6,8 @@ __author__ = "bibow"
 
 import logging
 import traceback
+import xml.dom.minidom
+import xml.etree.ElementTree as ET
 from typing import Any, Dict, List
 
 import anthropic
@@ -279,3 +281,149 @@ def calculate_num_tokens(agent: dict[str, Any], text: str) -> int:
     except Exception as e:
         # Log error and re-raise
         raise e
+
+
+def _build_text_element(text: str) -> ET.Element:
+    """
+    Creates an XML Text element with the given text content
+
+    Args:
+        text: The text content to include in the element
+
+    Returns:
+        ET.Element: The created Text element
+    """
+    text_element = ET.Element("Text")
+    text_element.text = text
+    return text_element
+
+
+def _build_action_element(action_data: Dict[str, Any]) -> ET.Element:
+    """
+    Creates an XML Action element from the provided action data
+
+    Args:
+        action_data: Dictionary containing action configuration including type, text and transforms
+
+    Returns:
+        ET.Element: The created Action element with all child elements
+    """
+    action_type = action_data.get("type")
+    action = ET.Element("Action", attrib={"type": "call_function"})
+    if action_type:
+        action.attrib["value"] = action_type
+
+    if "text" in action_data:
+        action.append(_build_text_element(action_data["text"]))
+
+    # Generic support for transforms
+    for tf in action_data.get("transforms", []):
+        transform_el = ET.Element("Transform", attrib={"type": tf["type"]})
+        if "attributes" in tf:
+            for attr in tf["attributes"]:
+                attr_el = ET.Element("Attribute")
+                attr_el.text = attr
+                transform_el.append(attr_el)
+        elif "text" in tf:
+            transform_el.text = tf["text"]
+        action.append(transform_el)
+
+    return action
+
+
+def _build_ui_element(ui_data: Dict[str, Any]) -> ET.Element:
+    """
+    Creates an XML UIComponent element from the provided UI data
+
+    Args:
+        ui_data: Dictionary containing UI component configuration
+
+    Returns:
+        ET.Element: The created UIComponent element with all child elements
+    """
+    ui_element = ET.Element("UIComponent")
+
+    component_name = ui_data.get("name")
+    if not component_name:
+        return ui_element  # fallback
+
+    component_el = ET.Element(component_name)
+
+    for key, value in ui_data.items():
+        if key not in ["name", "text", "wait_for"] and value is not None:
+            component_el.set(key, str(value))
+
+    ui_element.append(component_el)
+
+    if "wait_for" in ui_data:
+        wait_el = ET.Element("WaitFor")
+        wait_el.text = ui_data["wait_for"]
+        ui_element.append(wait_el)
+
+    return ui_element
+
+
+def _build_step_element(step_index: int, step_data: Dict[str, Any]) -> ET.Element:
+    """
+    Creates an XML Step element for a flow step
+
+    Args:
+        step_index: Index number of the step
+        step_data: Dictionary containing step configuration including name, description and details
+
+    Returns:
+        ET.Element: The created Step element with all child elements
+    """
+    step_el = ET.Element(
+        "Step", attrib={"id": str(step_index), "name": step_data["formData"]["name"]}
+    )
+
+    if "description" in step_data["formData"]:
+        step_el.append(_build_text_element(step_data["formData"]["description"]))
+
+    for detail in step_data.get("details", []):
+        if detail["type"] == "ui":
+            if "text" in detail["formData"]:
+                step_el.append(_build_text_element(detail["formData"]["text"]))
+            step_el.append(_build_ui_element(detail["formData"]))
+        elif detail["type"] == "action":
+            if "text" in detail["formData"]:
+                step_el.append(_build_text_element(detail["formData"]["text"]))
+            step_el.append(_build_action_element(detail["formData"]))
+
+    return step_el
+
+
+def _json_to_xml(json_data: List[Dict[str, Any]]) -> str:
+    """
+    Converts JSON flow data to XML string format
+
+    Args:
+        json_data: List of flow step dictionaries to convert
+
+    Returns:
+        str: XML string representation of the flow
+    """
+    flow_snippet = ET.Element("FlowSnippet")
+
+    for i, step in enumerate(json_data):
+        step_el = _build_step_element(i, step)
+        flow_snippet.append(step_el)
+
+    return ET.tostring(flow_snippet, encoding="unicode")
+
+
+def convert_flow_snippet_xml(flow_snippet: List[Dict[str, Any]]) -> str:
+    """
+    Converts a flow snippet into an XML string.
+
+    Args:
+        flow_snippet: The flow snippet to convert
+
+    Returns:
+        str: Pretty-printed XML string representation of the flow snippet
+    """
+    flow_snippet_xml = _json_to_xml(Utility.json_loads(flow_snippet))
+
+    dom = xml.dom.minidom.parseString(flow_snippet_xml)
+    return dom.toprettyxml(indent="  ")
