@@ -12,6 +12,7 @@ from typing import Any, Dict
 import pendulum
 from graphene import ResolveInfo
 from pynamodb.attributes import (
+    ListAttribute,
     MapAttribute,
     NumberAttribute,
     UnicodeAttribute,
@@ -62,6 +63,7 @@ class AgentModel(BaseModel):
     llm_name = UnicodeAttribute()
     instructions = UnicodeAttribute(null=True)
     configuration = MapAttribute()
+    mcp_servers = ListAttribute(of=MapAttribute)
     function_configuration = MapAttribute()
     functions = MapAttribute()
     num_of_messages = NumberAttribute(default=10)
@@ -236,6 +238,7 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     if kwargs.get("entity") is None:
         cols = {
             "configuration": {},
+            "mcp_servers": [],
             "function_configuration": {},
             "functions": {},
             "updated_by": kwargs["updated_by"],
@@ -281,6 +284,7 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
             "llm_name",
             "instructions",
             "configuration",
+            "mcp_servers",
             "function_configuration",
             "functions",
             "num_of_messages",
@@ -316,6 +320,7 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
         "llm_name": AgentModel.llm_name,
         "instructions": AgentModel.instructions,
         "configuration": AgentModel.configuration,
+        "mcp_servers": AgentModel.mcp_servers,
         "function_configuration": AgentModel.function_configuration,
         "functions": AgentModel.functions,
         "num_of_messages": AgentModel.num_of_messages,

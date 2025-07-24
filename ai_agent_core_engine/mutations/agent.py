@@ -26,6 +26,7 @@ class InsertUpdateAgent(Mutation):
         llm_name = String(required=False)
         instructions = String(required=False)
         configuration = JSON(required=False)
+        mcp_servers = JSON(required=False)
         function_configuration = JSON(required=False)
         functions = JSON(required=False)
         num_of_messages = Int(required=False)
