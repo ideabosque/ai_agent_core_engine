@@ -19,7 +19,7 @@ class AgentType(ObjectType):
     llm = JSON()
     instructions = String()
     configuration = JSON()
-    mcp_servers = JSON()
+    mcp_servers = List(JSON)
     function_configuration = JSON()
     functions = JSON()
     num_of_messages = Int()

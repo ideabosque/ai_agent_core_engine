@@ -6,7 +6,7 @@ __author__ = "bibow"
 import traceback
 from typing import Any, Dict
 
-from graphene import Boolean, Field, Int, Mutation, String
+from graphene import Boolean, Field, Int, List, Mutation, String
 
 from silvaengine_utility import JSON
 
@@ -26,7 +26,7 @@ class InsertUpdateAgent(Mutation):
         llm_name = String(required=False)
         instructions = String(required=False)
         configuration = JSON(required=False)
-        mcp_servers = JSON(required=False)
+        mcp_server_uuids = List(String, required=False)
         function_configuration = JSON(required=False)
         functions = JSON(required=False)
         num_of_messages = Int(required=False)

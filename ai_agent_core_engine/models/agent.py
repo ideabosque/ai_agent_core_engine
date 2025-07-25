@@ -32,7 +32,7 @@ from silvaengine_utility import Utility
 
 from ..types.agent import AgentListType, AgentType
 from .thread import resolve_thread_list
-from .utils import _get_flow_snippet, _get_llm
+from .utils import _get_flow_snippet, _get_llm, _get_mcp_servers
 
 
 class AgentUuidIndex(LocalSecondaryIndex):
@@ -63,7 +63,7 @@ class AgentModel(BaseModel):
     llm_name = UnicodeAttribute()
     instructions = UnicodeAttribute(null=True)
     configuration = MapAttribute()
-    mcp_servers = ListAttribute(of=MapAttribute)
+    mcp_server_uuids = ListAttribute(null=True)
     function_configuration = MapAttribute()
     functions = MapAttribute()
     num_of_messages = NumberAttribute(default=10)
@@ -124,6 +124,13 @@ def get_agent_count(endpoint_id: str, agent_version_uuid: str) -> int:
 def get_agent_type(info: ResolveInfo, agent: AgentModel) -> AgentType:
     try:
         llm = _get_llm(agent.llm_provider, agent.llm_name)
+        mcp_servers = _get_mcp_servers(
+            info,
+            [
+                {"mcp_server_uuid": mcp_server_uuid}
+                for mcp_server_uuid in agent.mcp_server_uuids
+            ],
+        )
         flow_snippet = None
         if agent.flow_snippet_version_uuid:
             flow_snippet = _get_flow_snippet(
@@ -135,9 +142,20 @@ def get_agent_type(info: ResolveInfo, agent: AgentModel) -> AgentType:
         raise e
     agent = agent.__dict__["attribute_values"]
     agent["llm"] = llm
+    agent["mcp_servers"] = [
+        {
+            "name": mcp_server["mcp_label"],
+            "setting": {
+                "base_url": mcp_server["mcp_server_url"],
+                "headers": mcp_server["headers"],
+            },
+        }
+        for mcp_server in mcp_servers
+    ]
     agent["flow_snippet"] = flow_snippet
     agent.pop("llm_provider")
     agent.pop("llm_name")
+    agent.pop("mcp_server_uuids")
     if "flow_snippet_version_uuid" in agent:
         agent.pop("flow_snippet_version_uuid")
     return AgentType(**Utility.json_loads(Utility.json_dumps(agent)))
@@ -238,7 +256,7 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     if kwargs.get("entity") is None:
         cols = {
             "configuration": {},
-            "mcp_servers": [],
+            "mcp_server_uuids": [],
             "function_configuration": {},
             "functions": {},
             "updated_by": kwargs["updated_by"],
@@ -284,7 +302,7 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
             "llm_name",
             "instructions",
             "configuration",
-            "mcp_servers",
+            "mcp_server_uuids",
             "function_configuration",
             "functions",
             "num_of_messages",
@@ -320,7 +338,7 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
         "llm_name": AgentModel.llm_name,
         "instructions": AgentModel.instructions,
         "configuration": AgentModel.configuration,
-        "mcp_servers": AgentModel.mcp_servers,
+        "mcp_server_uuids": AgentModel.mcp_server_uuids,
         "function_configuration": AgentModel.function_configuration,
         "functions": AgentModel.functions,
         "num_of_messages": AgentModel.num_of_messages,
