@@ -273,10 +273,10 @@ def insert_update_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
             "flow_context",
         ]:
             if key in kwargs:
-                if key == "flow_context":
-                    cols[key] = convert_flow_snippet_xml(kwargs[key])
-                else:
-                    cols[key] = kwargs[key]
+                # if key == "flow_context":
+                #     cols[key] = convert_flow_snippet_xml(kwargs[key])
+                # else:
+                cols[key] = kwargs[key]
 
         FlowSnippetModel(
             endpoint_id,
@@ -306,12 +306,10 @@ def insert_update_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
 
     for key, field in field_map.items():
         if key in kwargs:
-            if key == "flow_context":
-                actions.append(field.set(convert_flow_snippet_xml(kwargs[key])))
-            else:
-                actions.append(
-                    field.set(None if kwargs[key] == "null" else kwargs[key])
-                )
+            # if key == "flow_context":
+            #     actions.append(field.set(convert_flow_snippet_xml(kwargs[key])))
+            # else:
+            actions.append(field.set(None if kwargs[key] == "null" else kwargs[key]))
 
     flow_snippet.update(actions=actions)
     return
