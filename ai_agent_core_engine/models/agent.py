@@ -124,13 +124,15 @@ def get_agent_count(endpoint_id: str, agent_version_uuid: str) -> int:
 def get_agent_type(info: ResolveInfo, agent: AgentModel) -> AgentType:
     try:
         llm = _get_llm(agent.llm_provider, agent.llm_name)
-        mcp_servers = _get_mcp_servers(
-            info,
-            [
-                {"mcp_server_uuid": mcp_server_uuid}
-                for mcp_server_uuid in agent.mcp_server_uuids
-            ],
-        )
+        mcp_servers = []
+        if agent.mcp_server_uuids:
+            mcp_servers = _get_mcp_servers(
+                info,
+                [
+                    {"mcp_server_uuid": mcp_server_uuid}
+                    for mcp_server_uuid in agent.mcp_server_uuids
+                ],
+            )
         flow_snippet = None
         if agent.flow_snippet_version_uuid:
             flow_snippet = _get_flow_snippet(
@@ -155,7 +157,8 @@ def get_agent_type(info: ResolveInfo, agent: AgentModel) -> AgentType:
     agent["flow_snippet"] = flow_snippet
     agent.pop("llm_provider")
     agent.pop("llm_name")
-    agent.pop("mcp_server_uuids")
+    if "mcp_server_uuids" in agent:
+        agent.pop("mcp_server_uuids")
     if "flow_snippet_version_uuid" in agent:
         agent.pop("flow_snippet_version_uuid")
     return AgentType(**Utility.json_loads(Utility.json_dumps(agent)))
