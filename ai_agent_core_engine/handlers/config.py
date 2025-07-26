@@ -25,6 +25,7 @@ class Config:
     task_queue = None
     apigw_client = None
     schemas = {}
+    xml_convert = None
 
     @classmethod
     def initialize(cls, logger: logging.Logger, **setting: Dict[str, Any]) -> None:
@@ -53,7 +54,7 @@ class Config:
         Args:
             setting (Dict[str, Any]): Configuration dictionary.
         """
-        pass
+        cls.xml_convert = setting.get("xml_convert", False)
 
     @classmethod
     def _initialize_aws_services(cls, setting: Dict[str, Any]) -> None:
