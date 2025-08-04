@@ -7,6 +7,7 @@ __author__ = "bibow"
 from graphene import DateTime, List, ObjectType, String
 
 from silvaengine_dynamodb_base import ListObjectType
+from silvaengine_utility import JSON
 
 
 class LlmType(ObjectType):
@@ -14,6 +15,7 @@ class LlmType(ObjectType):
     llm_name = String()
     module_name = String()
     class_name = String()
+    configuration_schema = JSON()
     updated_by = String()
     created_at = DateTime()
     updated_at = DateTime()

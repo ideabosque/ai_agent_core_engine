@@ -9,7 +9,7 @@ from typing import Any, Dict
 
 import pendulum
 from graphene import ResolveInfo
-from pynamodb.attributes import UnicodeAttribute, UTCDateTimeAttribute
+from pynamodb.attributes import MapAttribute, UnicodeAttribute, UTCDateTimeAttribute
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from silvaengine_dynamodb_base import (
@@ -33,6 +33,7 @@ class LlmModel(BaseModel):
     llm_name = UnicodeAttribute(range_key=True)
     module_name = UnicodeAttribute()
     class_name = UnicodeAttribute()
+    configuration_schema = MapAttribute()
     updated_by = UnicodeAttribute()
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()
@@ -121,6 +122,7 @@ def insert_update_llm(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
         cols = {
             "module_name": kwargs["module_name"],
             "class_name": kwargs["class_name"],
+            "configuration_schema": kwargs.get("configuration_schema", {}),
             "updated_by": kwargs["updated_by"],
             "created_at": pendulum.now("UTC"),
             "updated_at": pendulum.now("UTC"),
@@ -141,6 +143,7 @@ def insert_update_llm(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     field_map = {
         "module_name": LlmModel.module_name,
         "class_name": LlmModel.class_name,
+        "configuration_schema": LlmModel.configuration_schema,
     }
 
     # Check if a key exists in kwargs before adding it to the update actions

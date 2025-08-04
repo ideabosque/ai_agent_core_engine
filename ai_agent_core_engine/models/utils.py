@@ -53,6 +53,10 @@ def _get_llm(llm_provider: str, llm_name: str) -> Dict[str, Any]:
         "llm_name": llm.llm_name,
         "module_name": llm.module_name,
         "class_name": llm.class_name,
+        "configuration_schema": llm.configuration_schema,
+        "updated_by": llm.updated_by,
+        "created_at": llm.created_at,
+        "updated_at": llm.updated_at,
     }
 
 

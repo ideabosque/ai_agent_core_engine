@@ -22,6 +22,7 @@ class InsertUpdateLlm(Mutation):
         llm_name = String(required=True)
         module_name = String(required=False)
         class_name = String(required=False)
+        configuration_schema = JSON(required=False)
         updated_by = String(required=True)
 
     @staticmethod
