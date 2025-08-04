@@ -145,9 +145,9 @@ def _get_wizard(endpoint_id: str, wizard_uuid: str) -> Dict[str, Any]:
 
 
 def _get_flow_snippet(endpoint_id: str, flow_snippet_uuid: str) -> Dict[str, Any]:
-    from .flow_snippet import _get_active_flow_snippet
+    from .flow_snippet import get_flow_snippet
 
-    flow_snippet = _get_active_flow_snippet(endpoint_id, flow_snippet_uuid)
+    flow_snippet = get_flow_snippet(endpoint_id, flow_snippet_uuid)
 
     return {
         "flow_snippet_version_uuid": flow_snippet.flow_snippet_version_uuid,
