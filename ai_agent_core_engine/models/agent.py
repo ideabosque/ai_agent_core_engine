@@ -147,6 +147,7 @@ def get_agent_type(info: ResolveInfo, agent: AgentModel) -> AgentType:
     agent["mcp_servers"] = [
         {
             "name": mcp_server["mcp_label"],
+            "mcp_server_uuid": mcp_server["mcp_server_uuid"],
             "setting": {
                 "base_url": mcp_server["mcp_server_url"],
                 "headers": mcp_server["headers"],
