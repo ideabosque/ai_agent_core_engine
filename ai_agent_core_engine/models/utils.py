@@ -179,7 +179,6 @@ def _get_mcp_servers(
             k: v
             for k, v in mcp_server.__dict__.items()
             if k not in ["endpoint_id", "updated_by", "created_at", "updated_at"]
-            and not k.startswith("_")
         }
         for mcp_server in mcp_servers
     ]
