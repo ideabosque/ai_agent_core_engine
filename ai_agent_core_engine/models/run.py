@@ -106,7 +106,7 @@ def resolve_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> RunType:
 
 @monitor_decorator
 @resolve_list_decorator(
-    attributes_to_get=["thread_uuid", "run_uuid"],
+    attributes_to_get=["thread_uuid", "run_uuid", "updated_at"],
     list_type_class=RunListType,
     type_funct=get_run_type,
 )

@@ -120,7 +120,7 @@ def resolve_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> MessageType:
 
 @monitor_decorator
 @resolve_list_decorator(
-    attributes_to_get=["thread_uuid", "message_uuid", "run_uuid"],
+    attributes_to_get=["thread_uuid", "message_uuid", "run_uuid", "updated_at"],
     list_type_class=MessageListType,
     type_funct=get_message_type,
 )
