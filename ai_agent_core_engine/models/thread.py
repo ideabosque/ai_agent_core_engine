@@ -98,9 +98,7 @@ def get_thread_count(endpoint_id: str, thread_uuid: str) -> int:
 def get_thread_type(info: ResolveInfo, thread: ThreadModel) -> ThreadType:
     try:
         agent = _get_agent(thread.endpoint_id, thread.agent_uuid)
-        messages = combine_thread_messages(
-            info, thread.thread_uuid, agent["tool_call_role"]
-        )
+        messages = [message for message in sorted(combine_thread_messages(info, thread.thread_uuid, agent["tool_call_role"]), key=lambda x: x["created_at"], reverse=True)]
         tool_call_list = resolve_tool_call_list(
             info,
             **{
