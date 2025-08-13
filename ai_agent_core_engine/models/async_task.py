@@ -108,7 +108,7 @@ def resolve_async_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTask
     attributes_to_get=["endpoint_id", "async_task_uuid"],
     list_type_class=AsyncTaskListType,
     type_funct=get_async_task_type,
-    scan_index_forward=False
+    # scan_index_forward=False
 )
 def resolve_async_task_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     function_name = kwargs.get("function_name")
