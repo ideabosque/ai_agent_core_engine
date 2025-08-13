@@ -167,7 +167,7 @@ def resolve_flow_snippet(
     type_funct=get_flow_snippet_type,
 )
 def resolve_flow_snippet_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
-    endpoint_id = kwargs.get("endpoint_id")
+    endpoint_id = info.context["endpoint_id"]
     flow_snippet_uuid = kwargs.get("flow_snippet_uuid")
     prompt_uuid = kwargs.get("prompt_uuid")
     flow_name = kwargs.get("flow_name")

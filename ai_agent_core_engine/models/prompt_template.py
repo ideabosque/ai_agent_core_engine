@@ -181,7 +181,7 @@ def resolve_prompt_template(
     type_funct=get_prompt_template_type,
 )
 def resolve_prompt_template_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
-    endpoint_id = kwargs.get("endpoint_id")
+    endpoint_id = info.context["endpoint_id"]
     prompt_uuid = kwargs.get("prompt_uuid")
     prompt_type = kwargs.get("prompt_type")
     prompt_name = kwargs.get("prompt_name")
