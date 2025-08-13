@@ -161,6 +161,7 @@ def resolve_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType:
     attributes_to_get=["endpoint_id", "thread_uuid", "agent_uuid", "user_id"],
     list_type_class=ThreadListType,
     type_funct=get_thread_type,
+    scan_index_forward=False
 )
 def resolve_thread_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     endpoint_id = info.context["endpoint_id"]
