@@ -123,6 +123,7 @@ def resolve_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> MessageType:
     attributes_to_get=["thread_uuid", "message_uuid", "run_uuid", "updated_at"],
     list_type_class=MessageListType,
     type_funct=get_message_type,
+    scan_index_forward=False
 )
 def resolve_message_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     thread_uuid = kwargs.get("thread_uuid")

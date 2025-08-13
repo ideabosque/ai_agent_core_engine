@@ -109,6 +109,7 @@ def resolve_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> RunType:
     attributes_to_get=["thread_uuid", "run_uuid", "updated_at"],
     list_type_class=RunListType,
     type_funct=get_run_type,
+    scan_index_forward=False
 )
 def resolve_run_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     thread_uuid = kwargs.get("thread_uuid")

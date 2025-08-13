@@ -132,9 +132,10 @@ def resolve_tool_call(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ToolCallTy
 
 @monitor_decorator
 @resolve_list_decorator(
-    attributes_to_get=["thread_uuid", "tool_call_uuid", "run_uuid"],
+    attributes_to_get=["thread_uuid", "tool_call_uuid", "run_uuid", "updated_at"],
     list_type_class=ToolCallListType,
     type_funct=get_tool_call_type,
+    scan_index_forward=False
 )
 def resolve_tool_call_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     thread_uuid = kwargs.get("thread_uuid")
