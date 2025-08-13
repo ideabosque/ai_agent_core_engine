@@ -46,6 +46,19 @@ class RunIdIndex(LocalSecondaryIndex):
     thread_uuid = UnicodeAttribute(hash_key=True)
     run_uuid = UnicodeAttribute(range_key=True)
 
+class UpdatedAtIndex(LocalSecondaryIndex):
+    """
+    This class represents a local secondary index
+    """
+
+    class Meta:
+        billing_mode = "PAY_PER_REQUEST"
+        # All attributes are projected
+        projection = AllProjection()
+        index_name = "updated_at-index"
+
+    thread_uuid = UnicodeAttribute(hash_key=True)
+    updated_at = UnicodeAttribute(range_key=True)
 
 class ToolCallModel(BaseModel):
     class Meta(BaseModel.Meta):
@@ -66,6 +79,7 @@ class ToolCallModel(BaseModel):
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()
     run_uuid_index = RunIdIndex()
+    updated_at_index = UpdatedAtIndex()
 
 
 def create_tool_call_table(logger: logging.Logger) -> bool:
@@ -135,7 +149,8 @@ def resolve_tool_call_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     count_funct = ToolCallModel.count
     if thread_uuid:
         args = [thread_uuid, None]
-        inquiry_funct = ToolCallModel.query
+        inquiry_funct = ToolCallModel.updated_at_index.query
+        count_funct = ToolCallModel.updated_at_index.count
         if run_uuid:
             inquiry_funct = ToolCallModel.run_uuid_index.query
             args[1] = ToolCallModel.run_uuid == run_uuid

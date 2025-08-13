@@ -41,6 +41,19 @@ class RunIdIndex(LocalSecondaryIndex):
     thread_uuid = UnicodeAttribute(hash_key=True)
     run_uuid = UnicodeAttribute(range_key=True)
 
+class UpdatedAtIndex(LocalSecondaryIndex):
+    """
+    This class represents a local secondary index
+    """
+
+    class Meta:
+        billing_mode = "PAY_PER_REQUEST"
+        # All attributes are projected
+        projection = AllProjection()
+        index_name = "updated_at-index"
+
+    thread_uuid = UnicodeAttribute(hash_key=True)
+    updated_at = UnicodeAttribute(range_key=True)
 
 class MessageModel(BaseModel):
     class Meta(BaseModel.Meta):
@@ -56,6 +69,7 @@ class MessageModel(BaseModel):
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()
     run_uuid_index = RunIdIndex()
+    updated_at_index = UpdatedAtIndex()
 
 
 def create_message_table(logger: logging.Logger) -> bool:
@@ -121,7 +135,8 @@ def resolve_message_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     count_funct = MessageModel.count
     if thread_uuid:
         args = [thread_uuid, None]
-        inquiry_funct = MessageModel.query
+        inquiry_funct = MessageModel.updated_at_index.query
+        count_funct = MessageModel.updated_at_index.count
         if run_uuid:
             inquiry_funct = MessageModel.run_uuid_index.query
             args[1] = MessageModel.run_uuid == run_uuid

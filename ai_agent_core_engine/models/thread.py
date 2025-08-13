@@ -45,6 +45,21 @@ class AgentUuidIndex(LocalSecondaryIndex):
     agent_uuid = UnicodeAttribute(range_key=True)
 
 
+class CreatedAtIndex(LocalSecondaryIndex):
+    """
+    This class represents a local secondary index
+    """
+
+    class Meta:
+        billing_mode = "PAY_PER_REQUEST"
+        # All attributes are projected
+        projection = AllProjection()
+        index_name = "updated_at-index"
+
+    endpoint_id = UnicodeAttribute(hash_key=True)
+    created_at = UnicodeAttribute(range_key=True)
+
+
 class ThreadModel(BaseModel):
     class Meta(BaseModel.Meta):
         table_name = "aace-threads"
@@ -55,6 +70,7 @@ class ThreadModel(BaseModel):
     user_id = UnicodeAttribute(null=True)
     created_at = UTCDateTimeAttribute()
     agent_uuid_index = AgentUuidIndex()
+    created_at_index = CreatedAtIndex()
 
 
 def create_thread_table(logger: logging.Logger) -> bool:
@@ -158,7 +174,8 @@ def resolve_thread_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     count_funct = ThreadModel.count
     if endpoint_id:
         args = [endpoint_id, None]
-        inquiry_funct = ThreadModel.query
+        inquiry_funct = ThreadModel.created_at_index.query
+        count_funct = ThreadModel.created_at_index.count
         if agent_uuid:
             inquiry_funct = ThreadModel.agent_uuid_index.query
             args[1] = ThreadModel.agent_uuid == agent_uuid

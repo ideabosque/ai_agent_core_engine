@@ -10,6 +10,7 @@ from typing import Any, Dict
 
 import pendulum
 from graphene import ResolveInfo
+from pynamodb.indexes import AllProjection, LocalSecondaryIndex
 from pynamodb.attributes import NumberAttribute, UnicodeAttribute, UTCDateTimeAttribute
 from tenacity import retry, stop_after_attempt, wait_exponential
 
@@ -27,6 +28,19 @@ from .message import resolve_message_list
 from .tool_call import resolve_tool_call_list
 from .utils import _get_thread
 
+class UpdatedAtIndex(LocalSecondaryIndex):
+    """
+    This class represents a local secondary index
+    """
+
+    class Meta:
+        billing_mode = "PAY_PER_REQUEST"
+        # All attributes are projected
+        projection = AllProjection()
+        index_name = "updated_at-index"
+
+    thread_uuid = UnicodeAttribute(hash_key=True)
+    updated_at = UnicodeAttribute(range_key=True)
 
 class RunModel(BaseModel):
     class Meta(BaseModel.Meta):
@@ -43,6 +57,7 @@ class RunModel(BaseModel):
     updated_by = UnicodeAttribute()
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()
+    updated_at_index = UpdatedAtIndex()
 
 
 def create_run_table(logger: logging.Logger) -> bool:
@@ -108,7 +123,8 @@ def resolve_run_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     count_funct = RunModel.count
     if thread_uuid:
         args = [thread_uuid, None]
-        inquiry_funct = RunModel.query
+        inquiry_funct = RunModel.updated_at_index.query
+        count_funct = RunModel.updated_at_index.count
 
     the_filters = None  # We can add filters for the query.
     if endpoint_id:

@@ -17,7 +17,7 @@ from pynamodb.attributes import (
     UTCDateTimeAttribute,
 )
 from tenacity import retry, stop_after_attempt, wait_exponential
-
+from pynamodb.indexes import AllProjection, GlobalSecondaryIndex
 from silvaengine_dynamodb_base import (
     BaseModel,
     delete_decorator,
@@ -29,6 +29,19 @@ from silvaengine_utility import Utility
 
 from ..types.async_task import AsyncTaskListType, AsyncTaskType
 
+class EndpointIdUpdatedAtIndex(GlobalSecondaryIndex):
+    """
+    This class represents a local secondary index
+    """
+
+    class Meta:
+        billing_mode = "PAY_PER_REQUEST"
+        # All attributes are projected
+        projection = AllProjection()
+        index_name = "endpoint_id-updated_at-index"
+
+    endpoint_id = UnicodeAttribute(hash_key=True)
+    updated_at = UnicodeAttribute(range_key=True)
 
 class AsyncTaskModel(BaseModel):
     class Meta(BaseModel.Meta):
@@ -46,6 +59,7 @@ class AsyncTaskModel(BaseModel):
     updated_by = UnicodeAttribute()
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()
+    endpoint_id_updated_at_index = EndpointIdUpdatedAtIndex()
 
 
 def create_async_task_table(logger: logging.Logger) -> bool:
@@ -100,15 +114,15 @@ def resolve_async_task_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     endpoint_id = info.context["endpoint_id"]
     statuses = kwargs.get("statuses")
 
-    args = []
-    inquiry_funct = AsyncTaskModel.scan
-    count_funct = AsyncTaskModel.count
+    args = [endpoint_id, None]
+    inquiry_funct = AsyncTaskModel.endpoint_id_updated_at_index.query
+    count_funct = AsyncTaskModel.endpoint_id_updated_at_index.count
     if function_name:
         args = [function_name, None]
         inquiry_funct = AsyncTaskModel.query
 
     the_filters = None
-    if endpoint_id:
+    if endpoint_id and function_name:
         the_filters &= AsyncTaskModel.endpoint_id == endpoint_id
     if statuses:
         the_filters &= AsyncTaskModel.status.is_in(*statuses)
