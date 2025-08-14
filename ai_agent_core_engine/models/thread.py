@@ -98,7 +98,16 @@ def get_thread_count(endpoint_id: str, thread_uuid: str) -> int:
 def get_thread_type(info: ResolveInfo, thread: ThreadModel) -> ThreadType:
     try:
         agent = _get_agent(thread.endpoint_id, thread.agent_uuid)
-        messages = [message for message in sorted(combine_thread_messages(info, thread.thread_uuid, agent["tool_call_role"]), key=lambda x: x["created_at"], reverse=False)]
+        messages = [
+            message
+            for message in sorted(
+                combine_thread_messages(
+                    info, thread.thread_uuid, agent["tool_call_role"]
+                ),
+                key=lambda x: x["created_at"],
+                reverse=False,
+            )
+        ]
         tool_call_list = resolve_tool_call_list(
             info,
             **{
@@ -158,10 +167,16 @@ def resolve_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType:
 
 @monitor_decorator
 @resolve_list_decorator(
-    attributes_to_get=["endpoint_id", "thread_uuid", "agent_uuid", "user_id", "created_at"],
+    attributes_to_get=[
+        "endpoint_id",
+        "thread_uuid",
+        "agent_uuid",
+        "user_id",
+        "created_at",
+    ],
     list_type_class=ThreadListType,
     type_funct=get_thread_type,
-    scan_index_forward=False
+    scan_index_forward=False,
 )
 def resolve_thread_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     endpoint_id = info.context["endpoint_id"]

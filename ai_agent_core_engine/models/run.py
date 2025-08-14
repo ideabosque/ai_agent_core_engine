@@ -10,8 +10,8 @@ from typing import Any, Dict
 
 import pendulum
 from graphene import ResolveInfo
-from pynamodb.indexes import AllProjection, LocalSecondaryIndex
 from pynamodb.attributes import NumberAttribute, UnicodeAttribute, UTCDateTimeAttribute
+from pynamodb.indexes import AllProjection, LocalSecondaryIndex
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from silvaengine_dynamodb_base import (
@@ -28,6 +28,7 @@ from .message import resolve_message_list
 from .tool_call import resolve_tool_call_list
 from .utils import _get_thread
 
+
 class UpdatedAtIndex(LocalSecondaryIndex):
     """
     This class represents a local secondary index
@@ -41,6 +42,7 @@ class UpdatedAtIndex(LocalSecondaryIndex):
 
     thread_uuid = UnicodeAttribute(hash_key=True)
     updated_at = UnicodeAttribute(range_key=True)
+
 
 class RunModel(BaseModel):
     class Meta(BaseModel.Meta):
@@ -109,7 +111,7 @@ def resolve_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> RunType:
     attributes_to_get=["thread_uuid", "run_uuid", "updated_at"],
     list_type_class=RunListType,
     type_funct=get_run_type,
-    scan_index_forward=False
+    scan_index_forward=False,
 )
 def resolve_run_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     thread_uuid = kwargs.get("thread_uuid")

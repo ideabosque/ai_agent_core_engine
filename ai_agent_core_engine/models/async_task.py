@@ -16,8 +16,9 @@ from pynamodb.attributes import (
     UnicodeAttribute,
     UTCDateTimeAttribute,
 )
-from tenacity import retry, stop_after_attempt, wait_exponential
 from pynamodb.indexes import AllProjection, GlobalSecondaryIndex
+from tenacity import retry, stop_after_attempt, wait_exponential
+
 from silvaengine_dynamodb_base import (
     BaseModel,
     delete_decorator,
@@ -28,6 +29,7 @@ from silvaengine_dynamodb_base import (
 from silvaengine_utility import Utility
 
 from ..types.async_task import AsyncTaskListType, AsyncTaskType
+
 
 class EndpointIdUpdatedAtIndex(GlobalSecondaryIndex):
     """
@@ -42,6 +44,7 @@ class EndpointIdUpdatedAtIndex(GlobalSecondaryIndex):
 
     endpoint_id = UnicodeAttribute(hash_key=True)
     updated_at = UnicodeAttribute(range_key=True)
+
 
 class AsyncTaskModel(BaseModel):
     class Meta(BaseModel.Meta):
@@ -108,7 +111,7 @@ def resolve_async_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTask
     attributes_to_get=["endpoint_id", "function_name", "async_task_uuid", "updated_at"],
     list_type_class=AsyncTaskListType,
     type_funct=get_async_task_type,
-    scan_index_forward=False
+    scan_index_forward=False,
 )
 def resolve_async_task_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     function_name = kwargs.get("function_name")

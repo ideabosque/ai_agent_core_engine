@@ -41,6 +41,7 @@ class RunIdIndex(LocalSecondaryIndex):
     thread_uuid = UnicodeAttribute(hash_key=True)
     run_uuid = UnicodeAttribute(range_key=True)
 
+
 class UpdatedAtIndex(LocalSecondaryIndex):
     """
     This class represents a local secondary index
@@ -54,6 +55,7 @@ class UpdatedAtIndex(LocalSecondaryIndex):
 
     thread_uuid = UnicodeAttribute(hash_key=True)
     updated_at = UnicodeAttribute(range_key=True)
+
 
 class MessageModel(BaseModel):
     class Meta(BaseModel.Meta):
