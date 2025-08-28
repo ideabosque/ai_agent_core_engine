@@ -297,8 +297,11 @@ def _build_text_element(text: str) -> ET.Element:
     text_element.text = text
     return text_element
 
-
-def _build_action_element(action_data: Dict[str, Any]) -> ET.Element:
+def _build_prompt_element(text: str) -> ET.Element:
+    prompt_element = ET.Element("Prompt")
+    prompt_element.text = text
+    return prompt_element
+def _build_action_element(action_data: Dict[str, Any], has_children: bool) -> ET.Element:
     """
     Creates an XML Action element from the provided action data
 
@@ -309,24 +312,30 @@ def _build_action_element(action_data: Dict[str, Any]) -> ET.Element:
         ET.Element: The created Action element with all child elements
     """
     action_type = action_data.get("type")
+    transform_type = action_data.get("transform", {}).get("type")
+    attrs = action_data.get("attrs", [])
     action = ET.Element("Action", attrib={"type": "call_function"})
-    if action_type:
-        action.attrib["value"] = action_type
+    if has_children:
+        action.set("value", action_type)
+        return action
 
-    if "text" in action_data:
-        action.append(_build_text_element(action_data["text"]))
+    if len(attrs) > 0:
+        action.set("value", action_type)
+        transform_el = ET.Element("Transform", attrib={"type": transform_type})
+        if transform_type == "structure_input":
+            transform_el.set("value", "data_collect_dataset")
 
-    # Generic support for transforms
-    for tf in action_data.get("transforms", []):
-        transform_el = ET.Element("Transform", attrib={"type": tf["type"]})
-        if "attributes" in tf:
-            for attr in tf["attributes"]:
+        if transform_type in ["summarize", "full_content"]:
+            transform_el.text = attrs[0].get("attr")
+        else:
+            for attr in attrs:
                 attr_el = ET.Element("Attribute")
-                attr_el.text = attr
+                attr_el.text = attr.get("attr")
                 transform_el.append(attr_el)
-        elif "text" in tf:
-            transform_el.text = tf["text"]
         action.append(transform_el)
+    else:
+        if action_type:
+            action.text = action_type
 
     return action
 
@@ -350,18 +359,117 @@ def _build_ui_element(ui_data: Dict[str, Any]) -> ET.Element:
     component_el = ET.Element(component_name)
 
     for key, value in ui_data.items():
-        if key not in ["name", "text", "wait_for"] and value is not None:
+        if key not in ["name", "text", "waitFor"] and value is not None:
             component_el.set(key, str(value))
 
     ui_element.append(component_el)
 
-    if "wait_for" in ui_data:
+    if "waitFor" in ui_data:
         wait_el = ET.Element("WaitFor")
-        wait_el.text = ui_data["wait_for"]
+        wait_el.text = ui_data["waitFor"]
         ui_element.append(wait_el)
 
     return ui_element
 
+def _build_step_with_conditions(step_el: ET.Element, step_data: Dict[str, Any]):
+    hierarchy_nodes = get_details_hierarchy(step_data)
+    def build_element_with_children(node):
+        
+        current_element =  __build_detail_element(node)
+        for child in node.get("children", []):
+            current_element.append(build_element_with_children(child))
+        return current_element
+    
+    for hierarchy_node in hierarchy_nodes:
+        if len(hierarchy_node.get("children", [])) == 0:
+            element = __build_detail_element(hierarchy_node)
+            if element is not None:
+                step_el.append(element)
+            continue
+        step_el.append(build_element_with_children(hierarchy_node))
+
+    if step_data.get("nextStep"):
+        next_step = ET.Element("NextStep")
+        next_step.text = step_data["nextStep"]
+        step_el.append(next_step)
+
+    return step_el
+
+def get_details_hierarchy(data):
+    details = data.get('details', [])
+    if not details:
+        return None
+    conditions_map = {
+        condition.get("id"): condition
+        for condition in data.get("conditions", [])
+    }
+
+    node_map = {node['id']: node for node in details}
+
+    referenced_ids = set()
+    for node in details:
+        if node.get('nextStep'):
+            referenced_ids.add(node['nextStep'])
+        if 'conditions' in node:
+            for cond in node['conditions']:
+                if cond.get('nextStep'):
+                    referenced_ids.add(cond['nextStep'])
+    
+    start_nodes = [node for node in details if node['id'] not in referenced_ids]
+    start_node_id = start_nodes[0]['id'] if start_nodes else details[0]['id']
+    details_nodes = []
+    taken_node_ids = []
+    
+    def build_condition_hierarchy(condition):
+        condition_hierarchy = dict(condition, **{"children": []})
+        if len(conditions_map) == 0 or condition_hierarchy.get("id") not in conditions_map:
+            condition_hierarchy.pop("nextStep", None)
+        if condition.get("nextStep"):
+            child_node = node_map.get(condition.get("nextStep"))
+            if child_node:
+                taken_node_ids.append(condition.get("nextStep"))
+                if child_node.get("type") not in ["branch"]:
+                    condition_hierarchy["children"].append(child_node)
+                    message_node_next = node_map.get(child_node.get("nextStep"))
+                    if message_node_next:
+                        taken_node_ids.append(child_node.get("nextStep"))
+                        if "conditions" in message_node_next:
+                            for condition_node in message_node_next.get("conditions"):
+                                formated_condition_node = dict(condition_node, **{"type": message_node_next.get("type")})
+                                condition_hierarchy["children"].append(build_condition_hierarchy(formated_condition_node))
+                        else:
+                            condition_hierarchy["children"].append(message_node_next)
+                        
+                else:
+                    condition_hierarchy["children"].append(build_condition_hierarchy(child_node))
+
+        return condition_hierarchy
+    
+    for detail in details:
+        if detail.get("id") in taken_node_ids:
+            continue
+        taken_node_ids.append(detail.get("id"))
+        if detail.get("id") == start_node_id:
+            details_nodes.append(detail)
+            continue
+        if "conditions" in detail:
+            for condition in detail.get("conditions"):
+                formated_condition = dict(condition, **{"type": detail.get("type")})
+                condition_hierarchy = build_condition_hierarchy(formated_condition)
+                details_nodes.append(condition_hierarchy)
+        else:
+            details_nodes.append(detail)
+    return details_nodes
+
+def _build_branch_element(branch_data: Dict[str, Any]) -> ET.Element:
+    branch_element = ET.Element("Branch")
+    condition_name = branch_data.get("condition")
+    if condition_name:
+        branch_element.set("condition", condition_name)
+    if branch_data.get("nextStep"):
+        branch_element.set("next_step", branch_data.get("nextStep"))
+    
+    return branch_element
 
 def _build_step_element(step_index: int, step_data: Dict[str, Any]) -> ET.Element:
     """
@@ -375,23 +483,44 @@ def _build_step_element(step_index: int, step_data: Dict[str, Any]) -> ET.Elemen
         ET.Element: The created Step element with all child elements
     """
     step_el = ET.Element(
-        "Step", attrib={"id": str(step_index), "name": step_data["formData"]["name"]}
+        "Step", attrib={"id": str(step_data["id"]), "name": step_data["formData"]["name"]}
     )
 
-    if "description" in step_data["formData"]:
-        step_el.append(_build_text_element(step_data["formData"]["description"]))
+    has_conditions = False
+    for detail in step_data.get("details", []):
+        if "conditions" in detail:
+            has_conditions = True
+    if "conditions" in step_data or has_conditions:
+        return _build_step_with_conditions(step_el, step_data)
 
     for detail in step_data.get("details", []):
-        if detail["type"] == "ui":
-            if "text" in detail["formData"]:
-                step_el.append(_build_text_element(detail["formData"]["text"]))
-            step_el.append(_build_ui_element(detail["formData"]))
-        elif detail["type"] == "action":
-            if "text" in detail["formData"]:
-                step_el.append(_build_text_element(detail["formData"]["text"]))
-            step_el.append(_build_action_element(detail["formData"]))
+        detail_el = __build_detail_element(detail)
+        if detail_el is not None:
+            step_el.append(detail_el)
+    if step_data.get("nextStep"):
+        next_step = ET.Element("NextStep")
+        next_step.text = step_data["nextStep"]
+        step_el.append(next_step)
 
     return step_el
+
+def __build_detail_element(detail_data: Dict[str, Any]) -> ET.Element:
+    element = None
+    if "type" not in detail_data:
+        return element
+    has_children = True if len(detail_data.get("children", [])) > 0 else False
+    if detail_data["type"] == "ui":
+        element = _build_ui_element(detail_data["formData"])
+    elif detail_data["type"] == "action":
+        element = _build_action_element(detail_data["formData"], has_children)
+    elif detail_data["type"] in ["message", "prompt"]:
+        if detail_data["formData"]["type"] == "text":
+            element = _build_text_element(detail_data["formData"]["text"])
+        elif detail_data["formData"]["type"] == "prompt":
+            element = _build_prompt_element(detail_data["formData"]["text"])
+    elif detail_data["type"] == "branch":
+        element = _build_branch_element(detail_data)
+    return element
 
 
 def _json_to_xml(json_data: List[Dict[str, Any]]) -> str:
