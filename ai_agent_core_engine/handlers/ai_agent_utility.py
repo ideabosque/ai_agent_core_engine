@@ -312,32 +312,49 @@ def _build_action_element(action_data: Dict[str, Any], has_children: bool) -> ET
         ET.Element: The created Action element with all child elements
     """
     action_type = action_data.get("type")
-    transform_type = action_data.get("transform", {}).get("type")
-    attrs = action_data.get("attrs", [])
+    transform = action_data.get("transform")
+    
     action = ET.Element("Action", attrib={"type": "call_function"})
     if has_children:
         action.set("value", action_type)
         return action
+    
+    has_children_element = False
+    if isinstance(transform, dict):
+        transform_type = transform.get("type")
+        attrs = action_data.get("attrs", [])
+        if len(attrs) > 0:
+            has_children_element = True
+            transform_el = _build_transform_element(transform_type, attrs)
+            action.append(transform_el)
+    elif isinstance(transform, list):
+        if len(transform) > 0:
+            has_children_element = True
+        for tf in transform:
+            transform_el = _build_transform_element(tf.get("type"), tf.get("attrs",[]))
+            action.append(transform_el)
 
-    if len(attrs) > 0:
+    if has_children_element:
         action.set("value", action_type)
-        transform_el = ET.Element("Transform", attrib={"type": transform_type})
-        if transform_type == "structure_input":
-            transform_el.set("value", "data_collect_dataset")
-
-        if transform_type in ["summarize", "full_content"]:
-            transform_el.text = attrs[0].get("attr")
-        else:
-            for attr in attrs:
-                attr_el = ET.Element("Attribute")
-                attr_el.text = attr.get("attr")
-                transform_el.append(attr_el)
-        action.append(transform_el)
     else:
         if action_type:
             action.text = action_type
 
     return action
+
+def _build_transform_element(type: str, attrs: List[Dict[str, Any]]) -> ET.Element:
+    transform_el = ET.Element("Transform", attrib={"type": type})
+    if type == "structure_input":
+        transform_el.set("value", "data_collect_dataset")
+
+    if type in ["summarize", "full_content"]:
+        transform_el.text = attrs[0].get("attr")
+    else:
+        for attr in attrs:
+            attr_el = ET.Element("Attribute")
+            attr_el.text = attr.get("attr")
+            transform_el.append(attr_el)
+    return transform_el
 
 
 def _build_ui_element(ui_data: Dict[str, Any]) -> ET.Element:
@@ -373,11 +390,14 @@ def _build_ui_element(ui_data: Dict[str, Any]) -> ET.Element:
 
 def _build_step_with_conditions(step_el: ET.Element, step_data: Dict[str, Any]):
     hierarchy_nodes = get_details_hierarchy(step_data)
+    
     def build_element_with_children(node):
         
         current_element =  __build_detail_element(node)
         for child in node.get("children", []):
-            current_element.append(build_element_with_children(child))
+            child_element = build_element_with_children(child)
+            if child_element is not None:
+                current_element.append(child_element)
         return current_element
     
     for hierarchy_node in hierarchy_nodes:
