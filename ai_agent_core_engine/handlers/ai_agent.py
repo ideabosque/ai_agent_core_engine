@@ -164,6 +164,8 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskT
             agent.tool_call_role,
         )
         input_messages.append({"role": "user", "content": arguments["user_query"]})
+        # TODO: Implement long term memory processing pipeline.
+        # TODO: Implement long term memory context retrival.
 
         # TODO: Implement message evaluation system to:
         #  1. Evaluate all system messages and instructions with last assistant message
