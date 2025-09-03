@@ -32,7 +32,7 @@ from silvaengine_utility import Utility
 
 from ..types.agent import AgentListType, AgentType
 from .thread import resolve_thread_list
-from .utils import _get_flow_snippet, _get_llm, _get_mcp_servers
+from .utils import _get_flow_snippet, _get_llm, _get_mcp_servers, _get_prompt_template
 
 
 class AgentUuidIndex(LocalSecondaryIndex):
@@ -315,6 +315,19 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
         ]:
             if key in kwargs:
                 cols[key] = kwargs[key]
+
+            if key == "flow_snippet_version_uuid":
+                flow_snippet = _get_flow_snippet(endpoint_id, kwargs[key])
+                prmopt_template = _get_prompt_template(
+                    info, flow_snippet["prompt_uuid"]
+                )
+                cols["instructions"] = prmopt_template["template_context"].replace(
+                    "{flow_snippet}", flow_snippet["flow_context"]
+                )
+                cols["mcp_server_uuids"] = [
+                    mcp_server["mcp_server_uuid"]
+                    for mcp_server in prmopt_template["mcp_servers"]
+                ]
 
         AgentModel(
             endpoint_id,
