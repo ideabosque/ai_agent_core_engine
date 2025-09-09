@@ -107,7 +107,7 @@ def resolve_mcp_server(info: ResolveInfo, **kwargs: Dict[str, Any]) -> MCPServer
     type_funct=get_mcp_server_type,
 )
 def resolve_mcp_server_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
-    endpoint_id = kwargs.get("endpoint_id")
+    endpoint_id = info.context["endpoint_id"]
     mcp_label = kwargs.get("mcp_label")
 
     args = []
