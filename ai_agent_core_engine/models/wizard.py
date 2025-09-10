@@ -104,7 +104,7 @@ def resolve_wizard(info: ResolveInfo, **kwargs: Dict[str, Any]) -> WizardType:
     type_funct=get_wizard_type,
 )
 def resolve_wizard_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
-    endpoint_id = kwargs.get("endpoint_id")
+    endpoint_id = info.context["endpoint_id"]
     wizard_type = kwargs.get("wizard_type")
     wizard_title = kwargs.get("wizard_title")
 

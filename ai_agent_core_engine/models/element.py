@@ -110,7 +110,7 @@ def resolve_element(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ElementType:
     type_funct=get_element_type,
 )
 def resolve_element_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
-    endpoint_id = kwargs.get("endpoint_id")
+    endpoint_id = info.context["endpoint_id"]
     data_type = kwargs.get("data_type")
     attribute_name = kwargs.get("attribute_name")
 
