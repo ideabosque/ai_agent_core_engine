@@ -398,6 +398,9 @@ def _build_step_with_conditions(step_el: ET.Element, step_data: Dict[str, Any]):
             child_element = build_element_with_children(child)
             if child_element is not None:
                 current_element.append(child_element)
+                after_el = __process_after_build_detail_element(child)
+                if after_el is not None and current_element is not None:
+                    current_element.append(after_el)
         return current_element
     
     for hierarchy_node in hierarchy_nodes:
@@ -405,6 +408,9 @@ def _build_step_with_conditions(step_el: ET.Element, step_data: Dict[str, Any]):
             element = __build_detail_element(hierarchy_node)
             if element is not None:
                 step_el.append(element)
+                after_el = __process_after_build_detail_element(hierarchy_node)
+                if after_el is not None:
+                    step_el.append(after_el)
             continue
         step_el.append(build_element_with_children(hierarchy_node))
 
@@ -517,6 +523,10 @@ def _build_step_element(step_index: int, step_data: Dict[str, Any]) -> ET.Elemen
         detail_el = __build_detail_element(detail)
         if detail_el is not None:
             step_el.append(detail_el)
+            after_el = __process_after_build_detail_element(detail)
+            if after_el is not None:
+                step_el.append(after_el)
+
     if step_data.get("nextStep"):
         next_step = ET.Element("NextStep")
         next_step.text = step_data["nextStep"]
@@ -542,6 +552,13 @@ def __build_detail_element(detail_data: Dict[str, Any]) -> ET.Element:
         element = _build_branch_element(detail_data)
     return element
 
+def __process_after_build_detail_element(detail_data: Dict[str, Any]) -> ET.Element:
+    element = None
+    if detail_data.get("type") == "action" and detail_data.get("formData", {}).get("type") == "get_contact_profile":
+        element = ET.Element("WaitFor")
+        element.text = "contact_uuid"
+
+    return element
 
 def _json_to_xml(json_data: List[Dict[str, Any]]) -> str:
     """
