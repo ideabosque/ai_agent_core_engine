@@ -130,18 +130,6 @@ def get_input_messages(
     try:
         messages = combine_thread_messages(info, thread_uuid, tool_call_role)
 
-        # TODO: Implement message processing pipeline (long term memory) to:
-        # 1. Update conversation context in the graph database
-        # 2. Retrieve relevant long-term memory based on message content
-        # 3. Integrate memory retrieval with vector embeddings for semantic search
-        # 4. Handle memory pruning/summarization for efficient storage
-        # Notes:
-        # Asynchronously update long-term memory with new conversation context
-        # Synchronously fetch relevant historical context from long-term memory store
-        # Combine historical context with current conversation thread
-        # Use semantic similarity to prioritize most relevant memories
-        # Prune and summarize older memories to maintain storage efficiency
-
         # Return last n messages sorted by creation time (most recent first)
         # Remove timestamps and reverse to get chronological order
         return [
@@ -297,11 +285,16 @@ def _build_text_element(text: str) -> ET.Element:
     text_element.text = text
     return text_element
 
+
 def _build_prompt_element(text: str) -> ET.Element:
     prompt_element = ET.Element("Prompt")
     prompt_element.text = text
     return prompt_element
-def _build_action_element(action_data: Dict[str, Any], has_children: bool) -> ET.Element:
+
+
+def _build_action_element(
+    action_data: Dict[str, Any], has_children: bool
+) -> ET.Element:
     """
     Creates an XML Action element from the provided action data
 
@@ -313,12 +306,12 @@ def _build_action_element(action_data: Dict[str, Any], has_children: bool) -> ET
     """
     action_type = action_data.get("type")
     transform = action_data.get("transform")
-    
+
     action = ET.Element("Action", attrib={"type": "call_function"})
     if has_children:
         action.set("value", action_type)
         return action
-    
+
     has_children_element = False
     if isinstance(transform, dict):
         transform_type = transform.get("type")
@@ -331,7 +324,7 @@ def _build_action_element(action_data: Dict[str, Any], has_children: bool) -> ET
         if len(transform) > 0:
             has_children_element = True
         for tf in transform:
-            transform_el = _build_transform_element(tf.get("type"), tf.get("attrs",[]))
+            transform_el = _build_transform_element(tf.get("type"), tf.get("attrs", []))
             action.append(transform_el)
 
     if has_children_element:
@@ -341,6 +334,7 @@ def _build_action_element(action_data: Dict[str, Any], has_children: bool) -> ET
             action.text = action_type
 
     return action
+
 
 def _build_transform_element(type: str, attrs: List[Dict[str, Any]]) -> ET.Element:
     transform_el = ET.Element("Transform", attrib={"type": type})
@@ -388,12 +382,13 @@ def _build_ui_element(ui_data: Dict[str, Any]) -> ET.Element:
 
     return ui_element
 
+
 def _build_step_with_conditions(step_el: ET.Element, step_data: Dict[str, Any]):
     hierarchy_nodes = get_details_hierarchy(step_data)
-    
+
     def build_element_with_children(node):
-        
-        current_element =  __build_detail_element(node)
+
+        current_element = __build_detail_element(node)
         for child in node.get("children", []):
             child_element = build_element_with_children(child)
             if child_element is not None:
@@ -402,7 +397,7 @@ def _build_step_with_conditions(step_el: ET.Element, step_data: Dict[str, Any]):
                 if after_el is not None and current_element is not None:
                     current_element.append(after_el)
         return current_element
-    
+
     for hierarchy_node in hierarchy_nodes:
         if len(hierarchy_node.get("children", [])) == 0:
             element = __build_detail_element(hierarchy_node)
@@ -421,34 +416,37 @@ def _build_step_with_conditions(step_el: ET.Element, step_data: Dict[str, Any]):
 
     return step_el
 
+
 def get_details_hierarchy(data):
-    details = data.get('details', [])
+    details = data.get("details", [])
     if not details:
         return None
     conditions_map = {
-        condition.get("id"): condition
-        for condition in data.get("conditions", [])
+        condition.get("id"): condition for condition in data.get("conditions", [])
     }
 
-    node_map = {node['id']: node for node in details}
+    node_map = {node["id"]: node for node in details}
 
     referenced_ids = set()
     for node in details:
-        if node.get('nextStep'):
-            referenced_ids.add(node['nextStep'])
-        if 'conditions' in node:
-            for cond in node['conditions']:
-                if cond.get('nextStep'):
-                    referenced_ids.add(cond['nextStep'])
-    
-    start_nodes = [node for node in details if node['id'] not in referenced_ids]
-    start_node_id = start_nodes[0]['id'] if start_nodes else details[0]['id']
+        if node.get("nextStep"):
+            referenced_ids.add(node["nextStep"])
+        if "conditions" in node:
+            for cond in node["conditions"]:
+                if cond.get("nextStep"):
+                    referenced_ids.add(cond["nextStep"])
+
+    start_nodes = [node for node in details if node["id"] not in referenced_ids]
+    start_node_id = start_nodes[0]["id"] if start_nodes else details[0]["id"]
     details_nodes = []
     taken_node_ids = []
-    
+
     def build_condition_hierarchy(condition):
         condition_hierarchy = dict(condition, **{"children": []})
-        if len(conditions_map) == 0 or condition_hierarchy.get("id") not in conditions_map:
+        if (
+            len(conditions_map) == 0
+            or condition_hierarchy.get("id") not in conditions_map
+        ):
             condition_hierarchy.pop("nextStep", None)
         if condition.get("nextStep"):
             child_node = node_map.get(condition.get("nextStep"))
@@ -461,16 +459,23 @@ def get_details_hierarchy(data):
                         taken_node_ids.append(child_node.get("nextStep"))
                         if "conditions" in message_node_next:
                             for condition_node in message_node_next.get("conditions"):
-                                formated_condition_node = dict(condition_node, **{"type": message_node_next.get("type")})
-                                condition_hierarchy["children"].append(build_condition_hierarchy(formated_condition_node))
+                                formated_condition_node = dict(
+                                    condition_node,
+                                    **{"type": message_node_next.get("type")},
+                                )
+                                condition_hierarchy["children"].append(
+                                    build_condition_hierarchy(formated_condition_node)
+                                )
                         else:
                             condition_hierarchy["children"].append(message_node_next)
-                        
+
                 else:
-                    condition_hierarchy["children"].append(build_condition_hierarchy(child_node))
+                    condition_hierarchy["children"].append(
+                        build_condition_hierarchy(child_node)
+                    )
 
         return condition_hierarchy
-    
+
     for detail in details:
         if detail.get("id") in taken_node_ids:
             continue
@@ -487,6 +492,7 @@ def get_details_hierarchy(data):
             details_nodes.append(detail)
     return details_nodes
 
+
 def _build_branch_element(branch_data: Dict[str, Any]) -> ET.Element:
     branch_element = ET.Element("Branch")
     condition_name = branch_data.get("condition")
@@ -494,8 +500,9 @@ def _build_branch_element(branch_data: Dict[str, Any]) -> ET.Element:
         branch_element.set("condition", condition_name)
     if branch_data.get("nextStep"):
         branch_element.set("next_step", branch_data.get("nextStep"))
-    
+
     return branch_element
+
 
 def _build_step_element(step_index: int, step_data: Dict[str, Any]) -> ET.Element:
     """
@@ -509,7 +516,8 @@ def _build_step_element(step_index: int, step_data: Dict[str, Any]) -> ET.Elemen
         ET.Element: The created Step element with all child elements
     """
     step_el = ET.Element(
-        "Step", attrib={"id": str(step_data["id"]), "name": step_data["formData"]["name"]}
+        "Step",
+        attrib={"id": str(step_data["id"]), "name": step_data["formData"]["name"]},
     )
 
     has_conditions = False
@@ -533,6 +541,7 @@ def _build_step_element(step_index: int, step_data: Dict[str, Any]) -> ET.Elemen
         step_el.append(next_step)
 
     return step_el
+
 
 def __build_detail_element(detail_data: Dict[str, Any]) -> ET.Element:
     element = None
