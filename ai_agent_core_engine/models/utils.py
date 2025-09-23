@@ -181,6 +181,7 @@ def _get_mcp_servers(
             if k not in ["endpoint_id", "updated_by", "created_at", "updated_at"]
         }
         for mcp_server in mcp_servers
+        if mcp_server is not None
     ]
     return mcp_servers
 

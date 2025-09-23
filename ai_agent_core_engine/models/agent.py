@@ -64,8 +64,7 @@ class AgentModel(BaseModel):
     instructions = UnicodeAttribute(null=True)
     configuration = MapAttribute()
     mcp_server_uuids = ListAttribute(null=True)
-    function_configuration = MapAttribute()
-    functions = MapAttribute()
+    variables = ListAttribute(null=True, of=MapAttribute)
     num_of_messages = NumberAttribute(default=10)
     tool_call_role = UnicodeAttribute(default="developer")
     flow_snippet_version_uuid = UnicodeAttribute(null=True)
@@ -261,8 +260,7 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
         cols = {
             "configuration": {},
             "mcp_server_uuids": [],
-            "function_configuration": {},
-            "functions": {},
+            "variables": [],
             "updated_by": kwargs["updated_by"],
             "created_at": pendulum.now("UTC"),
             "updated_at": pendulum.now("UTC"),
@@ -307,8 +305,7 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
             "instructions",
             "configuration",
             "mcp_server_uuids",
-            "function_configuration",
-            "functions",
+            "variables",
             "num_of_messages",
             "tool_call_role",
             "flow_snippet_version_uuid",
@@ -316,18 +313,18 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
             if key in kwargs:
                 cols[key] = kwargs[key]
 
-            if key == "flow_snippet_version_uuid":
-                flow_snippet = _get_flow_snippet(endpoint_id, kwargs[key])
-                prmopt_template = _get_prompt_template(
-                    info, flow_snippet["prompt_uuid"]
-                )
-                cols["instructions"] = prmopt_template["template_context"].replace(
-                    "{flow_snippet}", flow_snippet["flow_context"]
-                )
-                cols["mcp_server_uuids"] = [
-                    mcp_server["mcp_server_uuid"]
-                    for mcp_server in prmopt_template["mcp_servers"]
-                ]
+                if key == "flow_snippet_version_uuid":
+                    flow_snippet = _get_flow_snippet(endpoint_id, kwargs[key])
+                    prmopt_template = _get_prompt_template(
+                        info, flow_snippet["prompt_uuid"]
+                    )
+                    cols["instructions"] = prmopt_template["template_context"].replace(
+                        "{flow_snippet}", flow_snippet["flow_context"]
+                    )
+                    cols["mcp_server_uuids"] = [
+                        mcp_server["mcp_server_uuid"]
+                        for mcp_server in prmopt_template["mcp_servers"]
+                    ]
 
         AgentModel(
             endpoint_id,
@@ -356,8 +353,7 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
         "instructions": AgentModel.instructions,
         "configuration": AgentModel.configuration,
         "mcp_server_uuids": AgentModel.mcp_server_uuids,
-        "function_configuration": AgentModel.function_configuration,
-        "functions": AgentModel.functions,
+        "variables": AgentModel.variables,
         "num_of_messages": AgentModel.num_of_messages,
         "tool_call_role": AgentModel.tool_call_role,
         "flow_snippet_version_uuid": AgentModel.flow_snippet_version_uuid,
