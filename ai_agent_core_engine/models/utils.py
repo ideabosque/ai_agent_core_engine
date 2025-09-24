@@ -76,8 +76,6 @@ def _get_agent(endpoint_id: str, agent_uuid: str) -> Dict[str, Any]:
         "llm": _get_llm(agent.llm_provider, agent.llm_name),
         "instructions": agent.instructions,
         "configuration": agent.configuration,
-        "function_configuration": agent.function_configuration,
-        "functions": agent.functions,
         "num_of_messages": agent.num_of_messages,
         "tool_call_role": agent.tool_call_role,
         "flow_snippet_version_uuid": agent.flow_snippet_version_uuid,
