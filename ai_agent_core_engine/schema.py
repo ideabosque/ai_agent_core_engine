@@ -155,6 +155,7 @@ class Query(ObjectType):
         llm_name=String(required=False),
         model=String(required=False),
         statuses=List(String, required=False),
+        flow_snippet_version_uuid=String(required=False),
     )
 
     thread = Field(

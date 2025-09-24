@@ -27,7 +27,7 @@ from silvaengine_utility import Utility
 from ..handlers.ai_agent_utility import convert_flow_snippet_xml
 from ..handlers.config import Config
 from ..types.flow_snippet import FlowSnippetListType, FlowSnippetType
-from .utils import _get_prompt_template
+from .utils import _get_prompt_template, _update_agents_by_flow_snippet
 
 
 class FlowSnippetUuidIndex(LocalSecondaryIndex):
@@ -284,6 +284,12 @@ def insert_update_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
             flow_snippet_version_uuid,
             **cols,
         ).save()
+
+        _update_agents_by_flow_snippet(
+            info,
+            active_flow_snippet.flow_snippet_version_uuid,
+            flow_snippet_version_uuid,
+        )
         return
 
     flow_snippet = kwargs.get("entity")

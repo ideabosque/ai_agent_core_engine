@@ -194,6 +194,7 @@ def resolve_agent_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     llm_name = kwargs.get("llm_name")
     model = kwargs.get("model")
     statuses = kwargs.get("statuses")
+    flow_snippet_version_uuid = kwargs.get("flow_snippet_version_uuid")
 
     args = []
     inquiry_funct = AgentModel.scan
@@ -217,6 +218,8 @@ def resolve_agent_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
         the_filters &= AgentModel.configuration["model"] == model
     if statuses:
         the_filters &= AgentModel.status.is_in(*statuses)
+    if flow_snippet_version_uuid:
+        the_filters &= AgentModel.flow_snippet_version_uuid == flow_snippet_version_uuid
     if the_filters is not None:
         args.append(the_filters)
 

@@ -232,3 +232,30 @@ def _get_prompt_template(info: ResolveInfo, prompt_uuid: str) -> Dict[str, Any]:
         "ui_components": _get_ui_components(info, prompt_template.ui_components),
         "status": prompt_template.status,
     }
+
+
+def _update_agents_by_flow_snippet(
+    info: ResolveInfo,
+    flow_snippet_version_uuid: str,
+    updated_flow_snippet_version_uuid: str,
+) -> None:
+    from .agent import insert_update_agent, resolve_agent_list
+
+    agent_list = resolve_agent_list(
+        info,
+        **{
+            "flow_snippet_version_uuid": flow_snippet_version_uuid,
+        },
+    )
+
+    for agent in agent_list.agent_list:
+        agent = insert_update_agent(
+            info,
+            **{
+                "agent_uuid": agent.agent_uuid,
+                "flow_snippet_version_uuid": updated_flow_snippet_version_uuid,
+                "updated_by": agent.updated_by,
+            },
+        )
+
+    return
