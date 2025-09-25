@@ -152,7 +152,7 @@ def get_thread_type(info: ResolveInfo, thread: ThreadModel) -> ThreadType:
     thread["tool_calls"] = tool_calls
     thread.pop("endpoint_id")
     thread.pop("agent_uuid")
-    return ThreadType(**Utility.json_loads(Utility.json_dumps(thread)))
+    return ThreadType(**Utility.json_normalize(thread))
 
 
 def resolve_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType:

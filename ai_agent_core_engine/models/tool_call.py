@@ -119,7 +119,7 @@ def get_tool_call_type(info: ResolveInfo, tool_call: ToolCallModel) -> ToolCallT
     tool_call["run"] = run
     tool_call.pop("thread_uuid")
     tool_call.pop("run_uuid")
-    return ToolCallType(**Utility.json_loads(Utility.json_dumps(tool_call)))
+    return ToolCallType(**Utility.json_normalize(tool_call))
 
 
 def resolve_tool_call(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ToolCallType:

@@ -87,7 +87,7 @@ def get_mcp_server_type(info: ResolveInfo, mcp_server: MCPServerModel) -> MCPSer
         }
         for tool in tools
     ]
-    return MCPServerType(**Utility.json_loads(Utility.json_dumps(mcp_server)))
+    return MCPServerType(**Utility.json_normalize(mcp_server))
 
 
 def resolve_mcp_server(info: ResolveInfo, **kwargs: Dict[str, Any]) -> MCPServerType:

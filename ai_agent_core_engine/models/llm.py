@@ -63,7 +63,7 @@ def get_llm_count(llm_provider: str, llm_name: str) -> int:
 
 def get_llm_type(info: ResolveInfo, llm: LlmModel) -> LlmType:
     llm = llm.__dict__["attribute_values"]
-    return LlmType(**Utility.json_loads(Utility.json_dumps(llm)))
+    return LlmType(**Utility.json_normalize(llm))
 
 
 def resolve_llm(info: ResolveInfo, **kwargs: Dict[str, Any]) -> LlmType:

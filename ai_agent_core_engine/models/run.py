@@ -95,7 +95,7 @@ def get_run_type(info: ResolveInfo, run: RunModel) -> RunType:
     run["thread"] = thread
     run.pop("thread_uuid")
     run.pop("endpoint_id")
-    return RunType(**Utility.json_loads(Utility.json_dumps(run)))
+    return RunType(**Utility.json_normalize(run))
 
 
 def resolve_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> RunType:

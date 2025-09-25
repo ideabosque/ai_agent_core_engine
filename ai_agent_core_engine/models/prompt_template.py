@@ -148,7 +148,7 @@ def get_prompt_template_type(
     prompt_template = prompt_template.__dict__["attribute_values"]
     prompt_template["mcp_servers"] = mcp_servers
     prompt_template["ui_components"] = ui_components
-    return PromptTemplateType(**Utility.json_loads(Utility.json_dumps(prompt_template)))
+    return PromptTemplateType(**Utility.json_normalize(prompt_template))
 
 
 def resolve_prompt_template(

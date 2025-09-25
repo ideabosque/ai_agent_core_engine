@@ -114,7 +114,7 @@ def get_fine_tuning_message_type(
 ) -> FineTuningMessageType:
     fine_tuning_message = fine_tuning_message.__dict__["attribute_values"]
     return FineTuningMessageType(
-        **Utility.json_loads(Utility.json_dumps(fine_tuning_message))
+        **Utility.json_normalize(fine_tuning_message)
     )
 
 

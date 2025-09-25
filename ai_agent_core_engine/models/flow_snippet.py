@@ -132,7 +132,7 @@ def get_flow_snippet_type(
     flow_snippet = flow_snippet.__dict__["attribute_values"]
     flow_snippet["prompt_template"] = prompt_template
     flow_snippet.pop("prompt_uuid")
-    return FlowSnippetType(**Utility.json_loads(Utility.json_dumps(flow_snippet)))
+    return FlowSnippetType(**Utility.json_normalize(flow_snippet))
 
 
 def resolve_flow_snippet(

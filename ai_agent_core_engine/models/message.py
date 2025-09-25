@@ -107,7 +107,7 @@ def get_message_type(info: ResolveInfo, message: MessageModel) -> MessageType:
     message["run"] = run
     message.pop("thread_uuid")
     message.pop("run_uuid")
-    return MessageType(**Utility.json_loads(Utility.json_dumps(message)))
+    return MessageType(**Utility.json_normalize(message))
 
 
 def resolve_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> MessageType:

@@ -92,7 +92,7 @@ def get_async_task_count(endpoint_id: str, async_task_uuid: str) -> int:
 
 def get_async_task_type(info: ResolveInfo, async_task: AsyncTaskModel) -> AsyncTaskType:
     async_task = async_task.__dict__["attribute_values"]
-    return AsyncTaskType(**Utility.json_loads(Utility.json_dumps(async_task)))
+    return AsyncTaskType(**Utility.json_normalize(async_task))
 
 
 def resolve_async_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskType:

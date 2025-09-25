@@ -161,7 +161,7 @@ def get_agent_type(info: ResolveInfo, agent: AgentModel) -> AgentType:
         agent.pop("mcp_server_uuids")
     if "flow_snippet_version_uuid" in agent:
         agent.pop("flow_snippet_version_uuid")
-    return AgentType(**Utility.json_loads(Utility.json_dumps(agent)))
+    return AgentType(**Utility.json_normalize(agent))
 
 
 def resolve_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AgentType:

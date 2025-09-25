@@ -75,7 +75,7 @@ def get_ui_component_type(
     info: ResolveInfo, ui_component: UIComponentModel
 ) -> UIComponentType:
     ui_component = ui_component.__dict__["attribute_values"]
-    return UIComponentType(**Utility.json_loads(Utility.json_dumps(ui_component)))
+    return UIComponentType(**Utility.json_normalize(ui_component))
 
 
 def resolve_ui_component(

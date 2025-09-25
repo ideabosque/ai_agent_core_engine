@@ -84,7 +84,7 @@ def get_wizard_type(info: ResolveInfo, wizard: WizardType) -> WizardType:
     wizard = wizard.__dict__["attribute_values"]
     wizard["elements"] = elements
     wizard.pop("element_uuids")
-    return WizardType(**Utility.json_loads(Utility.json_dumps(wizard)))
+    return WizardType(**Utility.json_normalize(wizard))
 
 
 def resolve_wizard(info: ResolveInfo, **kwargs: Dict[str, Any]) -> WizardType:

@@ -87,7 +87,7 @@ def get_wizard_group_type(
     wizard_group = wizard_group.__dict__["attribute_values"]
     wizard_group["wizards"] = wizards
     wizard_group.pop("wizard_uuids")
-    return WizardGroupType(**Utility.json_loads(Utility.json_dumps(wizard_group)))
+    return WizardGroupType(**Utility.json_normalize(wizard_group))
 
 
 def resolve_wizard_group(

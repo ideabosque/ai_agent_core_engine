@@ -90,7 +90,7 @@ def get_element_count(endpoint_id: str, element_uuid: str) -> int:
 
 def get_element_type(info: ResolveInfo, element: ElementModel) -> ElementType:
     element = element.__dict__["attribute_values"]
-    return ElementType(**Utility.json_loads(Utility.json_dumps(element)))
+    return ElementType(**Utility.json_normalize(element))
 
 
 def resolve_element(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ElementType:
