@@ -285,11 +285,12 @@ def insert_update_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
             **cols,
         ).save()
 
-        _update_agents_by_flow_snippet(
-            info,
-            active_flow_snippet.flow_snippet_version_uuid,
-            flow_snippet_version_uuid,
-        )
+        if active_flow_snippet is not None:
+            _update_agents_by_flow_snippet(
+                info,
+                active_flow_snippet.flow_snippet_version_uuid,
+                flow_snippet_version_uuid,
+            )
         return
 
     flow_snippet = kwargs.get("entity")
