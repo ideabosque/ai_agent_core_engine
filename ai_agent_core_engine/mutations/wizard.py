@@ -31,8 +31,16 @@ class InsertUpdateWizard(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "InsertUpdateWizard":
         try:
-            if hasattr(resolve_wizard_list, "cache_clear"):
-                resolve_wizard_list.cache_clear()  # Clear wizard lists
+            # Use cascading cache purging for wizards
+            from ..models.cache import purge_wizard_cascading_cache
+
+            cache_result = purge_wizard_cascading_cache(
+                endpoint_id=info.context["endpoint_id"],
+                wizard_uuid=kwargs.get("wizard_uuid"),
+                element_uuids=kwargs.get("element_uuids"),
+                logger=info.context.get("logger"),
+            )
+
             wizard = insert_update_wizard(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
@@ -51,8 +59,15 @@ class DeleteWizard(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteWizard":
         try:
-            if hasattr(resolve_wizard_list, "cache_clear"):
-                resolve_wizard_list.cache_clear()  # Clear wizard lists
+            # Use cascading cache purging for wizards
+            from ..models.cache import purge_wizard_cascading_cache
+
+            cache_result = purge_wizard_cascading_cache(
+                endpoint_id=info.context["endpoint_id"],
+                wizard_uuid=kwargs.get("wizard_uuid"),
+                logger=info.context.get("logger"),
+            )
+
             ok = delete_wizard(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()

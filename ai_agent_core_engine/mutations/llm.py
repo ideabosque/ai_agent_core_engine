@@ -29,8 +29,15 @@ class InsertUpdateLlm(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "InsertUpdateLlm":
         try:
-            if hasattr(resolve_llm_list, "cache_clear"):
-                resolve_llm_list.cache_clear()  # Clear llm lists
+            # Use cascading cache purging for LLMs
+            from ..models.cache import purge_llm_cascading_cache
+
+            cache_result = purge_llm_cascading_cache(
+                llm_provider=kwargs.get("llm_provider"),
+                llm_name=kwargs.get("llm_name"),
+                logger=info.context.get("logger"),
+            )
+
             llm = insert_update_llm(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
@@ -50,8 +57,15 @@ class DeleteLlm(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteLlm":
         try:
-            if hasattr(resolve_llm_list, "cache_clear"):
-                resolve_llm_list.cache_clear()  # Clear llm lists
+            # Use cascading cache purging for LLMs
+            from ..models.cache import purge_llm_cascading_cache
+
+            cache_result = purge_llm_cascading_cache(
+                llm_provider=kwargs.get("llm_provider"),
+                llm_name=kwargs.get("llm_name"),
+                logger=info.context.get("logger"),
+            )
+
             ok = delete_llm(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()

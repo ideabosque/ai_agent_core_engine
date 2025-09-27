@@ -34,8 +34,15 @@ class InsertUpdateAsyncTask(Mutation):
         root: Any, info: Any, **kwargs: Dict[str, Any]
     ) -> "InsertUpdateAsyncTask":
         try:
-            if hasattr(resolve_async_task_list, "cache_clear"):
-                resolve_async_task_list.cache_clear()  # Clear async task lists
+            # Use cascading cache purging for async tasks
+            from ..models.cache import purge_async_task_cascading_cache
+
+            cache_result = purge_async_task_cascading_cache(
+                function_name=kwargs.get("function_name"),
+                async_task_uuid=kwargs.get("async_task_uuid"),
+                logger=info.context.get("logger"),
+            )
+
             async_task = insert_update_async_task(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
@@ -55,8 +62,15 @@ class DeleteAsyncTask(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteAsyncTask":
         try:
-            if hasattr(resolve_async_task_list, "cache_clear"):
-                resolve_async_task_list.cache_clear()  # Clear async task lists
+            # Use cascading cache purging for async tasks
+            from ..models.cache import purge_async_task_cascading_cache
+
+            cache_result = purge_async_task_cascading_cache(
+                function_name=kwargs.get("function_name"),
+                async_task_uuid=kwargs.get("async_task_uuid"),
+                logger=info.context.get("logger"),
+            )
+
             ok = delete_async_task(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()

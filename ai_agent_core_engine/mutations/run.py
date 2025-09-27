@@ -30,8 +30,15 @@ class InsertUpdateRun(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "InsertUpdateRun":
         try:
-            if hasattr(resolve_run_list, "cache_clear"):
-                resolve_run_list.cache_clear()  # Clear run lists
+            # Use cascading cache purging for runs
+            from ..models.cache import purge_run_cascading_cache
+
+            cache_result = purge_run_cascading_cache(
+                thread_uuid=kwargs.get("thread_uuid"),
+                run_uuid=kwargs.get("run_uuid"),
+                logger=info.context.get("logger"),
+            )
+
             run = insert_update_run(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
@@ -51,8 +58,15 @@ class DeleteRun(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteRun":
         try:
-            if hasattr(resolve_run_list, "cache_clear"):
-                resolve_run_list.cache_clear()  # Clear run lists
+            # Use cascading cache purging for runs
+            from ..models.cache import purge_run_cascading_cache
+
+            cache_result = purge_run_cascading_cache(
+                thread_uuid=kwargs.get("thread_uuid"),
+                run_uuid=kwargs.get("run_uuid"),
+                logger=info.context.get("logger"),
+            )
+
             ok = delete_run(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()

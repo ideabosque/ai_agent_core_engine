@@ -28,8 +28,15 @@ class InsertUpdateMCPServer(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "InsertUpdateMCPServer":
         try:
-            if hasattr(resolve_mcp_server_list, "cache_clear"):
-                resolve_mcp_server_list.cache_clear()  # Clear mcp server lists
+            # Use cascading cache purging for MCP servers
+            from ..models.cache import purge_mcp_server_cascading_cache
+
+            cache_result = purge_mcp_server_cascading_cache(
+                endpoint_id=info.context["endpoint_id"],
+                mcp_server_uuid=kwargs.get("mcp_server_uuid"),
+                logger=info.context.get("logger"),
+            )
+
             mcp_server = insert_update_mcp_server(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
@@ -48,8 +55,15 @@ class DeleteMCPServer(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteMCPServer":
         try:
-            if hasattr(resolve_mcp_server_list, "cache_clear"):
-                resolve_mcp_server_list.cache_clear()  # Clear mcp server lists
+            # Use cascading cache purging for MCP servers
+            from ..models.cache import purge_mcp_server_cascading_cache
+
+            cache_result = purge_mcp_server_cascading_cache(
+                endpoint_id=info.context["endpoint_id"],
+                mcp_server_uuid=kwargs.get("mcp_server_uuid"),
+                logger=info.context.get("logger"),
+            )
+
             ok = delete_mcp_server(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()

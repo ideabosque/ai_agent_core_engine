@@ -39,8 +39,16 @@ class InsertUpdateFineTuningMessage(Mutation):
         root: Any, info: Any, **kwargs: Dict[str, Any]
     ) -> "InsertUpdateFineTuningMessage":
         try:
-            if hasattr(resolve_fine_tuning_message_list, "cache_clear"):
-                resolve_fine_tuning_message_list.cache_clear()  # Clear fine tuning message lists
+            # Use cascading cache purging for fine tuning messages
+            from ..models.cache import purge_fine_tuning_message_cascading_cache
+
+            cache_result = purge_fine_tuning_message_cascading_cache(
+                agent_uuid=kwargs.get("agent_uuid"),
+                thread_uuid=kwargs.get("thread_uuid"),
+                message_uuid=kwargs.get("message_uuid"),
+                logger=info.context.get("logger"),
+            )
+
             fine_tuning_message = insert_update_fine_tuning_message(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
@@ -62,8 +70,15 @@ class DeleteFineTuningMessage(Mutation):
         root: Any, info: Any, **kwargs: Dict[str, Any]
     ) -> "DeleteFineTuningMessage":
         try:
-            if hasattr(resolve_fine_tuning_message_list, "cache_clear"):
-                resolve_fine_tuning_message_list.cache_clear()  # Clear fine tuning message lists
+            # Use cascading cache purging for fine tuning messages
+            from ..models.cache import purge_fine_tuning_message_cascading_cache
+
+            cache_result = purge_fine_tuning_message_cascading_cache(
+                agent_uuid=kwargs.get("agent_uuid"),
+                message_uuid=kwargs.get("message_uuid"),
+                logger=info.context.get("logger"),
+            )
+
             ok = delete_fine_tuning_message(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()

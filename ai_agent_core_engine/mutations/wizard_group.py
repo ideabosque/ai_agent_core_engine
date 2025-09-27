@@ -31,8 +31,15 @@ class InsertUpdateWizardGroup(Mutation):
         root: Any, info: Any, **kwargs: Dict[str, Any]
     ) -> "InsertUpdateWizardGroup":
         try:
-            if hasattr(resolve_wizard_group_list, "cache_clear"):
-                resolve_wizard_group_list.cache_clear()  # Clear wizard group lists
+            # Use cascading cache purging for wizard groups
+            from ..models.cache import purge_wizard_group_cascading_cache
+
+            cache_result = purge_wizard_group_cascading_cache(
+                endpoint_id=info.context["endpoint_id"],
+                wizard_group_uuid=kwargs.get("wizard_group_uuid"),
+                logger=info.context.get("logger"),
+            )
+
             wizard_group = insert_update_wizard_group(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
@@ -51,8 +58,15 @@ class DeleteWizardGroup(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteWizardGroup":
         try:
-            if hasattr(resolve_wizard_group_list, "cache_clear"):
-                resolve_wizard_group_list.cache_clear()  # Clear wizard group lists
+            # Use cascading cache purging for wizard groups
+            from ..models.cache import purge_wizard_group_cascading_cache
+
+            cache_result = purge_wizard_group_cascading_cache(
+                endpoint_id=info.context["endpoint_id"],
+                wizard_group_uuid=kwargs.get("wizard_group_uuid"),
+                logger=info.context.get("logger"),
+            )
+
             ok = delete_wizard_group(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()

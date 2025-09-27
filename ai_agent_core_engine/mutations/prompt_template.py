@@ -34,8 +34,16 @@ class InsertUpdatePromptTemplate(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "InsertUpdatePromptTemplate":
         try:
-            if hasattr(resolve_prompt_template_list, "cache_clear"):
-                resolve_prompt_template_list.cache_clear()  # Clear prompt template lists
+            # Use cascading cache purging for prompt templates
+            from ..models.cache import purge_prompt_template_cascading_cache
+
+            cache_result = purge_prompt_template_cascading_cache(
+                endpoint_id=info.context["endpoint_id"],
+                prompt_version_uuid=kwargs.get("prompt_version_uuid"),
+                prompt_uuid=kwargs.get("prompt_uuid"),
+                logger=info.context.get("logger"),
+            )
+
             prompt_template = insert_update_prompt_template(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
@@ -54,8 +62,15 @@ class DeletePromptTemplate(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeletePromptTemplate":
         try:
-            if hasattr(resolve_prompt_template_list, "cache_clear"):
-                resolve_prompt_template_list.cache_clear()  # Clear prompt template lists
+            # Use cascading cache purging for prompt templates
+            from ..models.cache import purge_prompt_template_cascading_cache
+
+            cache_result = purge_prompt_template_cascading_cache(
+                endpoint_id=info.context["endpoint_id"],
+                prompt_version_uuid=kwargs.get("prompt_version_uuid"),
+                logger=info.context.get("logger"),
+            )
+
             ok = delete_prompt_template(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()

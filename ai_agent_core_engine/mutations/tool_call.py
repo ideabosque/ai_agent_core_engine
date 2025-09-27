@@ -36,8 +36,15 @@ class InsertUpdateToolCall(Mutation):
         root: Any, info: Any, **kwargs: Dict[str, Any]
     ) -> "InsertUpdateToolCall":
         try:
-            if hasattr(resolve_tool_call_list, "cache_clear"):
-                resolve_tool_call_list.cache_clear()  # Clear tool call lists
+            # Use cascading cache purging for tool calls
+            from ..models.cache import purge_tool_call_cascading_cache
+
+            cache_result = purge_tool_call_cascading_cache(
+                thread_uuid=kwargs.get("thread_uuid"),
+                tool_call_uuid=kwargs.get("tool_call_uuid"),
+                logger=info.context.get("logger"),
+            )
+
             tool_call = insert_update_tool_call(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
@@ -57,8 +64,15 @@ class DeleteToolCall(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteToolCall":
         try:
-            if hasattr(resolve_tool_call_list, "cache_clear"):
-                resolve_tool_call_list.cache_clear()  # Clear tool call lists
+            # Use cascading cache purging for tool calls
+            from ..models.cache import purge_tool_call_cascading_cache
+
+            cache_result = purge_tool_call_cascading_cache(
+                thread_uuid=kwargs.get("thread_uuid"),
+                tool_call_uuid=kwargs.get("tool_call_uuid"),
+                logger=info.context.get("logger"),
+            )
+
             ok = delete_tool_call(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()

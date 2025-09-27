@@ -11,7 +11,6 @@ from graphene import Boolean, Field, Int, List, Mutation, String
 from silvaengine_utility import JSON
 
 from ..models.agent import delete_agent, insert_update_agent
-from ..queries.agent import resolve_agent_list
 from ..types.agent import AgentType
 
 
@@ -38,8 +37,16 @@ class InsertUpdateAgent(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "InsertUpdateAgent":
         try:
-            if hasattr(resolve_agent_list, "cache_clear"):
-                resolve_agent_list.cache_clear()  # Clear agent lists
+            # Use cascading cache purging for agents
+            from ..models.cache import purge_agent_cascading_cache
+
+            cache_result = purge_agent_cascading_cache(
+                endpoint_id=info.context["endpoint_id"],
+                agent_uuid=kwargs.get("agent_uuid"),
+                agent_version_uuid=kwargs.get("agent_version_uuid"),
+                logger=info.context.get("logger"),
+            )
+
             agent = insert_update_agent(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
@@ -58,8 +65,26 @@ class DeleteAgent(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteAgent":
         try:
-            if hasattr(resolve_agent_list, "cache_clear"):
-                resolve_agent_list.cache_clear()  # Clear agent lists
+            # Use cascading cache purging for agents
+            # Get agent info before deletion for cache purging
+            from ..models.agent import get_agent
+            from ..models.cache import purge_agent_cascading_cache
+
+            agent_entity = None
+            try:
+                agent_entity = get_agent(
+                    info.context["endpoint_id"], kwargs["agent_version_uuid"]
+                )
+            except:
+                pass  # Agent might not exist, continue with deletion
+
+            cache_result = purge_agent_cascading_cache(
+                endpoint_id=info.context["endpoint_id"],
+                agent_uuid=agent_entity.agent_uuid if agent_entity else None,
+                agent_version_uuid=kwargs.get("agent_version_uuid"),
+                logger=info.context.get("logger"),
+            )
+
             ok = delete_agent(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()

@@ -32,8 +32,15 @@ class InsertUpdateElement(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "InsertUpdateElement":
         try:
-            if hasattr(resolve_element_list, "cache_clear"):
-                resolve_element_list.cache_clear()  # Clear element lists
+            # Use cascading cache purging for elements
+            from ..models.cache import purge_element_cascading_cache
+
+            cache_result = purge_element_cascading_cache(
+                endpoint_id=info.context["endpoint_id"],
+                element_uuid=kwargs.get("element_uuid"),
+                logger=info.context.get("logger"),
+            )
+
             element = insert_update_element(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
@@ -52,8 +59,15 @@ class DeleteElement(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteElement":
         try:
-            if hasattr(resolve_element_list, "cache_clear"):
-                resolve_element_list.cache_clear()  # Clear element lists
+            # Use cascading cache purging for elements
+            from ..models.cache import purge_element_cascading_cache
+
+            cache_result = purge_element_cascading_cache(
+                endpoint_id=info.context["endpoint_id"],
+                element_uuid=kwargs.get("element_uuid"),
+                logger=info.context.get("logger"),
+            )
+
             ok = delete_element(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()

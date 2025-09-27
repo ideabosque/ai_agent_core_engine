@@ -4,7 +4,7 @@ from __future__ import print_function
 __author__ = "bibow"
 
 import logging
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import boto3
 
@@ -35,6 +35,112 @@ class Config:
     CACHE_NAMES = {
         "models": "ai_agent_core_engine.models",
         "queries": "ai_agent_core_engine.queries",
+    }
+
+    # Entity cache dependency relationships
+    CACHE_RELATIONSHIPS = {
+        "agent": [
+            {
+                "entity_type": "thread",
+                "list_resolver": "resolve_thread_list",
+                "module": "thread",
+                "dependency_key": "agent_uuid"
+            },
+            {
+                "entity_type": "fine_tuning_message",
+                "list_resolver": "resolve_fine_tuning_message_list",
+                "module": "fine_tuning_message",
+                "dependency_key": "agent_uuid"
+            }
+        ],
+        "thread": [
+            {
+                "entity_type": "run",
+                "list_resolver": "resolve_run_list",
+                "module": "run",
+                "dependency_key": "thread_uuid"
+            },
+            {
+                "entity_type": "message",
+                "list_resolver": "resolve_message_list",
+                "module": "message",
+                "dependency_key": "thread_uuid"
+            },
+            {
+                "entity_type": "tool_call",
+                "list_resolver": "resolve_tool_call_list",
+                "module": "tool_call",
+                "dependency_key": "thread_uuid"
+            },
+            {
+                "entity_type": "fine_tuning_message",
+                "list_resolver": "resolve_fine_tuning_message_list",
+                "module": "fine_tuning_message",
+                "dependency_key": "thread_uuid"
+            }
+        ],
+        "run": [
+            {
+                "entity_type": "message",
+                "list_resolver": "resolve_message_list",
+                "module": "message",
+                "dependency_key": "run_uuid"
+            }
+        ],
+        "llm": [
+            {
+                "entity_type": "agent",
+                "list_resolver": "resolve_agent_list",
+                "module": "agent",
+                "dependency_key": "llm_provider"
+            }
+        ],
+        "flow_snippet": [
+            {
+                "entity_type": "agent",
+                "list_resolver": "resolve_agent_list",
+                "module": "agent",
+                "dependency_key": "flow_snippet_version_uuid"
+            }
+        ],
+        "mcp_server": [
+            {
+                "entity_type": "agent",
+                "list_resolver": "resolve_agent_list",
+                "module": "agent",
+                "dependency_key": "mcp_server_uuids"
+            }
+        ],
+        "wizard_group": [
+            {
+                "entity_type": "wizard",
+                "list_resolver": "resolve_wizard_list",
+                "module": "wizard",
+                "dependency_key": "wizard_group_uuid"
+            }
+        ],
+        "wizard": [
+            {
+                "entity_type": "element",
+                "list_resolver": "resolve_element_list",
+                "module": "element",
+                "dependency_key": "element_uuids"
+            }
+        ],
+        "prompt_template": [
+            {
+                "entity_type": "ui_component",
+                "list_resolver": "resolve_ui_component_list",
+                "module": "ui_component",
+                "dependency_key": "prompt_uuid"
+            },
+            {
+                "entity_type": "flow_snippet",
+                "list_resolver": "resolve_flow_snippet_list",
+                "module": "flow_snippet",
+                "dependency_key": "prompt_uuid"
+            }
+        ]
     }
 
     @classmethod
@@ -165,6 +271,16 @@ class Config:
     def is_cache_enabled(cls) -> bool:
         """Check if caching is enabled."""
         return cls.CACHE_ENABLED
+
+    @classmethod
+    def get_cache_relationships(cls) -> Dict[str, List[Dict[str, str]]]:
+        """Get entity cache dependency relationships."""
+        return cls.CACHE_RELATIONSHIPS
+
+    @classmethod
+    def get_entity_children(cls, entity_type: str) -> List[Dict[str, str]]:
+        """Get child entities for a specific entity type."""
+        return cls.CACHE_RELATIONSHIPS.get(entity_type, [])
 
     # Fetches and caches GraphQL schema for a given function
     @classmethod

@@ -30,8 +30,16 @@ class InsertUpdateMessage(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "InsertUpdateMessage":
         try:
-            if hasattr(resolve_message_list, "cache_clear"):
-                resolve_message_list.cache_clear()  # Clear message lists
+            # Use cascading cache purging for messages
+            from ..models.cache import purge_message_cascading_cache
+
+            cache_result = purge_message_cascading_cache(
+                thread_uuid=kwargs.get("thread_uuid"),
+                message_uuid=kwargs.get("message_uuid"),
+                run_uuid=kwargs.get("run_uuid"),
+                logger=info.context.get("logger"),
+            )
+
             message = insert_update_message(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
@@ -51,8 +59,15 @@ class DeleteMessage(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteMessage":
         try:
-            if hasattr(resolve_message_list, "cache_clear"):
-                resolve_message_list.cache_clear()  # Clear message lists
+            # Use cascading cache purging for messages
+            from ..models.cache import purge_message_cascading_cache
+
+            cache_result = purge_message_cascading_cache(
+                thread_uuid=kwargs.get("thread_uuid"),
+                message_uuid=kwargs.get("message_uuid"),
+                logger=info.context.get("logger"),
+            )
+
             ok = delete_message(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
