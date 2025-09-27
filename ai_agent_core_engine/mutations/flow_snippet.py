@@ -9,6 +9,7 @@ from typing import Any, Dict
 from graphene import Boolean, Field, Mutation, String
 
 from ..models.flow_snippet import delete_flow_snippet, insert_update_flow_snippet
+from ..queries.flow_snippet import resolve_flow_snippet_list
 from ..types.flow_snippet import FlowSnippetType
 
 
@@ -30,6 +31,8 @@ class InsertUpdateFlowSnippet(Mutation):
         root: Any, info: Any, **kwargs: Dict[str, Any]
     ) -> "InsertUpdateFlowSnippet":
         try:
+            if hasattr(resolve_flow_snippet_list, "cache_clear"):
+                resolve_flow_snippet_list.cache_clear()  # Clear flow snippet lists
             flow_snippet = insert_update_flow_snippet(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
@@ -48,6 +51,8 @@ class DeleteFlowSnippet(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteFlowSnippet":
         try:
+            if hasattr(resolve_flow_snippet_list, "cache_clear"):
+                resolve_flow_snippet_list.cache_clear()  # Clear flow snippet lists
             ok = delete_flow_snippet(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()

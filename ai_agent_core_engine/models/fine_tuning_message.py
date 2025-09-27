@@ -29,6 +29,7 @@ from silvaengine_dynamodb_base import (
 )
 from silvaengine_utility import Utility, method_cache
 
+from ..handlers.config import Config
 from ..types.fine_tuning_message import FineTuningMessageListType, FineTuningMessageType
 
 
@@ -97,6 +98,7 @@ def create_fine_tuning_message_table(logger: logging.Logger) -> bool:
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
 )
+@method_cache(ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name('models', 'fine_tuning_message'))
 def get_fine_tuning_message(
     agent_uuid: str, message_uuid: str
 ) -> FineTuningMessageModel:
@@ -109,7 +111,6 @@ def get_fine_tuning_message_count(agent_uuid: str, message_uuid: str) -> int:
     )
 
 
-@method_cache(ttl=1800, cache_name="ai_agent_core_engine.models.fine_tuning_message")
 def get_fine_tuning_message_type(
     info: ResolveInfo, fine_tuning_message: FineTuningMessageModel
 ) -> FineTuningMessageType:
@@ -253,8 +254,8 @@ def insert_update_fine_tuning_message(
     fine_tuning_message.update(actions=actions)
 
     # Clear cache for the updated fine tuning message
-    if hasattr(get_fine_tuning_message_type, 'cache_delete'):
-        get_fine_tuning_message_type.cache_delete(info, fine_tuning_message)
+    if hasattr(get_fine_tuning_message, "cache_delete"):
+        get_fine_tuning_message.cache_delete(fine_tuning_message.agent_uuid, fine_tuning_message.message_uuid)
 
     return
 
@@ -268,8 +269,8 @@ def insert_update_fine_tuning_message(
 )
 def delete_fine_tuning_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
     # Clear cache BEFORE deletion while entity still exists
-    if kwargs.get("entity") and hasattr(get_fine_tuning_message_type, 'cache_delete'):
-        get_fine_tuning_message_type.cache_delete(info, kwargs["entity"])
+    if kwargs.get("entity") and hasattr(get_fine_tuning_message, "cache_delete"):
+        get_fine_tuning_message.cache_delete(kwargs["entity"].agent_uuid, kwargs["entity"].message_uuid)
 
     kwargs.get("entity").delete()
     return True

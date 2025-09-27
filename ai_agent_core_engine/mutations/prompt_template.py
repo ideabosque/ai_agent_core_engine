@@ -11,6 +11,7 @@ from graphene import Boolean, Field, List, Mutation, String
 from silvaengine_utility import JSON
 
 from ..models.prompt_template import delete_prompt_template, insert_update_prompt_template
+from ..queries.prompt_template import resolve_prompt_template_list
 from ..types.prompt_template import PromptTemplateType
 
 
@@ -33,6 +34,8 @@ class InsertUpdatePromptTemplate(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "InsertUpdatePromptTemplate":
         try:
+            if hasattr(resolve_prompt_template_list, "cache_clear"):
+                resolve_prompt_template_list.cache_clear()  # Clear prompt template lists
             prompt_template = insert_update_prompt_template(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
@@ -51,6 +54,8 @@ class DeletePromptTemplate(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeletePromptTemplate":
         try:
+            if hasattr(resolve_prompt_template_list, "cache_clear"):
+                resolve_prompt_template_list.cache_clear()  # Clear prompt template lists
             ok = delete_prompt_template(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()

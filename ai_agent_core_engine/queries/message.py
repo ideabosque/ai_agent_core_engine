@@ -8,6 +8,10 @@ from typing import Any, Dict
 
 from graphene import ResolveInfo
 
+from silvaengine_utility import method_cache
+
+from ..handlers.config import Config
+
 from ..models import message
 from ..types.message import MessageListType, MessageType
 
@@ -16,6 +20,7 @@ def resolve_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> MessageType:
     return message.resolve_message(info, **kwargs)
 
 
+@method_cache(ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name('queries', 'message'))
 def resolve_message_list(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> MessageListType:

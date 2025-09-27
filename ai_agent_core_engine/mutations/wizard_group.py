@@ -11,6 +11,7 @@ from graphene import Boolean, Field, Int, List, Mutation, String
 from silvaengine_utility import JSON
 
 from ..models.wizard_group import delete_wizard_group, insert_update_wizard_group
+from ..queries.wizard_group import resolve_wizard_group_list
 from ..types.wizard_group import WizardGroupType
 
 
@@ -30,6 +31,8 @@ class InsertUpdateWizardGroup(Mutation):
         root: Any, info: Any, **kwargs: Dict[str, Any]
     ) -> "InsertUpdateWizardGroup":
         try:
+            if hasattr(resolve_wizard_group_list, "cache_clear"):
+                resolve_wizard_group_list.cache_clear()  # Clear wizard group lists
             wizard_group = insert_update_wizard_group(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
@@ -48,6 +51,8 @@ class DeleteWizardGroup(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteWizardGroup":
         try:
+            if hasattr(resolve_wizard_group_list, "cache_clear"):
+                resolve_wizard_group_list.cache_clear()  # Clear wizard group lists
             ok = delete_wizard_group(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()

@@ -30,6 +30,7 @@ from silvaengine_dynamodb_base import (
 )
 from silvaengine_utility import Utility, method_cache
 
+from ..handlers.config import Config
 from ..types.agent import AgentListType, AgentType
 from .thread import resolve_thread_list
 from .utils import _get_flow_snippet, _get_llm, _get_mcp_servers, _get_prompt_template
@@ -89,6 +90,7 @@ def create_agent_table(logger: logging.Logger) -> bool:
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
 )
+@method_cache(ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name('models', 'agent'))
 def get_agent(endpoint_id: str, agent_version_uuid: str) -> AgentModel:
     return AgentModel.get(endpoint_id, agent_version_uuid)
 
@@ -120,7 +122,6 @@ def get_agent_count(endpoint_id: str, agent_version_uuid: str) -> int:
     )
 
 
-@method_cache(ttl=1800, cache_name="ai_agent_core_engine.models.agent")
 def get_agent_type(info: ResolveInfo, agent: AgentModel) -> AgentType:
     try:
         llm = _get_llm(agent.llm_provider, agent.llm_name)
@@ -373,8 +374,8 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     agent.update(actions=actions)
 
     # Clear cache for the updated agent
-    if hasattr(get_agent_type, 'cache_delete'):
-        get_agent_type.cache_delete(info, agent)
+    if hasattr(get_agent, "cache_delete"):
+        get_agent.cache_delete(agent.endpoint_id, agent.agent_version_uuid)
 
     return
 
@@ -388,8 +389,10 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
 )
 def delete_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
     # Clear cache BEFORE deletion while entity still exists
-    if kwargs.get("entity") and hasattr(get_agent_type, 'cache_delete'):
-        get_agent_type.cache_delete(info, kwargs["entity"])
+    if kwargs.get("entity") and hasattr(get_agent, "cache_delete"):
+        get_agent.cache_delete(
+            kwargs["entity"].endpoint_id, kwargs["entity"].agent_version_uuid
+        )
 
     thread_list = resolve_thread_list(
         info,

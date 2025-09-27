@@ -23,6 +23,7 @@ from silvaengine_dynamodb_base import (
 )
 from silvaengine_utility import Utility, method_cache
 
+from ..handlers.config import Config
 from ..types.message import MessageListType, MessageType
 from .utils import _get_run
 
@@ -88,6 +89,7 @@ def create_message_table(logger: logging.Logger) -> bool:
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
 )
+@method_cache(ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name('models', 'message'))
 def get_message(thread_uuid: str, message_uuid: str) -> MessageModel:
     return MessageModel.get(thread_uuid, message_uuid)
 
@@ -96,7 +98,6 @@ def get_message_count(thread_uuid: str, message_uuid: str) -> int:
     return MessageModel.count(thread_uuid, MessageModel.message_uuid == message_uuid)
 
 
-@method_cache(ttl=1800, cache_name="ai_agent_core_engine.models.message")
 def get_message_type(info: ResolveInfo, message: MessageModel) -> MessageType:
     try:
         run = _get_run(message.thread_uuid, message.run_uuid)
@@ -212,8 +213,8 @@ def insert_update_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     message.update(actions=actions)
 
     # Clear cache for the updated message
-    if hasattr(get_message_type, 'cache_delete'):
-        get_message_type.cache_delete(info, message)
+    if hasattr(get_message, "cache_delete"):
+        get_message.cache_delete(message.thread_uuid, message.message_uuid)
 
     return
 
@@ -224,8 +225,8 @@ def insert_update_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
 )
 def delete_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
     # Clear cache BEFORE deletion while entity still exists
-    if kwargs.get("entity") and hasattr(get_message_type, 'cache_delete'):
-        get_message_type.cache_delete(info, kwargs["entity"])
+    if kwargs.get("entity") and hasattr(get_message, "cache_delete"):
+        get_message.cache_delete(kwargs["entity"].thread_uuid, kwargs["entity"].message_uuid)
 
     kwargs.get("entity").delete()
     return True

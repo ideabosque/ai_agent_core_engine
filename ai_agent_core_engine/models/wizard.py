@@ -28,6 +28,7 @@ from silvaengine_dynamodb_base import (
 )
 from silvaengine_utility import Utility, method_cache
 
+from ..handlers.config import Config
 from ..types.wizard import WizardListType, WizardType
 from .utils import _get_element
 
@@ -63,6 +64,7 @@ def create_wizard_table(logger: logging.Logger) -> bool:
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
 )
+@method_cache(ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name('models', 'wizard'))
 def get_wizard(endpoint_id: str, wizard_uuid: str) -> WizardModel:
     return WizardModel.get(endpoint_id, wizard_uuid)
 
@@ -71,7 +73,6 @@ def get_wizard_count(endpoint_id: str, wizard_uuid: str) -> int:
     return WizardModel.count(endpoint_id, WizardModel.wizard_uuid == wizard_uuid)
 
 
-@method_cache(ttl=1800, cache_name="ai_agent_core_engine.models.wizard")
 def get_wizard_type(info: ResolveInfo, wizard: WizardModel) -> WizardType:
     try:
         elements = [
@@ -181,8 +182,8 @@ def insert_update_wizard(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     wizard.update(actions=actions)
 
     # Clear cache for the updated wizard
-    if hasattr(get_wizard_type, 'cache_delete'):
-        get_wizard_type.cache_delete(info, wizard)
+    if hasattr(get_wizard, "cache_delete"):
+        get_wizard.cache_delete(wizard.endpoint_id, wizard.wizard_uuid)
 
     return
 
@@ -196,8 +197,8 @@ def insert_update_wizard(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
 )
 def delete_wizard(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
     # Clear cache BEFORE deletion while entity still exists
-    if kwargs.get("entity") and hasattr(get_wizard_type, 'cache_delete'):
-        get_wizard_type.cache_delete(info, kwargs["entity"])
+    if kwargs.get("entity") and hasattr(get_wizard, "cache_delete"):
+        get_wizard.cache_delete(kwargs["entity"].endpoint_id, kwargs["entity"].wizard_uuid)
 
     kwargs["entity"].delete()
     return True

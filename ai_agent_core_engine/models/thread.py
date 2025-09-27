@@ -23,6 +23,7 @@ from silvaengine_dynamodb_base import (
 )
 from silvaengine_utility import Utility, method_cache
 
+from ..handlers.config import Config
 from ..handlers.ai_agent_utility import combine_thread_messages
 from ..types.thread import ThreadListType, ThreadType
 from .run import resolve_run_list
@@ -87,6 +88,7 @@ def create_thread_table(logger: logging.Logger) -> bool:
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
 )
+@method_cache(ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name('models', 'thread'))
 def get_thread(endpoint_id: str, thread_uuid: str) -> ThreadModel:
     return ThreadModel.get(endpoint_id, thread_uuid)
 
@@ -95,7 +97,6 @@ def get_thread_count(endpoint_id: str, thread_uuid: str) -> int:
     return ThreadModel.count(endpoint_id, ThreadModel.thread_uuid == thread_uuid)
 
 
-@method_cache(ttl=1800, cache_name="ai_agent_core_engine.models.thread")
 def get_thread_type(info: ResolveInfo, thread: ThreadModel) -> ThreadType:
     try:
         agent = _get_agent(thread.endpoint_id, thread.agent_uuid)
@@ -247,8 +248,8 @@ def insert_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
 )
 def delete_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
     # Clear cache BEFORE deletion while entity still exists
-    if kwargs.get("entity") and hasattr(get_thread_type, 'cache_delete'):
-        get_thread_type.cache_delete(info, kwargs["entity"])
+    if kwargs.get("entity") and hasattr(get_thread, "cache_delete"):
+        get_thread.cache_delete(kwargs["entity"].endpoint_id, kwargs["entity"].thread_uuid)
 
     run_list = resolve_run_list(
         info,

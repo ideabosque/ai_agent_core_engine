@@ -11,6 +11,7 @@ from graphene import Boolean, Field, Mutation, String
 from silvaengine_utility import JSON
 
 from ..models.mcp_server import delete_mcp_server, insert_update_mcp_server
+from ..queries.mcp_server import resolve_mcp_server_list
 from ..types.mcp_server import MCPServerType
 
 
@@ -27,6 +28,8 @@ class InsertUpdateMCPServer(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "InsertUpdateMCPServer":
         try:
+            if hasattr(resolve_mcp_server_list, "cache_clear"):
+                resolve_mcp_server_list.cache_clear()  # Clear mcp server lists
             mcp_server = insert_update_mcp_server(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
@@ -45,6 +48,8 @@ class DeleteMCPServer(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteMCPServer":
         try:
+            if hasattr(resolve_mcp_server_list, "cache_clear"):
+                resolve_mcp_server_list.cache_clear()  # Clear mcp server lists
             ok = delete_mcp_server(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()

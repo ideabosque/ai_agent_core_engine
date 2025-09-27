@@ -11,6 +11,7 @@ from graphene import Boolean, Field, Int, List, Mutation, String
 from silvaengine_utility import JSON
 
 from ..models.async_task import delete_async_task, insert_update_async_task
+from ..queries.async_task import resolve_async_task_list
 from ..types.async_task import AsyncTaskType
 
 
@@ -33,6 +34,8 @@ class InsertUpdateAsyncTask(Mutation):
         root: Any, info: Any, **kwargs: Dict[str, Any]
     ) -> "InsertUpdateAsyncTask":
         try:
+            if hasattr(resolve_async_task_list, "cache_clear"):
+                resolve_async_task_list.cache_clear()  # Clear async task lists
             async_task = insert_update_async_task(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
@@ -52,6 +55,8 @@ class DeleteAsyncTask(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteAsyncTask":
         try:
+            if hasattr(resolve_async_task_list, "cache_clear"):
+                resolve_async_task_list.cache_clear()  # Clear async task lists
             ok = delete_async_task(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()

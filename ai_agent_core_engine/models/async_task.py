@@ -28,6 +28,7 @@ from silvaengine_dynamodb_base import (
 )
 from silvaengine_utility import Utility, method_cache
 
+from ..handlers.config import Config
 from ..types.async_task import AsyncTaskListType, AsyncTaskType
 
 
@@ -79,6 +80,7 @@ def create_async_task_table(logger: logging.Logger) -> bool:
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
 )
+@method_cache(ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name('models', 'async_task'))
 def get_async_task(function_name: str, async_task_uuid: str) -> AsyncTaskModel:
     async_task = AsyncTaskModel.get(function_name, async_task_uuid)
     return async_task
@@ -90,7 +92,6 @@ def get_async_task_count(endpoint_id: str, async_task_uuid: str) -> int:
     )
 
 
-@method_cache(ttl=1800, cache_name="ai_agent_core_engine.models.async_task")
 def get_async_task_type(info: ResolveInfo, async_task: AsyncTaskModel) -> AsyncTaskType:
     async_task = async_task.__dict__["attribute_values"]
     return AsyncTaskType(**Utility.json_normalize(async_task))
@@ -205,8 +206,8 @@ def insert_update_async_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Non
     async_task.update(actions=actions)
 
     # Clear cache for the updated async task
-    if hasattr(get_async_task_type, 'cache_delete'):
-        get_async_task_type.cache_delete(info, async_task)
+    if hasattr(get_async_task, "cache_delete"):
+        get_async_task.cache_delete(async_task.function_name, async_task.async_task_uuid)
 
     return
 
@@ -220,8 +221,8 @@ def insert_update_async_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Non
 )
 def delete_async_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
     # Clear cache BEFORE deletion while entity still exists
-    if kwargs.get("entity") and hasattr(get_async_task_type, 'cache_delete'):
-        get_async_task_type.cache_delete(info, kwargs["entity"])
+    if kwargs.get("entity") and hasattr(get_async_task, "cache_delete"):
+        get_async_task.cache_delete(kwargs["entity"].function_name, kwargs["entity"].async_task_uuid)
 
     kwargs.get("entity").delete()
     return True

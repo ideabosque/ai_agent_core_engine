@@ -27,6 +27,16 @@ class Config:
     schemas = {}
     xml_convert = None
 
+    # Cache Configuration
+    CACHE_TTL = 1800  # 30 minutes default TTL
+    CACHE_ENABLED = True
+
+    # Cache name patterns for different modules
+    CACHE_NAMES = {
+        "models": "ai_agent_core_engine.models",
+        "queries": "ai_agent_core_engine.queries",
+    }
+
     @classmethod
     def initialize(cls, logger: logging.Logger, **setting: Dict[str, Any]) -> None:
         """
@@ -128,6 +138,33 @@ class Config:
         This is an internal method used during configuration setup.
         """
         utils._initialize_tables(logger)
+
+    @classmethod
+    def get_cache_name(cls, module_type: str, model_name: str) -> str:
+        """
+        Generate standardized cache names.
+
+        Args:
+            module_type: 'models' or 'queries'
+            model_name: Name of the model (e.g., 'agent', 'thread')
+
+        Returns:
+            Standardized cache name string
+        """
+        base_name = cls.CACHE_NAMES.get(
+            module_type, f"ai_agent_core_engine.{module_type}"
+        )
+        return f"{base_name}.{model_name}"
+
+    @classmethod
+    def get_cache_ttl(cls) -> int:
+        """Get the configured cache TTL."""
+        return cls.CACHE_TTL
+
+    @classmethod
+    def is_cache_enabled(cls) -> bool:
+        """Check if caching is enabled."""
+        return cls.CACHE_ENABLED
 
     # Fetches and caches GraphQL schema for a given function
     @classmethod

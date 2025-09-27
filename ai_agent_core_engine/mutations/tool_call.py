@@ -11,6 +11,7 @@ from graphene import Boolean, Field, Int, List, Mutation, String
 from silvaengine_utility import JSON
 
 from ..models.tool_call import delete_tool_call, insert_update_tool_call
+from ..queries.tool_call import resolve_tool_call_list
 from ..types.tool_call import ToolCallType
 
 
@@ -35,6 +36,8 @@ class InsertUpdateToolCall(Mutation):
         root: Any, info: Any, **kwargs: Dict[str, Any]
     ) -> "InsertUpdateToolCall":
         try:
+            if hasattr(resolve_tool_call_list, "cache_clear"):
+                resolve_tool_call_list.cache_clear()  # Clear tool call lists
             tool_call = insert_update_tool_call(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
@@ -54,6 +57,8 @@ class DeleteToolCall(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteToolCall":
         try:
+            if hasattr(resolve_tool_call_list, "cache_clear"):
+                resolve_tool_call_list.cache_clear()  # Clear tool call lists
             ok = delete_tool_call(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()

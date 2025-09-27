@@ -11,6 +11,7 @@ from graphene import Boolean, Field, List, Mutation, String
 from silvaengine_utility import JSON
 
 from ..models.llm import delete_llm, insert_update_llm
+from ..queries.llm import resolve_llm_list
 from ..types.llm import LlmType
 
 
@@ -28,6 +29,8 @@ class InsertUpdateLlm(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "InsertUpdateLlm":
         try:
+            if hasattr(resolve_llm_list, "cache_clear"):
+                resolve_llm_list.cache_clear()  # Clear llm lists
             llm = insert_update_llm(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
@@ -47,6 +50,8 @@ class DeleteLlm(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteLlm":
         try:
+            if hasattr(resolve_llm_list, "cache_clear"):
+                resolve_llm_list.cache_clear()  # Clear llm lists
             ok = delete_llm(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()

@@ -23,6 +23,7 @@ from silvaengine_dynamodb_base import (
 )
 from silvaengine_utility import Utility, method_cache
 
+from ..handlers.config import Config
 from ..types.mcp_server import MCPServerListType, MCPServerType
 
 
@@ -54,6 +55,7 @@ def create_mcp_server_table(logger: logging.Logger) -> bool:
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
 )
+@method_cache(ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name('models', 'mcp_server'))
 def get_mcp_server(endpoint_id: str, mcp_server_uuid: str) -> MCPServerModel:
     return MCPServerModel.get(endpoint_id, mcp_server_uuid)
 
@@ -76,7 +78,6 @@ async def _run_list_tools(info: ResolveInfo, mcp_server: MCPServerModel):
         return await client.list_tools()
 
 
-@method_cache(ttl=1800, cache_name="ai_agent_core_engine.models.mcp_server")
 def get_mcp_server_type(info: ResolveInfo, mcp_server: MCPServerModel) -> MCPServerType:
     tools = asyncio.run(_run_list_tools(info, mcp_server))
     mcp_server = mcp_server.__dict__["attribute_values"]
@@ -175,8 +176,8 @@ def insert_update_mcp_server(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Non
     mcp_server.update(actions=actions)
 
     # Clear cache for the updated mcp server
-    if hasattr(get_mcp_server_type, 'cache_delete'):
-        get_mcp_server_type.cache_delete(info, mcp_server)
+    if hasattr(get_mcp_server, "cache_delete"):
+        get_mcp_server.cache_delete(mcp_server.endpoint_id, mcp_server.mcp_server_uuid)
 
     return
 
@@ -190,8 +191,8 @@ def insert_update_mcp_server(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Non
 )
 def delete_mcp_server(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
     # Clear cache BEFORE deletion while entity still exists
-    if kwargs.get("entity") and hasattr(get_mcp_server_type, 'cache_delete'):
-        get_mcp_server_type.cache_delete(info, kwargs["entity"])
+    if kwargs.get("entity") and hasattr(get_mcp_server, "cache_delete"):
+        get_mcp_server.cache_delete(kwargs["entity"].endpoint_id, kwargs["entity"].mcp_server_uuid)
 
     kwargs["entity"].delete()
     return True

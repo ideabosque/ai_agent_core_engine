@@ -28,6 +28,7 @@ from silvaengine_dynamodb_base import (
 )
 from silvaengine_utility import Utility, method_cache
 
+from ..handlers.config import Config
 from ..types.tool_call import ToolCallListType, ToolCallType
 from .utils import _get_run
 
@@ -98,6 +99,7 @@ def create_tool_call_table(logger: logging.Logger) -> bool:
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
 )
+@method_cache(ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name('models', 'tool_call'))
 def get_tool_call(thread_uuid: str, tool_call_uuid: str) -> ToolCallModel:
     return ToolCallModel.get(thread_uuid, tool_call_uuid)
 
@@ -108,7 +110,6 @@ def get_tool_call_count(thread_uuid: str, tool_call_uuid: str) -> int:
     )
 
 
-@method_cache(ttl=1800, cache_name="ai_agent_core_engine.models.tool_call")
 def get_tool_call_type(info: ResolveInfo, tool_call: ToolCallModel) -> ToolCallType:
     try:
         run = _get_run(tool_call.thread_uuid, tool_call.run_uuid)
@@ -245,8 +246,8 @@ def insert_update_tool_call(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None
     tool_call.update(actions=actions)
 
     # Clear cache for the updated tool call
-    if hasattr(get_tool_call_type, 'cache_delete'):
-        get_tool_call_type.cache_delete(info, tool_call)
+    if hasattr(get_tool_call, "cache_delete"):
+        get_tool_call.cache_delete(tool_call.thread_uuid, tool_call.tool_call_uuid)
 
     return
 
@@ -257,8 +258,8 @@ def insert_update_tool_call(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None
 )
 def delete_tool_call(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
     # Clear cache BEFORE deletion while entity still exists
-    if kwargs.get("entity") and hasattr(get_tool_call_type, 'cache_delete'):
-        get_tool_call_type.cache_delete(info, kwargs["entity"])
+    if kwargs.get("entity") and hasattr(get_tool_call, "cache_delete"):
+        get_tool_call.cache_delete(kwargs["entity"].thread_uuid, kwargs["entity"].tool_call_uuid)
 
     kwargs.get("entity").delete()
     return True

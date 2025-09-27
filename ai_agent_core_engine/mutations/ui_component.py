@@ -11,6 +11,7 @@ from graphene import Boolean, Field, List, Mutation, String
 from silvaengine_utility import JSON
 
 from ..models.ui_component import delete_ui_component, insert_update_ui_component
+from ..queries.ui_component import resolve_ui_component_list
 from ..types.ui_component import UIComponentType
 
 
@@ -28,6 +29,8 @@ class InsertUpdateUIComponent(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "InsertUpdateUIComponent":
         try:
+            if hasattr(resolve_ui_component_list, "cache_clear"):
+                resolve_ui_component_list.cache_clear()  # Clear ui component lists
             ui_component = insert_update_ui_component(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
@@ -47,6 +50,8 @@ class DeleteUIComponent(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteUIComponent":
         try:
+            if hasattr(resolve_ui_component_list, "cache_clear"):
+                resolve_ui_component_list.cache_clear()  # Clear ui component lists
             ok = delete_ui_component(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()

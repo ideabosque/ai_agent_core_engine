@@ -8,6 +8,7 @@ from graphene import Boolean, Field, List, Mutation, String
 from silvaengine_utility import JSON
 
 from ..models.thread import delete_thread, insert_thread
+from ..queries.thread import resolve_thread_list
 from ..types.thread import ThreadType
 
 
@@ -22,6 +23,8 @@ class InsertThread(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "InsertThread":
         try:
+            if hasattr(resolve_thread_list, "cache_clear"):
+                resolve_thread_list.cache_clear()  # Clear thread lists
             thread = insert_thread(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
@@ -40,6 +43,8 @@ class DeleteThread(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteThread":
         try:
+            if hasattr(resolve_thread_list, "cache_clear"):
+                resolve_thread_list.cache_clear()  # Clear thread lists
             ok = delete_thread(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()

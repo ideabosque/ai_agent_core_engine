@@ -28,6 +28,7 @@ from silvaengine_dynamodb_base import (
 )
 from silvaengine_utility import Utility, method_cache
 
+from ..handlers.config import Config
 from ..types.ui_component import UIComponentListType, UIComponentType
 
 
@@ -59,6 +60,7 @@ def create_ui_component_table(logger: logging.Logger) -> bool:
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
 )
+@method_cache(ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name('models', 'ui_component'))
 def get_ui_component(
     ui_component_type: str, ui_component_uuid: str
 ) -> UIComponentModel:
@@ -71,7 +73,6 @@ def get_ui_component_count(ui_component_type: str, ui_component_uuid: str) -> in
     )
 
 
-@method_cache(ttl=1800, cache_name="ai_agent_core_engine.models.ui_component")
 def get_ui_component_type(
     info: ResolveInfo, ui_component: UIComponentModel
 ) -> UIComponentType:
@@ -167,8 +168,8 @@ def insert_update_ui_component(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
     ui_component.update(actions=actions)
 
     # Clear cache for the updated ui component
-    if hasattr(get_ui_component_type, 'cache_delete'):
-        get_ui_component_type.cache_delete(info, ui_component)
+    if hasattr(get_ui_component, "cache_delete"):
+        get_ui_component.cache_delete(ui_component.ui_component_type, ui_component.ui_component_uuid)
 
     return
 
@@ -182,8 +183,8 @@ def insert_update_ui_component(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
 )
 def delete_ui_component(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
     # Clear cache BEFORE deletion while entity still exists
-    if kwargs.get("entity") and hasattr(get_ui_component_type, 'cache_delete'):
-        get_ui_component_type.cache_delete(info, kwargs["entity"])
+    if kwargs.get("entity") and hasattr(get_ui_component, "cache_delete"):
+        get_ui_component.cache_delete(kwargs["entity"].ui_component_type, kwargs["entity"].ui_component_uuid)
 
     kwargs["entity"].delete()
     return True

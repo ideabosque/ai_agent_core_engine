@@ -23,6 +23,7 @@ from silvaengine_dynamodb_base import (
 )
 from silvaengine_utility import Utility, method_cache
 
+from ..handlers.config import Config
 from ..types.run import RunListType, RunType
 from .message import resolve_message_list
 from .tool_call import resolve_tool_call_list
@@ -76,6 +77,7 @@ def create_run_table(logger: logging.Logger) -> bool:
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
 )
+@method_cache(ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name('models', 'run'))
 def get_run(thread_uuid: str, run_uuid: str) -> RunModel:
     return RunModel.get(thread_uuid, run_uuid)
 
@@ -84,7 +86,6 @@ def get_run_count(thread_uuid: str, run_uuid: str) -> int:
     return RunModel.count(thread_uuid, RunModel.run_uuid == run_uuid)
 
 
-@method_cache(ttl=1800, cache_name="ai_agent_core_engine.models.run")
 def get_run_type(info: ResolveInfo, run: RunModel) -> RunType:
     try:
         thread = _get_thread(run.endpoint_id, run.thread_uuid)
@@ -215,8 +216,8 @@ def insert_update_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     run.update(actions=actions)
 
     # Clear cache for the updated run
-    if hasattr(get_run_type, 'cache_delete'):
-        get_run_type.cache_delete(info, run)
+    if hasattr(get_run, "cache_delete"):
+        get_run.cache_delete(run.thread_uuid, run.run_uuid)
 
     return
 
@@ -230,8 +231,8 @@ def insert_update_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
 )
 def delete_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
     # Clear cache BEFORE deletion while entity still exists
-    if kwargs.get("entity") and hasattr(get_run_type, 'cache_delete'):
-        get_run_type.cache_delete(info, kwargs["entity"])
+    if kwargs.get("entity") and hasattr(get_run, "cache_delete"):
+        get_run.cache_delete(kwargs["entity"].thread_uuid, kwargs["entity"].run_uuid)
 
     message_list = resolve_message_list(
         info,

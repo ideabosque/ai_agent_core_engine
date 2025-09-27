@@ -14,6 +14,7 @@ from ..models.fine_tuning_message import (
     delete_fine_tuning_message,
     insert_update_fine_tuning_message,
 )
+from ..queries.fine_tuning_message import resolve_fine_tuning_message_list
 from ..types.fine_tuning_message import FineTuningMessageType
 
 
@@ -38,6 +39,8 @@ class InsertUpdateFineTuningMessage(Mutation):
         root: Any, info: Any, **kwargs: Dict[str, Any]
     ) -> "InsertUpdateFineTuningMessage":
         try:
+            if hasattr(resolve_fine_tuning_message_list, "cache_clear"):
+                resolve_fine_tuning_message_list.cache_clear()  # Clear fine tuning message lists
             fine_tuning_message = insert_update_fine_tuning_message(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
@@ -59,6 +62,8 @@ class DeleteFineTuningMessage(Mutation):
         root: Any, info: Any, **kwargs: Dict[str, Any]
     ) -> "DeleteFineTuningMessage":
         try:
+            if hasattr(resolve_fine_tuning_message_list, "cache_clear"):
+                resolve_fine_tuning_message_list.cache_clear()  # Clear fine tuning message lists
             ok = delete_fine_tuning_message(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()

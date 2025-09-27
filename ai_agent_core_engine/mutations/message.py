@@ -11,6 +11,7 @@ from graphene import Boolean, Field, Int, List, Mutation, String
 from silvaengine_utility import JSON
 
 from ..models.message import delete_message, insert_update_message
+from ..queries.message import resolve_message_list
 from ..types.message import MessageType
 
 
@@ -29,6 +30,8 @@ class InsertUpdateMessage(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "InsertUpdateMessage":
         try:
+            if hasattr(resolve_message_list, "cache_clear"):
+                resolve_message_list.cache_clear()  # Clear message lists
             message = insert_update_message(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
@@ -48,6 +51,8 @@ class DeleteMessage(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteMessage":
         try:
+            if hasattr(resolve_message_list, "cache_clear"):
+                resolve_message_list.cache_clear()  # Clear message lists
             ok = delete_message(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()

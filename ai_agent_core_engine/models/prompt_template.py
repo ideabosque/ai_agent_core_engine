@@ -29,6 +29,7 @@ from silvaengine_dynamodb_base import (
 )
 from silvaengine_utility import Utility, method_cache
 
+from ..handlers.config import Config
 from ..types.prompt_template import PromptTemplateListType, PromptTemplateType
 from .mcp_server import resolve_mcp_server
 from .ui_component import resolve_ui_component
@@ -101,6 +102,7 @@ def create_prompt_template_table(logger: logging.Logger) -> bool:
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
 )
+@method_cache(ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name('models', 'prompt_template'))
 def get_prompt_template(
     endpoint_id: str, prompt_version_uuid: str
 ) -> PromptTemplateModel:
@@ -135,7 +137,6 @@ def get_prompt_template_count(endpoint_id: str, prompt_version_uuid: str) -> int
     )
 
 
-@method_cache(ttl=1800, cache_name="ai_agent_core_engine.models.prompt_template")
 def get_prompt_template_type(
     info: ResolveInfo, prompt_template: PromptTemplateModel
 ) -> PromptTemplateType:
@@ -332,8 +333,8 @@ def insert_update_prompt_template(info: ResolveInfo, **kwargs: Dict[str, Any]) -
     prompt_template.update(actions=actions)
 
     # Clear cache for the updated prompt template
-    if hasattr(get_prompt_template_type, 'cache_delete'):
-        get_prompt_template_type.cache_delete(info, prompt_template)
+    if hasattr(get_prompt_template, "cache_delete"):
+        get_prompt_template.cache_delete(prompt_template.endpoint_id, prompt_template.prompt_version_uuid)
 
     return
 
@@ -347,8 +348,8 @@ def insert_update_prompt_template(info: ResolveInfo, **kwargs: Dict[str, Any]) -
 )
 def delete_prompt_template(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
     # Clear cache BEFORE deletion while entity still exists
-    if kwargs.get("entity") and hasattr(get_prompt_template_type, 'cache_delete'):
-        get_prompt_template_type.cache_delete(info, kwargs["entity"])
+    if kwargs.get("entity") and hasattr(get_prompt_template, "cache_delete"):
+        get_prompt_template.cache_delete(kwargs["entity"].endpoint_id, kwargs["entity"].prompt_version_uuid)
 
     if kwargs["entity"].status == "active":
         results = PromptTemplateModel.prompt_uuid_index.query(

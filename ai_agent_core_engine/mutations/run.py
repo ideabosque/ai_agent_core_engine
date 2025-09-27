@@ -11,6 +11,7 @@ from graphene import Boolean, Field, Int, List, Mutation, String
 from silvaengine_utility import JSON
 
 from ..models.run import delete_run, insert_update_run
+from ..queries.run import resolve_run_list
 from ..types.run import RunType
 
 
@@ -29,6 +30,8 @@ class InsertUpdateRun(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "InsertUpdateRun":
         try:
+            if hasattr(resolve_run_list, "cache_clear"):
+                resolve_run_list.cache_clear()  # Clear run lists
             run = insert_update_run(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
@@ -48,6 +51,8 @@ class DeleteRun(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteRun":
         try:
+            if hasattr(resolve_run_list, "cache_clear"):
+                resolve_run_list.cache_clear()  # Clear run lists
             ok = delete_run(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()

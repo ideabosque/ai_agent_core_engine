@@ -11,6 +11,7 @@ from graphene import Boolean, Field, Int, List, Mutation, String
 from silvaengine_utility import JSON
 
 from ..models.element import delete_element, insert_update_element
+from ..queries.element import resolve_element_list
 from ..types.element import ElementType
 
 
@@ -31,6 +32,8 @@ class InsertUpdateElement(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "InsertUpdateElement":
         try:
+            if hasattr(resolve_element_list, "cache_clear"):
+                resolve_element_list.cache_clear()  # Clear element lists
             element = insert_update_element(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
@@ -49,6 +52,8 @@ class DeleteElement(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteElement":
         try:
+            if hasattr(resolve_element_list, "cache_clear"):
+                resolve_element_list.cache_clear()  # Clear element lists
             ok = delete_element(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()

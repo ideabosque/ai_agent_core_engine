@@ -11,6 +11,7 @@ from graphene import Boolean, Field, Int, List, Mutation, String
 from silvaengine_utility import JSON
 
 from ..models.agent import delete_agent, insert_update_agent
+from ..queries.agent import resolve_agent_list
 from ..types.agent import AgentType
 
 
@@ -37,6 +38,8 @@ class InsertUpdateAgent(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "InsertUpdateAgent":
         try:
+            if hasattr(resolve_agent_list, "cache_clear"):
+                resolve_agent_list.cache_clear()  # Clear agent lists
             agent = insert_update_agent(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
@@ -55,6 +58,8 @@ class DeleteAgent(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteAgent":
         try:
+            if hasattr(resolve_agent_list, "cache_clear"):
+                resolve_agent_list.cache_clear()  # Clear agent lists
             ok = delete_agent(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()

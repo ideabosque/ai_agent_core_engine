@@ -29,6 +29,7 @@ from silvaengine_dynamodb_base import (
 )
 from silvaengine_utility import Utility, method_cache
 
+from ..handlers.config import Config
 from ..types.wizard_group import WizardGroupListType, WizardGroupType
 from .utils import _get_wizard
 
@@ -62,6 +63,7 @@ def create_wizard_group_table(logger: logging.Logger) -> bool:
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
 )
+@method_cache(ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name('models', 'wizard_group'))
 def get_wizard_group(endpoint_id: str, wizard_group_uuid: str) -> WizardGroupModel:
     return WizardGroupModel.get(endpoint_id, wizard_group_uuid)
 
@@ -72,7 +74,6 @@ def get_wizard_group_count(endpoint_id: str, wizard_group_uuid: str) -> int:
     )
 
 
-@method_cache(ttl=1800, cache_name="ai_agent_core_engine.models.wizard_group")
 def get_wizard_group_type(
     info: ResolveInfo, wizard_group: WizardGroupModel
 ) -> WizardGroupType:
@@ -181,8 +182,8 @@ def insert_update_wizard_group(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
     wizard_group.update(actions=actions)
 
     # Clear cache for the updated wizard group
-    if hasattr(get_wizard_group_type, 'cache_delete'):
-        get_wizard_group_type.cache_delete(info, wizard_group)
+    if hasattr(get_wizard_group, "cache_delete"):
+        get_wizard_group.cache_delete(wizard_group.endpoint_id, wizard_group.wizard_group_uuid)
 
     return
 
@@ -196,8 +197,8 @@ def insert_update_wizard_group(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
 )
 def delete_wizard_group(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
     # Clear cache BEFORE deletion while entity still exists
-    if kwargs.get("entity") and hasattr(get_wizard_group_type, 'cache_delete'):
-        get_wizard_group_type.cache_delete(info, kwargs["entity"])
+    if kwargs.get("entity") and hasattr(get_wizard_group, "cache_delete"):
+        get_wizard_group.cache_delete(kwargs["entity"].endpoint_id, kwargs["entity"].wizard_group_uuid)
 
     kwargs["entity"].delete()
     return True

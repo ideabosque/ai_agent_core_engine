@@ -85,6 +85,7 @@ def create_flow_snippet_table(logger: logging.Logger) -> bool:
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
 )
+@method_cache(ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name('models', 'flow_snippet'))
 def get_flow_snippet(
     endpoint_id: str, flow_snippet_version_uuid: str
 ) -> FlowSnippetModel:
@@ -120,7 +121,6 @@ def get_flow_snippet_count(endpoint_id: str, flow_snippet_version_uuid: str) -> 
     )
 
 
-@method_cache(ttl=1800, cache_name="ai_agent_core_engine.models.flow_snippet")
 def get_flow_snippet_type(
     info: ResolveInfo, flow_snippet: FlowSnippetModel
 ) -> FlowSnippetType:
@@ -325,8 +325,8 @@ def insert_update_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
     flow_snippet.update(actions=actions)
 
     # Clear cache for the updated flow snippet
-    if hasattr(get_flow_snippet_type, 'cache_delete'):
-        get_flow_snippet_type.cache_delete(info, flow_snippet)
+    if hasattr(get_flow_snippet, "cache_delete"):
+        get_flow_snippet.cache_delete(flow_snippet.endpoint_id, flow_snippet.flow_snippet_version_uuid)
 
     return
 
@@ -340,8 +340,8 @@ def insert_update_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
 )
 def delete_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
     # Clear cache BEFORE deletion while entity still exists
-    if kwargs.get("entity") and hasattr(get_flow_snippet_type, 'cache_delete'):
-        get_flow_snippet_type.cache_delete(info, kwargs["entity"])
+    if kwargs.get("entity") and hasattr(get_flow_snippet, "cache_delete"):
+        get_flow_snippet.cache_delete(kwargs["entity"].endpoint_id, kwargs["entity"].flow_snippet_version_uuid)
 
     if kwargs["entity"].status == "active":
         results = FlowSnippetModel.flow_snippet_uuid_index.query(
