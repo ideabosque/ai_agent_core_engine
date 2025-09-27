@@ -21,7 +21,7 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility
+from silvaengine_utility import Utility, method_cache
 
 from ..handlers.ai_agent_utility import combine_thread_messages
 from ..types.thread import ThreadListType, ThreadType
@@ -95,6 +95,7 @@ def get_thread_count(endpoint_id: str, thread_uuid: str) -> int:
     return ThreadModel.count(endpoint_id, ThreadModel.thread_uuid == thread_uuid)
 
 
+@method_cache(ttl=1800, cache_name="ai_agent_core_engine.models.thread")
 def get_thread_type(info: ResolveInfo, thread: ThreadModel) -> ThreadType:
     try:
         agent = _get_agent(thread.endpoint_id, thread.agent_uuid)
@@ -245,6 +246,10 @@ def insert_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     model_funct=get_thread,
 )
 def delete_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
+    # Clear cache BEFORE deletion while entity still exists
+    if kwargs.get("entity") and hasattr(get_thread_type, 'cache_delete'):
+        get_thread_type.cache_delete(info, kwargs["entity"])
+
     run_list = resolve_run_list(
         info,
         **{

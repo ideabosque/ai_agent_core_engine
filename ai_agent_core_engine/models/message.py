@@ -21,7 +21,7 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility
+from silvaengine_utility import Utility, method_cache
 
 from ..types.message import MessageListType, MessageType
 from .utils import _get_run
@@ -96,6 +96,7 @@ def get_message_count(thread_uuid: str, message_uuid: str) -> int:
     return MessageModel.count(thread_uuid, MessageModel.message_uuid == message_uuid)
 
 
+@method_cache(ttl=1800, cache_name="ai_agent_core_engine.models.message")
 def get_message_type(info: ResolveInfo, message: MessageModel) -> MessageType:
     try:
         run = _get_run(message.thread_uuid, message.run_uuid)
@@ -209,6 +210,11 @@ def insert_update_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
 
     # Update the message
     message.update(actions=actions)
+
+    # Clear cache for the updated message
+    if hasattr(get_message_type, 'cache_delete'):
+        get_message_type.cache_delete(info, message)
+
     return
 
 
@@ -217,5 +223,9 @@ def insert_update_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     model_funct=get_message,
 )
 def delete_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
+    # Clear cache BEFORE deletion while entity still exists
+    if kwargs.get("entity") and hasattr(get_message_type, 'cache_delete'):
+        get_message_type.cache_delete(info, kwargs["entity"])
+
     kwargs.get("entity").delete()
     return True

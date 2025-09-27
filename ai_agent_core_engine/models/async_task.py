@@ -26,7 +26,7 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility
+from silvaengine_utility import Utility, method_cache
 
 from ..types.async_task import AsyncTaskListType, AsyncTaskType
 
@@ -90,6 +90,7 @@ def get_async_task_count(endpoint_id: str, async_task_uuid: str) -> int:
     )
 
 
+@method_cache(ttl=1800, cache_name="ai_agent_core_engine.models.async_task")
 def get_async_task_type(info: ResolveInfo, async_task: AsyncTaskModel) -> AsyncTaskType:
     async_task = async_task.__dict__["attribute_values"]
     return AsyncTaskType(**Utility.json_normalize(async_task))
@@ -202,6 +203,11 @@ def insert_update_async_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Non
 
     # Update the async_task
     async_task.update(actions=actions)
+
+    # Clear cache for the updated async task
+    if hasattr(get_async_task_type, 'cache_delete'):
+        get_async_task_type.cache_delete(info, async_task)
+
     return
 
 
@@ -213,5 +219,9 @@ def insert_update_async_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Non
     model_funct=get_async_task,
 )
 def delete_async_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
+    # Clear cache BEFORE deletion while entity still exists
+    if kwargs.get("entity") and hasattr(get_async_task_type, 'cache_delete'):
+        get_async_task_type.cache_delete(info, kwargs["entity"])
+
     kwargs.get("entity").delete()
     return True

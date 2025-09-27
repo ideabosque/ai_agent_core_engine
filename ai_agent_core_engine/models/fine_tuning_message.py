@@ -27,7 +27,7 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility
+from silvaengine_utility import Utility, method_cache
 
 from ..types.fine_tuning_message import FineTuningMessageListType, FineTuningMessageType
 
@@ -109,6 +109,7 @@ def get_fine_tuning_message_count(agent_uuid: str, message_uuid: str) -> int:
     )
 
 
+@method_cache(ttl=1800, cache_name="ai_agent_core_engine.models.fine_tuning_message")
 def get_fine_tuning_message_type(
     info: ResolveInfo, fine_tuning_message: FineTuningMessageModel
 ) -> FineTuningMessageType:
@@ -250,6 +251,11 @@ def insert_update_fine_tuning_message(
 
     # Update the fine_tuning_message
     fine_tuning_message.update(actions=actions)
+
+    # Clear cache for the updated fine tuning message
+    if hasattr(get_fine_tuning_message_type, 'cache_delete'):
+        get_fine_tuning_message_type.cache_delete(info, fine_tuning_message)
+
     return
 
 
@@ -261,5 +267,9 @@ def insert_update_fine_tuning_message(
     model_funct=get_fine_tuning_message,
 )
 def delete_fine_tuning_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
+    # Clear cache BEFORE deletion while entity still exists
+    if kwargs.get("entity") and hasattr(get_fine_tuning_message_type, 'cache_delete'):
+        get_fine_tuning_message_type.cache_delete(info, kwargs["entity"])
+
     kwargs.get("entity").delete()
     return True

@@ -28,7 +28,7 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility
+from silvaengine_utility import Utility, method_cache
 
 from ..types.agent import AgentListType, AgentType
 from .thread import resolve_thread_list
@@ -120,6 +120,7 @@ def get_agent_count(endpoint_id: str, agent_version_uuid: str) -> int:
     )
 
 
+@method_cache(ttl=1800, cache_name="ai_agent_core_engine.models.agent")
 def get_agent_type(info: ResolveInfo, agent: AgentModel) -> AgentType:
     try:
         llm = _get_llm(agent.llm_provider, agent.llm_name)
@@ -370,6 +371,11 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
 
     # Update the agent
     agent.update(actions=actions)
+
+    # Clear cache for the updated agent
+    if hasattr(get_agent_type, 'cache_delete'):
+        get_agent_type.cache_delete(info, agent)
+
     return
 
 
@@ -381,6 +387,10 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     model_funct=get_agent,
 )
 def delete_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
+    # Clear cache BEFORE deletion while entity still exists
+    if kwargs.get("entity") and hasattr(get_agent_type, 'cache_delete'):
+        get_agent_type.cache_delete(info, kwargs["entity"])
+
     thread_list = resolve_thread_list(
         info,
         **{

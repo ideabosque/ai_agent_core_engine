@@ -26,7 +26,7 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility
+from silvaengine_utility import Utility, method_cache
 
 from ..types.tool_call import ToolCallListType, ToolCallType
 from .utils import _get_run
@@ -108,6 +108,7 @@ def get_tool_call_count(thread_uuid: str, tool_call_uuid: str) -> int:
     )
 
 
+@method_cache(ttl=1800, cache_name="ai_agent_core_engine.models.tool_call")
 def get_tool_call_type(info: ResolveInfo, tool_call: ToolCallModel) -> ToolCallType:
     try:
         run = _get_run(tool_call.thread_uuid, tool_call.run_uuid)
@@ -242,6 +243,11 @@ def insert_update_tool_call(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None
 
     # Update the tool call
     tool_call.update(actions=actions)
+
+    # Clear cache for the updated tool call
+    if hasattr(get_tool_call_type, 'cache_delete'):
+        get_tool_call_type.cache_delete(info, tool_call)
+
     return
 
 
@@ -250,5 +256,9 @@ def insert_update_tool_call(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None
     model_funct=get_tool_call,
 )
 def delete_tool_call(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
+    # Clear cache BEFORE deletion while entity still exists
+    if kwargs.get("entity") and hasattr(get_tool_call_type, 'cache_delete'):
+        get_tool_call_type.cache_delete(info, kwargs["entity"])
+
     kwargs.get("entity").delete()
     return True

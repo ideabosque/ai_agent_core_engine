@@ -26,7 +26,7 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility
+from silvaengine_utility import Utility, method_cache
 
 from ..types.wizard import WizardListType, WizardType
 from .utils import _get_element
@@ -71,7 +71,8 @@ def get_wizard_count(endpoint_id: str, wizard_uuid: str) -> int:
     return WizardModel.count(endpoint_id, WizardModel.wizard_uuid == wizard_uuid)
 
 
-def get_wizard_type(info: ResolveInfo, wizard: WizardType) -> WizardType:
+@method_cache(ttl=1800, cache_name="ai_agent_core_engine.models.wizard")
+def get_wizard_type(info: ResolveInfo, wizard: WizardModel) -> WizardType:
     try:
         elements = [
             _get_element(wizard.endpoint_id, element_uuid)
@@ -178,6 +179,11 @@ def insert_update_wizard(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
             actions.append(field.set(None if kwargs[key] == "null" else kwargs[key]))
 
     wizard.update(actions=actions)
+
+    # Clear cache for the updated wizard
+    if hasattr(get_wizard_type, 'cache_delete'):
+        get_wizard_type.cache_delete(info, wizard)
+
     return
 
 
@@ -189,5 +195,9 @@ def insert_update_wizard(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     model_funct=get_wizard,
 )
 def delete_wizard(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
+    # Clear cache BEFORE deletion while entity still exists
+    if kwargs.get("entity") and hasattr(get_wizard_type, 'cache_delete'):
+        get_wizard_type.cache_delete(info, kwargs["entity"])
+
     kwargs["entity"].delete()
     return True

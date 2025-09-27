@@ -22,7 +22,7 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility
+from silvaengine_utility import Utility, method_cache
 
 from ..handlers.ai_agent_utility import convert_flow_snippet_xml
 from ..handlers.config import Config
@@ -120,6 +120,7 @@ def get_flow_snippet_count(endpoint_id: str, flow_snippet_version_uuid: str) -> 
     )
 
 
+@method_cache(ttl=1800, cache_name="ai_agent_core_engine.models.flow_snippet")
 def get_flow_snippet_type(
     info: ResolveInfo, flow_snippet: FlowSnippetModel
 ) -> FlowSnippetType:
@@ -322,6 +323,11 @@ def insert_update_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
                 )
 
     flow_snippet.update(actions=actions)
+
+    # Clear cache for the updated flow snippet
+    if hasattr(get_flow_snippet_type, 'cache_delete'):
+        get_flow_snippet_type.cache_delete(info, flow_snippet)
+
     return
 
 
@@ -333,6 +339,10 @@ def insert_update_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
     model_funct=get_flow_snippet,
 )
 def delete_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
+    # Clear cache BEFORE deletion while entity still exists
+    if kwargs.get("entity") and hasattr(get_flow_snippet_type, 'cache_delete'):
+        get_flow_snippet_type.cache_delete(info, kwargs["entity"])
+
     if kwargs["entity"].status == "active":
         results = FlowSnippetModel.flow_snippet_uuid_index.query(
             kwargs["entity"].endpoint_id,

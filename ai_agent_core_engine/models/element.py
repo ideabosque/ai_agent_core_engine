@@ -27,7 +27,7 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility
+from silvaengine_utility import Utility, method_cache
 
 from ..types.element import ElementListType, ElementType
 
@@ -88,6 +88,7 @@ def get_element_count(endpoint_id: str, element_uuid: str) -> int:
     return ElementModel.count(endpoint_id, ElementModel.element_uuid == element_uuid)
 
 
+@method_cache(ttl=1800, cache_name="ai_agent_core_engine.models.element")
 def get_element_type(info: ResolveInfo, element: ElementModel) -> ElementType:
     element = element.__dict__["attribute_values"]
     return ElementType(**Utility.json_normalize(element))
@@ -190,6 +191,11 @@ def insert_update_element(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
             actions.append(field.set(None if kwargs[key] == "null" else kwargs[key]))
 
     element.update(actions=actions)
+
+    # Clear cache for the updated element
+    if hasattr(get_element_type, 'cache_delete'):
+        get_element_type.cache_delete(info, element)
+
     return
 
 
@@ -201,5 +207,9 @@ def insert_update_element(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     model_funct=get_element,
 )
 def delete_element(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
+    # Clear cache BEFORE deletion while entity still exists
+    if kwargs.get("entity") and hasattr(get_element_type, 'cache_delete'):
+        get_element_type.cache_delete(info, kwargs["entity"])
+
     kwargs["entity"].delete()
     return True

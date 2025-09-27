@@ -27,7 +27,7 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility
+from silvaengine_utility import Utility, method_cache
 
 from ..types.prompt_template import PromptTemplateListType, PromptTemplateType
 from .mcp_server import resolve_mcp_server
@@ -135,6 +135,7 @@ def get_prompt_template_count(endpoint_id: str, prompt_version_uuid: str) -> int
     )
 
 
+@method_cache(ttl=1800, cache_name="ai_agent_core_engine.models.prompt_template")
 def get_prompt_template_type(
     info: ResolveInfo, prompt_template: PromptTemplateModel
 ) -> PromptTemplateType:
@@ -329,6 +330,11 @@ def insert_update_prompt_template(info: ResolveInfo, **kwargs: Dict[str, Any]) -
             actions.append(field.set(None if kwargs[key] == "null" else kwargs[key]))
 
     prompt_template.update(actions=actions)
+
+    # Clear cache for the updated prompt template
+    if hasattr(get_prompt_template_type, 'cache_delete'):
+        get_prompt_template_type.cache_delete(info, prompt_template)
+
     return
 
 
@@ -340,6 +346,10 @@ def insert_update_prompt_template(info: ResolveInfo, **kwargs: Dict[str, Any]) -
     model_funct=get_prompt_template,
 )
 def delete_prompt_template(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
+    # Clear cache BEFORE deletion while entity still exists
+    if kwargs.get("entity") and hasattr(get_prompt_template_type, 'cache_delete'):
+        get_prompt_template_type.cache_delete(info, kwargs["entity"])
+
     if kwargs["entity"].status == "active":
         results = PromptTemplateModel.prompt_uuid_index.query(
             kwargs["entity"].endpoint_id,

@@ -19,7 +19,7 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility
+from silvaengine_utility import Utility, method_cache
 
 from ..types.llm import LlmListType, LlmType
 from .agent import resolve_agent_list
@@ -61,6 +61,7 @@ def get_llm_count(llm_provider: str, llm_name: str) -> int:
     return LlmModel.count(llm_provider, LlmModel.llm_name == llm_name)
 
 
+@method_cache(ttl=1800, cache_name="ai_agent_core_engine.models.llm")
 def get_llm_type(info: ResolveInfo, llm: LlmModel) -> LlmType:
     llm = llm.__dict__["attribute_values"]
     return LlmType(**Utility.json_normalize(llm))
@@ -153,6 +154,11 @@ def insert_update_llm(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
 
     # Update the llm
     llm.update(actions=actions)
+
+    # Clear cache for the updated llm
+    if hasattr(get_llm_type, 'cache_delete'):
+        get_llm_type.cache_delete(info, llm)
+
     return
 
 
@@ -164,6 +170,10 @@ def insert_update_llm(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     model_funct=get_llm,
 )
 def delete_llm(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
+    # Clear cache BEFORE deletion while entity still exists
+    if kwargs.get("entity") and hasattr(get_llm_type, 'cache_delete'):
+        get_llm_type.cache_delete(info, kwargs["entity"])
+
     agent_list = resolve_agent_list(
         info,
         **{

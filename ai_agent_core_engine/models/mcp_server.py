@@ -21,7 +21,7 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility
+from silvaengine_utility import Utility, method_cache
 
 from ..types.mcp_server import MCPServerListType, MCPServerType
 
@@ -76,6 +76,7 @@ async def _run_list_tools(info: ResolveInfo, mcp_server: MCPServerModel):
         return await client.list_tools()
 
 
+@method_cache(ttl=1800, cache_name="ai_agent_core_engine.models.mcp_server")
 def get_mcp_server_type(info: ResolveInfo, mcp_server: MCPServerModel) -> MCPServerType:
     tools = asyncio.run(_run_list_tools(info, mcp_server))
     mcp_server = mcp_server.__dict__["attribute_values"]
@@ -172,6 +173,11 @@ def insert_update_mcp_server(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Non
             actions.append(field.set(None if kwargs[key] == "null" else kwargs[key]))
 
     mcp_server.update(actions=actions)
+
+    # Clear cache for the updated mcp server
+    if hasattr(get_mcp_server_type, 'cache_delete'):
+        get_mcp_server_type.cache_delete(info, mcp_server)
+
     return
 
 
@@ -183,5 +189,9 @@ def insert_update_mcp_server(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Non
     model_funct=get_mcp_server,
 )
 def delete_mcp_server(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
+    # Clear cache BEFORE deletion while entity still exists
+    if kwargs.get("entity") and hasattr(get_mcp_server_type, 'cache_delete'):
+        get_mcp_server_type.cache_delete(info, kwargs["entity"])
+
     kwargs["entity"].delete()
     return True
