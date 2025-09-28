@@ -11,7 +11,6 @@ from graphene import Boolean, Field, Int, List, Mutation, String
 from silvaengine_utility import JSON
 
 from ..models.run import delete_run, insert_update_run
-from ..queries.run import resolve_run_list
 from ..types.run import RunType
 
 

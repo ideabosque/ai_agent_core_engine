@@ -11,7 +11,6 @@ from graphene import Boolean, Field, Mutation, String
 from silvaengine_utility import JSON
 
 from ..models.mcp_server import delete_mcp_server, insert_update_mcp_server
-from ..queries.mcp_server import resolve_mcp_server_list
 from ..types.mcp_server import MCPServerType
 
 

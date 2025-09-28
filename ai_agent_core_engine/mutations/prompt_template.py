@@ -10,8 +10,10 @@ from graphene import Boolean, Field, List, Mutation, String
 
 from silvaengine_utility import JSON
 
-from ..models.prompt_template import delete_prompt_template, insert_update_prompt_template
-from ..queries.prompt_template import resolve_prompt_template_list
+from ..models.prompt_template import (
+    delete_prompt_template,
+    insert_update_prompt_template,
+)
 from ..types.prompt_template import PromptTemplateType
 
 
@@ -32,7 +34,9 @@ class InsertUpdatePromptTemplate(Mutation):
         updated_by = String(required=True)
 
     @staticmethod
-    def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "InsertUpdatePromptTemplate":
+    def mutate(
+        root: Any, info: Any, **kwargs: Dict[str, Any]
+    ) -> "InsertUpdatePromptTemplate":
         try:
             # Use cascading cache purging for prompt templates
             from ..models.cache import purge_prompt_template_cascading_cache
@@ -60,14 +64,27 @@ class DeletePromptTemplate(Mutation):
         prompt_version_uuid = String(required=True)
 
     @staticmethod
-    def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeletePromptTemplate":
+    def mutate(
+        root: Any, info: Any, **kwargs: Dict[str, Any]
+    ) -> "DeletePromptTemplate":
         try:
             # Use cascading cache purging for prompt templates
+            from ..queries.prompt_template import resolve_prompt_template
             from ..models.cache import purge_prompt_template_cascading_cache
+
+            prompt_template_entity = resolve_prompt_template(
+                info,
+                **{"prompt_version_uuid": kwargs.get("prompt_version_uuid")},
+            )
 
             cache_result = purge_prompt_template_cascading_cache(
                 endpoint_id=info.context["endpoint_id"],
                 prompt_version_uuid=kwargs.get("prompt_version_uuid"),
+                prompt_uuid=(
+                    prompt_template_entity.prompt_uuid
+                    if prompt_template_entity
+                    else None
+                ),
                 logger=info.context.get("logger"),
             )
 

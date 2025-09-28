@@ -11,7 +11,6 @@ from graphene import Boolean, Field, List, Mutation, String
 from silvaengine_utility import JSON
 
 from ..models.ui_component import delete_ui_component, insert_update_ui_component
-from ..queries.ui_component import resolve_ui_component_list
 from ..types.ui_component import UIComponentType
 
 

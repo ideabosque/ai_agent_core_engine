@@ -67,16 +67,12 @@ class DeleteAgent(Mutation):
         try:
             # Use cascading cache purging for agents
             # Get agent info before deletion for cache purging
-            from ..models.agent import get_agent
+            from ..models.agent import resolve_agent
             from ..models.cache import purge_agent_cascading_cache
 
-            agent_entity = None
-            try:
-                agent_entity = get_agent(
-                    info.context["endpoint_id"], kwargs["agent_version_uuid"]
-                )
-            except:
-                pass  # Agent might not exist, continue with deletion
+            agent_entity = resolve_agent(
+                info, **{"agent_version_uuid": kwargs.get("agent_version_uuid")}
+            )
 
             cache_result = purge_agent_cascading_cache(
                 endpoint_id=info.context["endpoint_id"],

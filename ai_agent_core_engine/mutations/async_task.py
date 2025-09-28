@@ -11,7 +11,6 @@ from graphene import Boolean, Field, Int, List, Mutation, String
 from silvaengine_utility import JSON
 
 from ..models.async_task import delete_async_task, insert_update_async_task
-from ..queries.async_task import resolve_async_task_list
 from ..types.async_task import AsyncTaskType
 
 

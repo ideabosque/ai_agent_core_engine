@@ -10,8 +10,10 @@ from graphene import Boolean, Field, Int, List, Mutation, String
 
 from silvaengine_utility import JSON
 
-from ..models.message import delete_message, insert_update_message
-from ..queries.message import resolve_message_list
+from ..models.message import (
+    delete_message,
+    insert_update_message,
+)
 from ..types.message import MessageType
 
 
@@ -60,11 +62,27 @@ class DeleteMessage(Mutation):
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteMessage":
         try:
             # Use cascading cache purging for messages
+            from ..queries.message import resolve_message
             from ..models.cache import purge_message_cascading_cache
+
+            message_entity = resolve_message(
+                info,
+                **{
+                    "thread_uuid": kwargs.get("thread_uuid"),
+                    "message_uuid": kwargs.get("message_uuid"),
+                },
+            )
+            message_run_uuid = None
+            if (
+                message_entity
+                and isinstance(getattr(message_entity, "run", None), dict)
+            ):
+                message_run_uuid = message_entity.run.get("run_uuid")
 
             cache_result = purge_message_cascading_cache(
                 thread_uuid=kwargs.get("thread_uuid"),
                 message_uuid=kwargs.get("message_uuid"),
+                run_uuid=message_run_uuid,
                 logger=info.context.get("logger"),
             )
 

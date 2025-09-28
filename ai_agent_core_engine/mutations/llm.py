@@ -11,7 +11,6 @@ from graphene import Boolean, Field, List, Mutation, String
 from silvaengine_utility import JSON
 
 from ..models.llm import delete_llm, insert_update_llm
-from ..queries.llm import resolve_llm_list
 from ..types.llm import LlmType
 
 

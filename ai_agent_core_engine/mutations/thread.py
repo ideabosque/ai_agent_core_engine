@@ -8,7 +8,6 @@ from graphene import Boolean, Field, List, Mutation, String
 from silvaengine_utility import JSON
 
 from ..models.thread import delete_thread, insert_thread
-from ..queries.thread import resolve_thread_list
 from ..types.thread import ThreadType
 
 

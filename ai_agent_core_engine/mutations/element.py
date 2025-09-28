@@ -11,7 +11,6 @@ from graphene import Boolean, Field, Int, List, Mutation, String
 from silvaengine_utility import JSON
 
 from ..models.element import delete_element, insert_update_element
-from ..queries.element import resolve_element_list
 from ..types.element import ElementType
 
 

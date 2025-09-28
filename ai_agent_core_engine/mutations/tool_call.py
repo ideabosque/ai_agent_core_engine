@@ -11,7 +11,6 @@ from graphene import Boolean, Field, Int, List, Mutation, String
 from silvaengine_utility import JSON
 
 from ..models.tool_call import delete_tool_call, insert_update_tool_call
-from ..queries.tool_call import resolve_tool_call_list
 from ..types.tool_call import ToolCallType
 
 

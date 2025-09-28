@@ -11,7 +11,6 @@ from graphene import Boolean, Field, Int, List, Mutation, String
 from silvaengine_utility import JSON
 
 from ..models.wizard_group import delete_wizard_group, insert_update_wizard_group
-from ..queries.wizard_group import resolve_wizard_group_list
 from ..types.wizard_group import WizardGroupType
 
 
