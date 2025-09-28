@@ -29,7 +29,7 @@ def _get_cascading_cache_purger() -> CascadingCachePurger:
 def purge_entity_cascading_cache(
     logger: logging.Logger,
     entity_type: str,
-    context_id: Optional[str] = None,
+    context_keys: Optional[Dict[str, Any]] = None,
     entity_keys: Optional[Dict[str, Any]] = None,
     cascade_depth: int = 3,
 ) -> Dict[str, Any]:
@@ -38,7 +38,7 @@ def purge_entity_cascading_cache(
     return purger.purge_entity_cascading_cache(
         logger,
         entity_type,
-        context_id=context_id,
+        context_keys=context_keys,
         entity_keys=entity_keys,
         cascade_depth=cascade_depth,
     )
@@ -78,7 +78,7 @@ def purge_agent_cascading_cache(
     result = purge_entity_cascading_cache(
         logger,
         entity_type="agent",
-        context_id=endpoint_id,
+        context_keys={"endpoint_id": endpoint_id} if endpoint_id else None,
         entity_keys=entity_keys if entity_keys else None,
         cascade_depth=cascade_depth,
     )
@@ -124,7 +124,7 @@ def purge_thread_cascading_cache(
     result = purge_entity_cascading_cache(
         logger,
         entity_type="thread",
-        context_id=endpoint_id,
+        context_keys={"endpoint_id": endpoint_id} if endpoint_id else None,
         entity_keys=entity_keys if entity_keys else None,
         cascade_depth=cascade_depth,
     )
@@ -172,7 +172,7 @@ def purge_run_cascading_cache(
     result = purge_entity_cascading_cache(
         logger,
         entity_type="run",
-        context_id=None,  # Runs don't use endpoint_id directly
+        context_keys=None,  # Runs don't use endpoint_id directly
         entity_keys=entity_keys if entity_keys else None,
         cascade_depth=cascade_depth,
     )
@@ -221,7 +221,7 @@ def purge_llm_cascading_cache(
     result = purge_entity_cascading_cache(
         logger,
         entity_type="llm",
-        context_id=None,  # LLMs don't use endpoint_id directly
+        context_keys=None,  # LLMs don't use endpoint_id directly
         entity_keys=entity_keys if entity_keys else None,
         cascade_depth=cascade_depth,
     )
@@ -272,7 +272,7 @@ def purge_flow_snippet_cascading_cache(
     result = purge_entity_cascading_cache(
         logger,
         entity_type="flow_snippet",
-        context_id=endpoint_id,
+        context_keys={"endpoint_id": endpoint_id} if endpoint_id else None,
         entity_keys=entity_keys if entity_keys else None,
         cascade_depth=cascade_depth,
     )
@@ -319,7 +319,7 @@ def purge_mcp_server_cascading_cache(
     result = purge_entity_cascading_cache(
         logger,
         entity_type="mcp_server",
-        context_id=endpoint_id,
+        context_keys={"endpoint_id": endpoint_id} if endpoint_id else None,
         entity_keys=entity_keys if entity_keys else None,
         cascade_depth=cascade_depth,
     )
@@ -369,7 +369,7 @@ def purge_wizard_group_cascading_cache(
     result = purge_entity_cascading_cache(
         logger,
         entity_type="wizard_group",
-        context_id=endpoint_id,
+        context_keys={"endpoint_id": endpoint_id} if endpoint_id else None,
         entity_keys=entity_keys if entity_keys else None,
         cascade_depth=cascade_depth,
     )
@@ -420,7 +420,7 @@ def purge_wizard_cascading_cache(
     result = purge_entity_cascading_cache(
         logger,
         entity_type="wizard",
-        context_id=endpoint_id,
+        context_keys={"endpoint_id": endpoint_id} if endpoint_id else None,
         entity_keys=entity_keys if entity_keys else None,
         cascade_depth=cascade_depth,
     )
@@ -471,7 +471,7 @@ def purge_prompt_template_cascading_cache(
     result = purge_entity_cascading_cache(
         logger,
         entity_type="prompt_template",
-        context_id=endpoint_id,
+        context_keys={"endpoint_id": endpoint_id} if endpoint_id else None,
         entity_keys=entity_keys if entity_keys else None,
         cascade_depth=cascade_depth,
     )
@@ -524,7 +524,7 @@ def purge_message_cascading_cache(
     result = purge_entity_cascading_cache(
         logger,
         entity_type="message",
-        context_id=None,  # Messages don't use endpoint_id directly
+        context_keys=None,  # Messages don't use endpoint_id directly
         entity_keys=entity_keys if entity_keys else None,
         cascade_depth=cascade_depth,
     )
@@ -574,7 +574,7 @@ def purge_tool_call_cascading_cache(
     result = purge_entity_cascading_cache(
         logger,
         entity_type="tool_call",
-        context_id=None,  # Tool calls don't use endpoint_id directly
+        context_keys=None,  # Tool calls don't use endpoint_id directly
         entity_keys=entity_keys if entity_keys else None,
         cascade_depth=cascade_depth,
     )
@@ -627,7 +627,7 @@ def purge_fine_tuning_message_cascading_cache(
     result = purge_entity_cascading_cache(
         logger,
         entity_type="fine_tuning_message",
-        context_id=None,  # Fine tuning messages don't use endpoint_id directly
+        context_keys=None,  # Fine tuning messages don't use endpoint_id directly
         entity_keys=entity_keys if entity_keys else None,
         cascade_depth=cascade_depth,
     )
@@ -677,7 +677,7 @@ def purge_element_cascading_cache(
     result = purge_entity_cascading_cache(
         logger,
         entity_type="element",
-        context_id=endpoint_id,
+        context_keys={"endpoint_id": endpoint_id} if endpoint_id else None,
         entity_keys=entity_keys if entity_keys else None,
         cascade_depth=cascade_depth,
     )
@@ -725,7 +725,7 @@ def purge_ui_component_cascading_cache(
     result = purge_entity_cascading_cache(
         logger,
         entity_type="ui_component",
-        context_id=None,  # UI components don't use endpoint_id directly
+        context_keys=None,  # UI components don't use endpoint_id directly
         entity_keys=entity_keys if entity_keys else None,
         cascade_depth=cascade_depth,
     )
@@ -774,7 +774,7 @@ def purge_async_task_cascading_cache(
     result = purge_entity_cascading_cache(
         logger,
         entity_type="async_task",
-        context_id=None,  # Async tasks don't use endpoint_id directly
+        context_keys=None,  # Async tasks don't use endpoint_id directly
         entity_keys=entity_keys if entity_keys else None,
         cascade_depth=cascade_depth,
     )
