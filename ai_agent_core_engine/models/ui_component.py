@@ -167,9 +167,6 @@ def insert_update_ui_component(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
 
     ui_component.update(actions=actions)
 
-    # Clear cache for the updated ui component
-    if hasattr(get_ui_component, "cache_delete"):
-        get_ui_component.cache_delete(ui_component.ui_component_type, ui_component.ui_component_uuid)
 
     return
 
@@ -182,9 +179,6 @@ def insert_update_ui_component(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
     model_funct=get_ui_component,
 )
 def delete_ui_component(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
-    # Clear cache BEFORE deletion while entity still exists
-    if kwargs.get("entity") and hasattr(get_ui_component, "cache_delete"):
-        get_ui_component.cache_delete(kwargs["entity"].ui_component_type, kwargs["entity"].ui_component_uuid)
 
     kwargs["entity"].delete()
     return True

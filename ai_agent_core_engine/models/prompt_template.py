@@ -332,9 +332,6 @@ def insert_update_prompt_template(info: ResolveInfo, **kwargs: Dict[str, Any]) -
 
     prompt_template.update(actions=actions)
 
-    # Clear cache for the updated prompt template
-    if hasattr(get_prompt_template, "cache_delete"):
-        get_prompt_template.cache_delete(prompt_template.endpoint_id, prompt_template.prompt_version_uuid)
 
     return
 
@@ -347,9 +344,6 @@ def insert_update_prompt_template(info: ResolveInfo, **kwargs: Dict[str, Any]) -
     model_funct=get_prompt_template,
 )
 def delete_prompt_template(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
-    # Clear cache BEFORE deletion while entity still exists
-    if kwargs.get("entity") and hasattr(get_prompt_template, "cache_delete"):
-        get_prompt_template.cache_delete(kwargs["entity"].endpoint_id, kwargs["entity"].prompt_version_uuid)
 
     if kwargs["entity"].status == "active":
         results = PromptTemplateModel.prompt_uuid_index.query(

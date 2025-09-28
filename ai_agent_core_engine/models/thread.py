@@ -247,9 +247,6 @@ def insert_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     model_funct=get_thread,
 )
 def delete_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
-    # Clear cache BEFORE deletion while entity still exists
-    if kwargs.get("entity") and hasattr(get_thread, "cache_delete"):
-        get_thread.cache_delete(kwargs["entity"].endpoint_id, kwargs["entity"].thread_uuid)
 
     run_list = resolve_run_list(
         info,

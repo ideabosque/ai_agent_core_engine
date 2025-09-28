@@ -245,9 +245,6 @@ def insert_update_tool_call(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None
     # Update the tool call
     tool_call.update(actions=actions)
 
-    # Clear cache for the updated tool call
-    if hasattr(get_tool_call, "cache_delete"):
-        get_tool_call.cache_delete(tool_call.thread_uuid, tool_call.tool_call_uuid)
 
     return
 
@@ -257,9 +254,6 @@ def insert_update_tool_call(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None
     model_funct=get_tool_call,
 )
 def delete_tool_call(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
-    # Clear cache BEFORE deletion while entity still exists
-    if kwargs.get("entity") and hasattr(get_tool_call, "cache_delete"):
-        get_tool_call.cache_delete(kwargs["entity"].thread_uuid, kwargs["entity"].tool_call_uuid)
 
     kwargs.get("entity").delete()
     return True

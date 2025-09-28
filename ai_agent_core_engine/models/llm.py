@@ -156,9 +156,6 @@ def insert_update_llm(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     # Update the llm
     llm.update(actions=actions)
 
-    # Clear cache for the updated llm
-    if hasattr(get_llm, "cache_delete"):
-        get_llm.cache_delete(llm.llm_provider, llm.llm_name)
 
     return
 
@@ -171,9 +168,6 @@ def insert_update_llm(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     model_funct=get_llm,
 )
 def delete_llm(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
-    # Clear cache BEFORE deletion while entity still exists
-    if kwargs.get("entity") and hasattr(get_llm, "cache_delete"):
-        get_llm.cache_delete(kwargs["entity"].llm_provider, kwargs["entity"].llm_name)
 
     agent_list = resolve_agent_list(
         info,

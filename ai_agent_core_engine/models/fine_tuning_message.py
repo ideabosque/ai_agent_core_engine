@@ -253,9 +253,6 @@ def insert_update_fine_tuning_message(
     # Update the fine_tuning_message
     fine_tuning_message.update(actions=actions)
 
-    # Clear cache for the updated fine tuning message
-    if hasattr(get_fine_tuning_message, "cache_delete"):
-        get_fine_tuning_message.cache_delete(fine_tuning_message.agent_uuid, fine_tuning_message.message_uuid)
 
     return
 
@@ -268,9 +265,6 @@ def insert_update_fine_tuning_message(
     model_funct=get_fine_tuning_message,
 )
 def delete_fine_tuning_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
-    # Clear cache BEFORE deletion while entity still exists
-    if kwargs.get("entity") and hasattr(get_fine_tuning_message, "cache_delete"):
-        get_fine_tuning_message.cache_delete(kwargs["entity"].agent_uuid, kwargs["entity"].message_uuid)
 
     kwargs.get("entity").delete()
     return True

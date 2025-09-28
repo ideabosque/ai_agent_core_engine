@@ -193,9 +193,6 @@ def insert_update_element(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
 
     element.update(actions=actions)
 
-    # Clear cache for the updated element
-    if hasattr(get_element, "cache_delete"):
-        get_element.cache_delete(element.endpoint_id, element.element_uuid)
 
     return
 
@@ -208,9 +205,6 @@ def insert_update_element(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     model_funct=get_element,
 )
 def delete_element(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
-    # Clear cache BEFORE deletion while entity still exists
-    if kwargs.get("entity") and hasattr(get_element, "cache_delete"):
-        get_element.cache_delete(kwargs["entity"].endpoint_id, kwargs["entity"].element_uuid)
 
     kwargs["entity"].delete()
     return True

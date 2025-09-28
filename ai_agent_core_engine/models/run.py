@@ -215,9 +215,6 @@ def insert_update_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     # Update the run
     run.update(actions=actions)
 
-    # Clear cache for the updated run
-    if hasattr(get_run, "cache_delete"):
-        get_run.cache_delete(run.thread_uuid, run.run_uuid)
 
     return
 
@@ -230,9 +227,6 @@ def insert_update_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     model_funct=get_run,
 )
 def delete_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
-    # Clear cache BEFORE deletion while entity still exists
-    if kwargs.get("entity") and hasattr(get_run, "cache_delete"):
-        get_run.cache_delete(kwargs["entity"].thread_uuid, kwargs["entity"].run_uuid)
 
     message_list = resolve_message_list(
         info,

@@ -373,9 +373,6 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     # Update the agent
     agent.update(actions=actions)
 
-    # Clear cache for the updated agent
-    if hasattr(get_agent, "cache_delete"):
-        get_agent.cache_delete(agent.endpoint_id, agent.agent_version_uuid)
 
     return
 
@@ -388,11 +385,6 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     model_funct=get_agent,
 )
 def delete_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
-    # Clear cache BEFORE deletion while entity still exists
-    if kwargs.get("entity") and hasattr(get_agent, "cache_delete"):
-        get_agent.cache_delete(
-            kwargs["entity"].endpoint_id, kwargs["entity"].agent_version_uuid
-        )
 
     thread_list = resolve_thread_list(
         info,

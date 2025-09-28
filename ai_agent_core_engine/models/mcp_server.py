@@ -175,9 +175,6 @@ def insert_update_mcp_server(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Non
 
     mcp_server.update(actions=actions)
 
-    # Clear cache for the updated mcp server
-    if hasattr(get_mcp_server, "cache_delete"):
-        get_mcp_server.cache_delete(mcp_server.endpoint_id, mcp_server.mcp_server_uuid)
 
     return
 
@@ -190,9 +187,6 @@ def insert_update_mcp_server(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Non
     model_funct=get_mcp_server,
 )
 def delete_mcp_server(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
-    # Clear cache BEFORE deletion while entity still exists
-    if kwargs.get("entity") and hasattr(get_mcp_server, "cache_delete"):
-        get_mcp_server.cache_delete(kwargs["entity"].endpoint_id, kwargs["entity"].mcp_server_uuid)
 
     kwargs["entity"].delete()
     return True

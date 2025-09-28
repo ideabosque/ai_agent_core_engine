@@ -37,6 +37,120 @@ class Config:
         "queries": "ai_agent_core_engine.queries",
     }
 
+    # Cache entity metadata (module paths, getters, cache key templates)
+    CACHE_ENTITY_CONFIG = {
+        "agent": {
+            "module": "ai_agent_core_engine.models.agent",
+            "model_class": "AgentModel",
+            "getter": "get_agent",
+            "list_resolver": "ai_agent_core_engine.queries.agent.resolve_agent_list",
+            "cache_keys": ["endpoint_id", "key:agent_version_uuid"],
+        },
+        "thread": {
+            "module": "ai_agent_core_engine.models.thread",
+            "model_class": "ThreadModel",
+            "getter": "get_thread",
+            "list_resolver": "ai_agent_core_engine.queries.thread.resolve_thread_list",
+            "cache_keys": ["endpoint_id", "key:thread_uuid"],
+        },
+        "run": {
+            "module": "ai_agent_core_engine.models.run",
+            "model_class": "RunModel",
+            "getter": "get_run",
+            "list_resolver": "ai_agent_core_engine.queries.run.resolve_run_list",
+            "cache_keys": ["key:thread_uuid", "key:run_uuid"],
+        },
+        "message": {
+            "module": "ai_agent_core_engine.models.message",
+            "model_class": "MessageModel",
+            "getter": "get_message",
+            "list_resolver": "ai_agent_core_engine.queries.message.resolve_message_list",
+            "cache_keys": ["key:thread_uuid", "key:message_uuid"],
+        },
+        "tool_call": {
+            "module": "ai_agent_core_engine.models.tool_call",
+            "model_class": "ToolCallModel",
+            "getter": "get_tool_call",
+            "list_resolver": "ai_agent_core_engine.queries.tool_call.resolve_tool_call_list",
+            "cache_keys": ["key:thread_uuid", "key:tool_call_uuid"],
+        },
+        "llm": {
+            "module": "ai_agent_core_engine.models.llm",
+            "model_class": "LlmModel",
+            "getter": "get_llm",
+            "list_resolver": "ai_agent_core_engine.queries.llm.resolve_llm_list",
+            "cache_keys": ["key:llm_provider", "key:llm_name"],
+        },
+        "flow_snippet": {
+            "module": "ai_agent_core_engine.models.flow_snippet",
+            "model_class": "FlowSnippetModel",
+            "getter": "get_flow_snippet",
+            "list_resolver": "ai_agent_core_engine.queries.flow_snippet.resolve_flow_snippet_list",
+            "cache_keys": ["endpoint_id", "key:flow_snippet_version_uuid"],
+        },
+        "mcp_server": {
+            "module": "ai_agent_core_engine.models.mcp_server",
+            "model_class": "MCPServerModel",
+            "getter": "get_mcp_server",
+            "list_resolver": "ai_agent_core_engine.queries.mcp_server.resolve_mcp_server_list",
+            "cache_keys": ["endpoint_id", "key:mcp_server_uuid"],
+        },
+        "fine_tuning_message": {
+            "module": "ai_agent_core_engine.models.fine_tuning_message",
+            "model_class": "FineTuningMessageModel",
+            "getter": "get_fine_tuning_message",
+            "list_resolver": "ai_agent_core_engine.queries.fine_tuning_message.resolve_fine_tuning_message_list",
+            "cache_keys": ["key:agent_uuid", "key:message_uuid"],
+        },
+        "async_task": {
+            "module": "ai_agent_core_engine.models.async_task",
+            "model_class": "AsyncTaskModel",
+            "getter": "get_async_task",
+            "list_resolver": "ai_agent_core_engine.queries.async_task.resolve_async_task_list",
+            "cache_keys": ["key:function_name", "key:async_task_uuid"],
+        },
+        "element": {
+            "module": "ai_agent_core_engine.models.element",
+            "model_class": "ElementModel",
+            "getter": "get_element",
+            "list_resolver": "ai_agent_core_engine.queries.element.resolve_element_list",
+            "cache_keys": ["endpoint_id", "key:element_uuid"],
+        },
+        "wizard": {
+            "module": "ai_agent_core_engine.models.wizard",
+            "model_class": "WizardModel",
+            "getter": "get_wizard",
+            "list_resolver": "ai_agent_core_engine.queries.wizard.resolve_wizard_list",
+            "cache_keys": ["endpoint_id", "key:wizard_uuid"],
+        },
+        "wizard_group": {
+            "module": "ai_agent_core_engine.models.wizard_group",
+            "model_class": "WizardGroupModel",
+            "getter": "get_wizard_group",
+            "list_resolver": "ai_agent_core_engine.queries.wizard_group.resolve_wizard_group_list",
+            "cache_keys": ["endpoint_id", "key:wizard_group_uuid"],
+        },
+        "prompt_template": {
+            "module": "ai_agent_core_engine.models.prompt_template",
+            "model_class": "PromptTemplateModel",
+            "getter": "get_prompt_template",
+            "list_resolver": "ai_agent_core_engine.queries.prompt_template.resolve_prompt_template_list",
+            "cache_keys": ["endpoint_id", "key:prompt_version_uuid"],
+        },
+        "ui_component": {
+            "module": "ai_agent_core_engine.models.ui_component",
+            "model_class": "UIComponentModel",
+            "getter": "get_ui_component",
+            "list_resolver": "ai_agent_core_engine.queries.ui_component.resolve_ui_component_list",
+            "cache_keys": ["key:ui_component_type", "key:ui_component_uuid"],
+        },
+    }
+
+    @classmethod
+    def get_cache_entity_config(cls) -> Dict[str, Dict[str, Any]]:
+        """Get cache configuration metadata for each entity type."""
+        return cls.CACHE_ENTITY_CONFIG
+
     # Entity cache dependency relationships
     CACHE_RELATIONSHIPS = {
         "agent": [
@@ -108,7 +222,8 @@ class Config:
                 "entity_type": "agent",
                 "list_resolver": "resolve_agent_list",
                 "module": "agent",
-                "dependency_key": "mcp_server_uuids"
+                "dependency_key": "mcp_server_uuids",
+                "parent_key": "mcp_server_uuid"
             }
         ],
         "wizard_group": [
@@ -124,7 +239,9 @@ class Config:
                 "entity_type": "element",
                 "list_resolver": "resolve_element_list",
                 "module": "element",
-                "dependency_key": "element_uuids"
+                "dependency_key": "element_uuid",
+                "parent_key": "element_uuids",
+                "direct_clear_parent_ids": True
             }
         ],
         "prompt_template": [

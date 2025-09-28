@@ -324,9 +324,6 @@ def insert_update_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
 
     flow_snippet.update(actions=actions)
 
-    # Clear cache for the updated flow snippet
-    if hasattr(get_flow_snippet, "cache_delete"):
-        get_flow_snippet.cache_delete(flow_snippet.endpoint_id, flow_snippet.flow_snippet_version_uuid)
 
     return
 
@@ -339,9 +336,6 @@ def insert_update_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
     model_funct=get_flow_snippet,
 )
 def delete_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
-    # Clear cache BEFORE deletion while entity still exists
-    if kwargs.get("entity") and hasattr(get_flow_snippet, "cache_delete"):
-        get_flow_snippet.cache_delete(kwargs["entity"].endpoint_id, kwargs["entity"].flow_snippet_version_uuid)
 
     if kwargs["entity"].status == "active":
         results = FlowSnippetModel.flow_snippet_uuid_index.query(

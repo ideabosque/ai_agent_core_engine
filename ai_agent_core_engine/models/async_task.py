@@ -205,9 +205,6 @@ def insert_update_async_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Non
     # Update the async_task
     async_task.update(actions=actions)
 
-    # Clear cache for the updated async task
-    if hasattr(get_async_task, "cache_delete"):
-        get_async_task.cache_delete(async_task.function_name, async_task.async_task_uuid)
 
     return
 
@@ -220,9 +217,6 @@ def insert_update_async_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Non
     model_funct=get_async_task,
 )
 def delete_async_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
-    # Clear cache BEFORE deletion while entity still exists
-    if kwargs.get("entity") and hasattr(get_async_task, "cache_delete"):
-        get_async_task.cache_delete(kwargs["entity"].function_name, kwargs["entity"].async_task_uuid)
 
     kwargs.get("entity").delete()
     return True

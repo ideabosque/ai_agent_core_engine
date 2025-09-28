@@ -181,9 +181,6 @@ def insert_update_wizard_group(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
 
     wizard_group.update(actions=actions)
 
-    # Clear cache for the updated wizard group
-    if hasattr(get_wizard_group, "cache_delete"):
-        get_wizard_group.cache_delete(wizard_group.endpoint_id, wizard_group.wizard_group_uuid)
 
     return
 
@@ -196,9 +193,6 @@ def insert_update_wizard_group(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
     model_funct=get_wizard_group,
 )
 def delete_wizard_group(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
-    # Clear cache BEFORE deletion while entity still exists
-    if kwargs.get("entity") and hasattr(get_wizard_group, "cache_delete"):
-        get_wizard_group.cache_delete(kwargs["entity"].endpoint_id, kwargs["entity"].wizard_group_uuid)
 
     kwargs["entity"].delete()
     return True

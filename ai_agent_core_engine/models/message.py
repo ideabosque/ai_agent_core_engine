@@ -212,9 +212,6 @@ def insert_update_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     # Update the message
     message.update(actions=actions)
 
-    # Clear cache for the updated message
-    if hasattr(get_message, "cache_delete"):
-        get_message.cache_delete(message.thread_uuid, message.message_uuid)
 
     return
 
@@ -224,9 +221,6 @@ def insert_update_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     model_funct=get_message,
 )
 def delete_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
-    # Clear cache BEFORE deletion while entity still exists
-    if kwargs.get("entity") and hasattr(get_message, "cache_delete"):
-        get_message.cache_delete(kwargs["entity"].thread_uuid, kwargs["entity"].message_uuid)
 
     kwargs.get("entity").delete()
     return True

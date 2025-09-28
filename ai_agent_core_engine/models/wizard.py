@@ -181,9 +181,6 @@ def insert_update_wizard(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
 
     wizard.update(actions=actions)
 
-    # Clear cache for the updated wizard
-    if hasattr(get_wizard, "cache_delete"):
-        get_wizard.cache_delete(wizard.endpoint_id, wizard.wizard_uuid)
 
     return
 
@@ -196,9 +193,6 @@ def insert_update_wizard(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     model_funct=get_wizard,
 )
 def delete_wizard(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
-    # Clear cache BEFORE deletion while entity still exists
-    if kwargs.get("entity") and hasattr(get_wizard, "cache_delete"):
-        get_wizard.cache_delete(kwargs["entity"].endpoint_id, kwargs["entity"].wizard_uuid)
 
     kwargs["entity"].delete()
     return True
