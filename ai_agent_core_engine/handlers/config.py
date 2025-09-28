@@ -231,7 +231,9 @@ class Config:
                 "entity_type": "wizard",
                 "list_resolver": "resolve_wizard_list",
                 "module": "wizard",
-                "dependency_key": "wizard_group_uuid"
+                "dependency_key": "wizard_group_uuid",
+                "parent_key": "wizard_uuids",
+                "direct_clear_parent_ids": True
             }
         ],
         "wizard": [

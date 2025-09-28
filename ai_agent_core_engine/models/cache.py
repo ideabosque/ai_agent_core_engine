@@ -344,6 +344,7 @@ def purge_wizard_group_cascading_cache(
     logger: logging.Logger,
     endpoint_id: str,
     wizard_group_uuid: str = None,
+    wizard_uuids: list = None,
     cascade_depth: int = 3,
 ) -> Dict[str, Any]:
     """
@@ -352,6 +353,7 @@ def purge_wizard_group_cascading_cache(
     Args:
         endpoint_id: The endpoint ID
         wizard_group_uuid: Wizard group UUID (for both individual and child cache clearing)
+        wizard_uuids: List of wizard UUIDs belonging to the group
         cascade_depth: How many levels deep to cascade (default: 3)
         logger: logging.Logger instance
 
@@ -361,6 +363,8 @@ def purge_wizard_group_cascading_cache(
     entity_keys = {}
     if wizard_group_uuid:
         entity_keys["wizard_group_uuid"] = wizard_group_uuid
+    if wizard_uuids:
+        entity_keys["wizard_uuids"] = wizard_uuids
 
     result = purge_entity_cascading_cache(
         logger,
@@ -373,6 +377,7 @@ def purge_wizard_group_cascading_cache(
     # Transform result for backward compatibility
     wizard_group_result = {
         "wizard_group_uuid": wizard_group_uuid,
+        "wizard_uuids": wizard_uuids,
         "individual_wizard_group_cache_cleared": result["individual_cache_cleared"],
         "wizard_group_list_cache_cleared": result["list_cache_cleared"],
         "cascaded_levels": result["cascaded_levels"],
