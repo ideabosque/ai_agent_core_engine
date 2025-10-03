@@ -186,6 +186,15 @@ def resolve_tool_call_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     # activity_history_funct=None,
 )
 def insert_update_tool_call(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
+    # Use cascading cache purging for tool calls
+    from ..models.cache import purge_tool_call_cascading_cache
+
+    cache_result = purge_tool_call_cascading_cache(
+        thread_uuid=kwargs.get("thread_uuid"),
+        tool_call_uuid=kwargs.get("tool_call_uuid"),
+        logger=info.context.get("logger"),
+    )
+
     thread_uuid = kwargs.get("thread_uuid")
     tool_call_uuid = kwargs.get("tool_call_uuid")
     if kwargs.get("entity") is None:
@@ -254,6 +263,14 @@ def insert_update_tool_call(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None
     model_funct=get_tool_call,
 )
 def delete_tool_call(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
+    # Use cascading cache purging for tool calls
+    from ..models.cache import purge_tool_call_cascading_cache
+
+    cache_result = purge_tool_call_cascading_cache(
+        thread_uuid=kwargs.get("thread_uuid"),
+        tool_call_uuid=kwargs.get("tool_call_uuid"),
+        logger=info.context.get("logger"),
+    )
 
     kwargs.get("entity").delete()
     return True

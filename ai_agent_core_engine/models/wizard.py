@@ -138,6 +138,16 @@ def resolve_wizard_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     type_funct=get_wizard_type,
 )
 def insert_update_wizard(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
+    # Use cascading cache purging for wizards
+    from ..models.cache import purge_wizard_cascading_cache
+
+    cache_result = purge_wizard_cascading_cache(
+        endpoint_id=kwargs.get("endpoint_id"),
+        wizard_uuid=kwargs.get("wizard_uuid"),
+        element_uuids=kwargs.get("element_uuids"),
+        logger=info.context.get("logger"),
+    )
+
     endpoint_id = kwargs.get("endpoint_id")
     wizard_uuid = kwargs.get("wizard_uuid")
 
@@ -193,6 +203,15 @@ def insert_update_wizard(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     model_funct=get_wizard,
 )
 def delete_wizard(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
+    # Use cascading cache purging for wizards
+    from ..models.cache import purge_wizard_cascading_cache
+
+    cache_result = purge_wizard_cascading_cache(
+        endpoint_id=kwargs.get("endpoint_id"),
+        wizard_uuid=kwargs.get("wizard_uuid"),
+        element_uuids=kwargs.get("element_uuids"),
+        logger=info.context.get("logger"),
+    )
 
     kwargs["entity"].delete()
     return True

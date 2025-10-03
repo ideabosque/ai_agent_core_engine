@@ -209,6 +209,16 @@ def resolve_fine_tuning_message_list(
 def insert_update_fine_tuning_message(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> None:
+    # Use cascading cache purging for fine tuning messages
+    from ..models.cache import purge_fine_tuning_message_cascading_cache
+
+    cache_result = purge_fine_tuning_message_cascading_cache(
+        agent_uuid=kwargs.get("agent_uuid"),
+        thread_uuid=kwargs.get("thread_uuid"),
+        message_uuid=kwargs.get("message_uuid"),
+        logger=info.context.get("logger"),
+    )
+
     agent_uuid = kwargs["agent_uuid"]
     message_uuid = kwargs["message_uuid"]
     if kwargs.get("entity") is None:
@@ -265,6 +275,15 @@ def insert_update_fine_tuning_message(
     model_funct=get_fine_tuning_message,
 )
 def delete_fine_tuning_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
+    # Use cascading cache purging for fine tuning messages
+    from ..models.cache import purge_fine_tuning_message_cascading_cache
+
+    cache_result = purge_fine_tuning_message_cascading_cache(
+        agent_uuid=kwargs.get("agent_uuid"),
+        thread_uuid=kwargs.get("thread_uuid"),
+        message_uuid=kwargs.get("message_uuid"),
+        logger=info.context.get("logger"),
+    )
 
     kwargs.get("entity").delete()
     return True

@@ -148,6 +148,15 @@ def resolve_element_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     type_funct=get_element_type,
 )
 def insert_update_element(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
+    # Use cascading cache purging for elements
+    from ..models.cache import purge_element_cascading_cache
+
+    cache_result = purge_element_cascading_cache(
+        endpoint_id=kwargs.get("endpoint_id"),
+        element_uuid=kwargs.get("element_uuid"),
+        logger=info.context.get("logger"),
+    )
+
     endpoint_id = kwargs.get("endpoint_id")
     element_uuid = kwargs.get("element_uuid")
 
@@ -205,6 +214,14 @@ def insert_update_element(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     model_funct=get_element,
 )
 def delete_element(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
+    # Use cascading cache purging for elements
+    from ..models.cache import purge_element_cascading_cache
+
+    cache_result = purge_element_cascading_cache(
+        endpoint_id=kwargs.get("endpoint_id"),
+        element_uuid=kwargs.get("element_uuid"),
+        logger=info.context.get("logger"),
+    )
 
     kwargs["entity"].delete()
     return True

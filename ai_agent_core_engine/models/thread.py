@@ -219,6 +219,15 @@ def resolve_thread_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     # activity_history_funct=None,
 )
 def insert_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
+    # Use cascading cache purging for threads
+    from ..models.cache import purge_thread_cascading_cache
+
+    cache_result = purge_thread_cascading_cache(
+        endpoint_id=kwargs.get("endpoint_id"),
+        thread_uuid=kwargs.get("thread_uuid"),
+        logger=info.context.get("logger"),
+    )
+
     endpoint_id = kwargs.get("endpoint_id")
     thread_uuid = kwargs.get("thread_uuid")
     if kwargs.get("entity") is None:
@@ -247,6 +256,14 @@ def insert_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     model_funct=get_thread,
 )
 def delete_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
+    # Use cascading cache purging for threads
+    from ..models.cache import purge_thread_cascading_cache
+
+    cache_result = purge_thread_cascading_cache(
+        endpoint_id=kwargs.get("endpoint_id"),
+        thread_uuid=kwargs.get("thread_uuid"),
+        logger=info.context.get("logger"),
+    )
 
     run_list = resolve_run_list(
         info,

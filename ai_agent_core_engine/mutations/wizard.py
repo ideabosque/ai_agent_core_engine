@@ -33,16 +33,6 @@ class InsertUpdateWizard(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "InsertUpdateWizard":
         try:
-            # Use cascading cache purging for wizards
-            from ..models.cache import purge_wizard_cascading_cache
-
-            cache_result = purge_wizard_cascading_cache(
-                endpoint_id=info.context["endpoint_id"],
-                wizard_uuid=kwargs.get("wizard_uuid"),
-                element_uuids=kwargs.get("element_uuids"),
-                logger=info.context.get("logger"),
-            )
-
             wizard = insert_update_wizard(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
@@ -61,30 +51,6 @@ class DeleteWizard(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteWizard":
         try:
-            # Use cascading cache purging for wizards
-            from ..queries.wizard import resolve_wizard
-            from ..models.cache import purge_wizard_cascading_cache
-
-            wizard_entity = resolve_wizard(
-                info,
-                **{"wizard_uuid": kwargs.get("wizard_uuid")},
-            )
-            element_uuids = None
-            if wizard_entity and getattr(wizard_entity, "elements", None):
-                element_uuids = [
-                    element.get("element_uuid")
-                    for element in wizard_entity.elements
-                    if isinstance(element, dict) and element.get("element_uuid")
-                ]
-                element_uuids = element_uuids or None
-
-            cache_result = purge_wizard_cascading_cache(
-                endpoint_id=info.context["endpoint_id"],
-                wizard_uuid=kwargs.get("wizard_uuid"),
-                element_uuids=element_uuids,
-                logger=info.context.get("logger"),
-            )
-
             ok = delete_wizard(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()

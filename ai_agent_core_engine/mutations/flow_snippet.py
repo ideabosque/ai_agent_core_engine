@@ -33,16 +33,6 @@ class InsertUpdateFlowSnippet(Mutation):
         root: Any, info: Any, **kwargs: Dict[str, Any]
     ) -> "InsertUpdateFlowSnippet":
         try:
-            # Use cascading cache purging for flow snippets
-            from ..models.cache import purge_flow_snippet_cascading_cache
-
-            cache_result = purge_flow_snippet_cascading_cache(
-                endpoint_id=info.context["endpoint_id"],
-                flow_snippet_version_uuid=kwargs.get("flow_snippet_version_uuid"),
-                flow_snippet_uuid=kwargs.get("flow_snippet_uuid"),
-                logger=info.context.get("logger"),
-            )
-
             flow_snippet = insert_update_flow_snippet(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
@@ -61,24 +51,6 @@ class DeleteFlowSnippet(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteFlowSnippet":
         try:
-            # Use cascading cache purging for flow snippets
-            from ..models.fine_tuning_message import resolve_fine_tuning_message
-            from ..models.cache import purge_flow_snippet_cascading_cache
-
-            flow_snippet_entity = resolve_flow_snippet(
-                info,
-                **{"flow_snippet_version_uuid": kwargs.get("flow_snippet_version_uuid")},
-            )
-
-            cache_result = purge_flow_snippet_cascading_cache(
-                endpoint_id=info.context["endpoint_id"],
-                flow_snippet_version_uuid=kwargs.get("flow_snippet_version_uuid"),
-                flow_snippet_uuid=(
-                    flow_snippet_entity.flow_snippet_uuid if flow_snippet_entity else None
-                ),
-                logger=info.context.get("logger"),
-            )
-
             ok = delete_flow_snippet(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()

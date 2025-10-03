@@ -170,6 +170,15 @@ def resolve_run_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     # activity_history_funct=None,
 )
 def insert_update_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
+    # Use cascading cache purging for runs
+    from ..models.cache import purge_run_cascading_cache
+
+    cache_result = purge_run_cascading_cache(
+        thread_uuid=kwargs.get("thread_uuid"),
+        run_uuid=kwargs.get("run_uuid"),
+        logger=info.context.get("logger"),
+    )
+
     thread_uuid = kwargs.get("thread_uuid")
     run_uuid = kwargs.get("run_uuid")
     if kwargs.get("entity") is None:
@@ -227,6 +236,14 @@ def insert_update_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     model_funct=get_run,
 )
 def delete_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
+    # Use cascading cache purging for runs
+    from ..models.cache import purge_run_cascading_cache
+
+    cache_result = purge_run_cascading_cache(
+        thread_uuid=kwargs.get("thread_uuid"),
+        run_uuid=kwargs.get("run_uuid"),
+        logger=info.context.get("logger"),
+    )
 
     message_list = resolve_message_list(
         info,

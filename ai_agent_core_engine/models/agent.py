@@ -259,6 +259,15 @@ def _inactivate_agents(info: ResolveInfo, endpoint_id: str, agent_uuid: str) -> 
     # activity_history_funct=None,
 )
 def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
+    # Use cascading cache purging for agents
+    from ..models.cache import purge_agent_cascading_cache
+
+    cache_result = purge_agent_cascading_cache(
+        endpoint_id=kwargs.get("endpoint_id"),
+        agent_version_uuid=kwargs.get("agent_version_uuid"),
+        logger=info.context.get("logger"),
+    )
+
     endpoint_id = kwargs.get("endpoint_id")
     agent_version_uuid = kwargs.get("agent_version_uuid")
     if kwargs.get("entity") is None:
@@ -385,6 +394,14 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     model_funct=get_agent,
 )
 def delete_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
+    # Use cascading cache purging for agents
+    from ..models.cache import purge_agent_cascading_cache
+
+    cache_result = purge_agent_cascading_cache(
+        endpoint_id=kwargs.get("endpoint_id"),
+        agent_version_uuid=kwargs.get("agent_version_uuid"),
+        logger=info.context.get("logger"),
+    )
 
     thread_list = resolve_thread_list(
         info,

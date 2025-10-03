@@ -28,15 +28,6 @@ class InsertUpdateUIComponent(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "InsertUpdateUIComponent":
         try:
-            # Use cascading cache purging for UI components
-            from ..models.cache import purge_ui_component_cascading_cache
-
-            cache_result = purge_ui_component_cascading_cache(
-                ui_component_type=kwargs.get("ui_component_type"),
-                ui_component_uuid=kwargs.get("ui_component_uuid"),
-                logger=info.context.get("logger"),
-            )
-
             ui_component = insert_update_ui_component(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
@@ -56,15 +47,6 @@ class DeleteUIComponent(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteUIComponent":
         try:
-            # Use cascading cache purging for UI components
-            from ..models.cache import purge_ui_component_cascading_cache
-
-            cache_result = purge_ui_component_cascading_cache(
-                ui_component_type=kwargs.get("ui_component_type"),
-                ui_component_uuid=kwargs.get("ui_component_uuid"),
-                logger=info.context.get("logger"),
-            )
-
             ok = delete_ui_component(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()

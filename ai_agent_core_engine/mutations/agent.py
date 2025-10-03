@@ -37,16 +37,6 @@ class InsertUpdateAgent(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "InsertUpdateAgent":
         try:
-            # Use cascading cache purging for agents
-            from ..models.cache import purge_agent_cascading_cache
-
-            cache_result = purge_agent_cascading_cache(
-                endpoint_id=info.context["endpoint_id"],
-                agent_uuid=kwargs.get("agent_uuid"),
-                agent_version_uuid=kwargs.get("agent_version_uuid"),
-                logger=info.context.get("logger"),
-            )
-
             agent = insert_update_agent(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
@@ -65,22 +55,6 @@ class DeleteAgent(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteAgent":
         try:
-            # Use cascading cache purging for agents
-            # Get agent info before deletion for cache purging
-            from ..models.agent import resolve_agent
-            from ..models.cache import purge_agent_cascading_cache
-
-            agent_entity = resolve_agent(
-                info, **{"agent_version_uuid": kwargs.get("agent_version_uuid")}
-            )
-
-            cache_result = purge_agent_cascading_cache(
-                endpoint_id=info.context["endpoint_id"],
-                agent_uuid=agent_entity.agent_uuid if agent_entity else None,
-                agent_version_uuid=kwargs.get("agent_version_uuid"),
-                logger=info.context.get("logger"),
-            )
-
             ok = delete_agent(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()

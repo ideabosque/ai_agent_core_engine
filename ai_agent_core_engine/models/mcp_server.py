@@ -138,6 +138,15 @@ def resolve_mcp_server_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     type_funct=get_mcp_server_type,
 )
 def insert_update_mcp_server(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
+    # Use cascading cache purging for mcp servers
+    from ..models.cache import purge_mcp_server_cascading_cache
+
+    cache_result = purge_mcp_server_cascading_cache(
+        endpoint_id=kwargs.get("endpoint_id"),
+        mcp_server_uuid=kwargs.get("mcp_server_uuid"),
+        logger=info.context.get("logger"),
+    )
+
     endpoint_id = kwargs.get("endpoint_id")
     mcp_server_uuid = kwargs.get("mcp_server_uuid")
 
@@ -187,6 +196,14 @@ def insert_update_mcp_server(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Non
     model_funct=get_mcp_server,
 )
 def delete_mcp_server(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
+    # Use cascading cache purging for mcp servers
+    from ..models.cache import purge_mcp_server_cascading_cache
+
+    cache_result = purge_mcp_server_cascading_cache(
+        endpoint_id=kwargs.get("endpoint_id"),
+        mcp_server_uuid=kwargs.get("mcp_server_uuid"),
+        logger=info.context.get("logger"),
+    )
 
     kwargs["entity"].delete()
     return True

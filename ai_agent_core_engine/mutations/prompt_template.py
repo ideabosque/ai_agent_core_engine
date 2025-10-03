@@ -38,16 +38,6 @@ class InsertUpdatePromptTemplate(Mutation):
         root: Any, info: Any, **kwargs: Dict[str, Any]
     ) -> "InsertUpdatePromptTemplate":
         try:
-            # Use cascading cache purging for prompt templates
-            from ..models.cache import purge_prompt_template_cascading_cache
-
-            cache_result = purge_prompt_template_cascading_cache(
-                endpoint_id=info.context["endpoint_id"],
-                prompt_version_uuid=kwargs.get("prompt_version_uuid"),
-                prompt_uuid=kwargs.get("prompt_uuid"),
-                logger=info.context.get("logger"),
-            )
-
             prompt_template = insert_update_prompt_template(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
@@ -68,26 +58,6 @@ class DeletePromptTemplate(Mutation):
         root: Any, info: Any, **kwargs: Dict[str, Any]
     ) -> "DeletePromptTemplate":
         try:
-            # Use cascading cache purging for prompt templates
-            from ..queries.prompt_template import resolve_prompt_template
-            from ..models.cache import purge_prompt_template_cascading_cache
-
-            prompt_template_entity = resolve_prompt_template(
-                info,
-                **{"prompt_version_uuid": kwargs.get("prompt_version_uuid")},
-            )
-
-            cache_result = purge_prompt_template_cascading_cache(
-                endpoint_id=info.context["endpoint_id"],
-                prompt_version_uuid=kwargs.get("prompt_version_uuid"),
-                prompt_uuid=(
-                    prompt_template_entity.prompt_uuid
-                    if prompt_template_entity
-                    else None
-                ),
-                logger=info.context.get("logger"),
-            )
-
             ok = delete_prompt_template(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()

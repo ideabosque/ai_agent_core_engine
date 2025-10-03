@@ -244,6 +244,16 @@ def _inactivate_prompt_templates(
     type_funct=get_prompt_template_type,
 )
 def insert_update_prompt_template(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
+    # Use cascading cache purging for prompt templates
+    from ..models.cache import purge_prompt_template_cascading_cache
+
+    cache_result = purge_prompt_template_cascading_cache(
+        endpoint_id=kwargs.get("endpoint_id"),
+        prompt_version_uuid=kwargs.get("prompt_version_uuid"),
+        prompt_uuid=kwargs.get("prompt_uuid"),
+        logger=info.context.get("logger"),
+    )
+
     endpoint_id = kwargs.get("endpoint_id")
     prompt_version_uuid = kwargs.get("prompt_version_uuid")
 
@@ -344,6 +354,15 @@ def insert_update_prompt_template(info: ResolveInfo, **kwargs: Dict[str, Any]) -
     model_funct=get_prompt_template,
 )
 def delete_prompt_template(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
+    # Use cascading cache purging for prompt templates
+    from ..models.cache import purge_prompt_template_cascading_cache
+
+    cache_result = purge_prompt_template_cascading_cache(
+        endpoint_id=kwargs.get("endpoint_id"),
+        prompt_version_uuid=kwargs.get("prompt_version_uuid"),
+        prompt_uuid=kwargs.get("prompt_uuid"),
+        logger=info.context.get("logger"),
+    )
 
     if kwargs["entity"].status == "active":
         results = PromptTemplateModel.prompt_uuid_index.query(

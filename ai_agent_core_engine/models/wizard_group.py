@@ -142,6 +142,16 @@ def resolve_wizard_group_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> An
     type_funct=get_wizard_group_type,
 )
 def insert_update_wizard_group(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
+    # Use cascading cache purging for wizard groups
+    from ..models.cache import purge_wizard_group_cascading_cache
+
+    cache_result = purge_wizard_group_cascading_cache(
+        endpoint_id=kwargs.get("endpoint_id"),
+        wizard_group_uuid=kwargs.get("wizard_group_uuid"),
+        wizard_uuids=kwargs.get("wizard_uuids"),
+        logger=info.context.get("logger"),
+    )
+
     endpoint_id = kwargs.get("endpoint_id")
     wizard_group_uuid = kwargs.get("wizard_group_uuid")
 
@@ -193,6 +203,15 @@ def insert_update_wizard_group(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
     model_funct=get_wizard_group,
 )
 def delete_wizard_group(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
+    # Use cascading cache purging for wizard groups
+    from ..models.cache import purge_wizard_group_cascading_cache
+
+    cache_result = purge_wizard_group_cascading_cache(
+        endpoint_id=kwargs.get("endpoint_id"),
+        wizard_group_uuid=kwargs.get("wizard_group_uuid"),
+        wizard_uuids=kwargs.get("wizard_uuids"),
+        logger=info.context.get("logger"),
+    )
 
     kwargs["entity"].delete()
     return True

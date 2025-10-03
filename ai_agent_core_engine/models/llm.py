@@ -118,6 +118,15 @@ def resolve_llm_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     # activity_history_funct=None,
 )
 def insert_update_llm(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
+    # Use cascading cache purging for llms
+    from ..models.cache import purge_llm_cascading_cache
+
+    cache_result = purge_llm_cascading_cache(
+        llm_provider=kwargs.get("llm_provider"),
+        llm_name=kwargs.get("llm_name"),
+        logger=info.context.get("logger"),
+    )
+
     llm_provider = kwargs.get("llm_provider")
     llm_name = kwargs.get("llm_name")
     if kwargs.get("entity") is None:
@@ -168,6 +177,14 @@ def insert_update_llm(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     model_funct=get_llm,
 )
 def delete_llm(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
+    # Use cascading cache purging for llms
+    from ..models.cache import purge_llm_cascading_cache
+
+    cache_result = purge_llm_cascading_cache(
+        llm_provider=kwargs.get("llm_provider"),
+        llm_name=kwargs.get("llm_name"),
+        logger=info.context.get("logger"),
+    )
 
     agent_list = resolve_agent_list(
         info,

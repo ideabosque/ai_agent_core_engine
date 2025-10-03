@@ -80,7 +80,9 @@ def create_async_task_table(logger: logging.Logger) -> bool:
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
 )
-@method_cache(ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name('models', 'async_task'))
+@method_cache(
+    ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name("models", "async_task")
+)
 def get_async_task(function_name: str, async_task_uuid: str) -> AsyncTaskModel:
     async_task = AsyncTaskModel.get(function_name, async_task_uuid)
     return async_task
@@ -150,8 +152,21 @@ def resolve_async_task_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     # activity_history_funct=None,
 )
 def insert_update_async_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
+    # Use cascading cache purging for async tasks
+    from ..models.cache import purge_async_task_cascading_cache
+
+    cache_result = purge_async_task_cascading_cache(
+        function_name=kwargs.get("function_name"),
+        async_task_uuid=kwargs.get("async_task_uuid"),
+        logger=info.context.get("logger"),
+    )
+
     function_name = kwargs.get("function_name")
     async_task_uuid = kwargs.get("async_task_uuid")
+
+    if hasattr(get_async_task, "cache_delete"):
+        get_async_task.cache_delete(function_name, async_task_uuid)
+
     if kwargs.get("entity") is None:
         cols = {
             "endpoint_id": info.context["endpoint_id"],
@@ -205,7 +220,6 @@ def insert_update_async_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Non
     # Update the async_task
     async_task.update(actions=actions)
 
-
     return
 
 
@@ -217,6 +231,14 @@ def insert_update_async_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Non
     model_funct=get_async_task,
 )
 def delete_async_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
+    # Use cascading cache purging for async tasks
+    from ..models.cache import purge_async_task_cascading_cache
+
+    cache_result = purge_async_task_cascading_cache(
+        function_name=kwargs.get("function_name"),
+        async_task_uuid=kwargs.get("async_task_uuid"),
+        logger=info.context.get("logger"),
+    )
 
     kwargs.get("entity").delete()
     return True

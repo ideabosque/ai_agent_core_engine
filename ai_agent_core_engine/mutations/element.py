@@ -31,15 +31,6 @@ class InsertUpdateElement(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "InsertUpdateElement":
         try:
-            # Use cascading cache purging for elements
-            from ..models.cache import purge_element_cascading_cache
-
-            cache_result = purge_element_cascading_cache(
-                endpoint_id=info.context["endpoint_id"],
-                element_uuid=kwargs.get("element_uuid"),
-                logger=info.context.get("logger"),
-            )
-
             element = insert_update_element(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
@@ -58,15 +49,6 @@ class DeleteElement(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteElement":
         try:
-            # Use cascading cache purging for elements
-            from ..models.cache import purge_element_cascading_cache
-
-            cache_result = purge_element_cascading_cache(
-                endpoint_id=info.context["endpoint_id"],
-                element_uuid=kwargs.get("element_uuid"),
-                logger=info.context.get("logger"),
-            )
-
             ok = delete_element(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()

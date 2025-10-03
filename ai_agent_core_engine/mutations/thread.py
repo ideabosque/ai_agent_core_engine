@@ -22,15 +22,6 @@ class InsertThread(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "InsertThread":
         try:
-            # Use cascading cache purging for threads
-            from ..models.cache import purge_thread_cascading_cache
-
-            cache_result = purge_thread_cascading_cache(
-                endpoint_id=info.context["endpoint_id"],
-                thread_uuid=kwargs.get("thread_uuid"),
-                logger=info.context.get("logger"),
-            )
-
             thread = insert_thread(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
@@ -49,15 +40,6 @@ class DeleteThread(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteThread":
         try:
-            # Use cascading cache purging for threads
-            from ..models.cache import purge_thread_cascading_cache
-
-            cache_result = purge_thread_cascading_cache(
-                endpoint_id=info.context["endpoint_id"],
-                thread_uuid=kwargs.get("thread_uuid"),
-                logger=info.context.get("logger"),
-            )
-
             ok = delete_thread(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()

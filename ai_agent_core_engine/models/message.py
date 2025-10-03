@@ -167,6 +167,16 @@ def resolve_message_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     # activity_history_funct=None,
 )
 def insert_update_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
+    # Use cascading cache purging for messages
+    from ..models.cache import purge_message_cascading_cache
+
+    cache_result = purge_message_cascading_cache(
+        thread_uuid=kwargs.get("thread_uuid"),
+        message_uuid=kwargs.get("message_uuid"),
+        run_uuid=kwargs.get("run_uuid"),
+        logger=info.context.get("logger"),
+    )
+
     thread_uuid = kwargs.get("thread_uuid")
     message_uuid = kwargs.get("message_uuid")
     if kwargs.get("entity") is None:
@@ -221,6 +231,15 @@ def insert_update_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     model_funct=get_message,
 )
 def delete_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
+    # Use cascading cache purging for messages
+    from ..models.cache import purge_message_cascading_cache
+
+    cache_result = purge_message_cascading_cache(
+        thread_uuid=kwargs.get("thread_uuid"),
+        message_uuid=kwargs.get("message_uuid"),
+        run_uuid=kwargs.get("run_uuid"),
+        logger=info.context.get("logger"),
+    )
 
     kwargs.get("entity").delete()
     return True

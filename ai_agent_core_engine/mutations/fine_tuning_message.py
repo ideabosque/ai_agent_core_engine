@@ -38,17 +38,6 @@ class InsertUpdateFineTuningMessage(Mutation):
         root: Any, info: Any, **kwargs: Dict[str, Any]
     ) -> "InsertUpdateFineTuningMessage":
         try:
-            # Use cascading cache purging for fine tuning messages
-
-            from ..models.cache import purge_fine_tuning_message_cascading_cache
-
-            cache_result = purge_fine_tuning_message_cascading_cache(
-                agent_uuid=kwargs.get("agent_uuid"),
-                thread_uuid=kwargs.get("thread_uuid"),
-                message_uuid=kwargs.get("message_uuid"),
-                logger=info.context.get("logger"),
-            )
-
             fine_tuning_message = insert_update_fine_tuning_message(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
@@ -70,27 +59,6 @@ class DeleteFineTuningMessage(Mutation):
         root: Any, info: Any, **kwargs: Dict[str, Any]
     ) -> "DeleteFineTuningMessage":
         try:
-            # Use cascading cache purging for fine tuning messages
-            from ..models.fine_tuning_message import resolve_fine_tuning_message
-            from ..models.cache import purge_fine_tuning_message_cascading_cache
-
-            fine_tuning_entity = resolve_fine_tuning_message(
-                info,
-                **{
-                    "agent_uuid": kwargs.get("agent_uuid"),
-                    "message_uuid": kwargs.get("message_uuid"),
-                },
-            )
-
-            cache_result = purge_fine_tuning_message_cascading_cache(
-                agent_uuid=kwargs.get("agent_uuid"),
-                thread_uuid=(
-                    fine_tuning_entity.thread_uuid if fine_tuning_entity else None
-                ),
-                message_uuid=kwargs.get("message_uuid"),
-                logger=info.context.get("logger"),
-            )
-
             ok = delete_fine_tuning_message(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
