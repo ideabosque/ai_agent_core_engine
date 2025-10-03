@@ -64,7 +64,9 @@ def create_wizard_table(logger: logging.Logger) -> bool:
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
 )
-@method_cache(ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name('models', 'wizard'))
+@method_cache(
+    ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name("models", "wizard")
+)
 def get_wizard(endpoint_id: str, wizard_uuid: str) -> WizardModel:
     return WizardModel.get(endpoint_id, wizard_uuid)
 
@@ -144,7 +146,11 @@ def insert_update_wizard(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     cache_result = purge_wizard_cascading_cache(
         endpoint_id=kwargs.get("endpoint_id"),
         wizard_uuid=kwargs.get("wizard_uuid"),
-        element_uuids=kwargs.get("element_uuids"),
+        element_uuids=(
+            kwargs.get("entity").element_uuids
+            if kwargs.get("entity")
+            else kwargs.get("element_uuids")
+        ),
         logger=info.context.get("logger"),
     )
 
@@ -191,7 +197,6 @@ def insert_update_wizard(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
 
     wizard.update(actions=actions)
 
-
     return
 
 
@@ -209,7 +214,9 @@ def delete_wizard(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
     cache_result = purge_wizard_cascading_cache(
         endpoint_id=kwargs.get("endpoint_id"),
         wizard_uuid=kwargs.get("wizard_uuid"),
-        element_uuids=kwargs.get("element_uuids"),
+        element_uuids=(
+            kwargs.get("entity").element_uuids if kwargs.get("entity") else None
+        ),
         logger=info.context.get("logger"),
     )
 

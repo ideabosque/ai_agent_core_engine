@@ -102,7 +102,10 @@ def create_prompt_template_table(logger: logging.Logger) -> bool:
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
 )
-@method_cache(ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name('models', 'prompt_template'))
+@method_cache(
+    ttl=Config.get_cache_ttl(),
+    cache_name=Config.get_cache_name("models", "prompt_template"),
+)
 def get_prompt_template(
     endpoint_id: str, prompt_version_uuid: str
 ) -> PromptTemplateModel:
@@ -250,7 +253,11 @@ def insert_update_prompt_template(info: ResolveInfo, **kwargs: Dict[str, Any]) -
     cache_result = purge_prompt_template_cascading_cache(
         endpoint_id=kwargs.get("endpoint_id"),
         prompt_version_uuid=kwargs.get("prompt_version_uuid"),
-        prompt_uuid=kwargs.get("prompt_uuid"),
+        prompt_uuid=(
+            kwargs.get("entity").prompt_uuid
+            if kwargs.get("entity")
+            else kwargs.get("prompt_uuid")
+        ),
         logger=info.context.get("logger"),
     )
 
@@ -342,7 +349,6 @@ def insert_update_prompt_template(info: ResolveInfo, **kwargs: Dict[str, Any]) -
 
     prompt_template.update(actions=actions)
 
-
     return
 
 
@@ -360,7 +366,7 @@ def delete_prompt_template(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
     cache_result = purge_prompt_template_cascading_cache(
         endpoint_id=kwargs.get("endpoint_id"),
         prompt_version_uuid=kwargs.get("prompt_version_uuid"),
-        prompt_uuid=kwargs.get("prompt_uuid"),
+        prompt_uuid=kwargs.get("entity").prompt_uuid if kwargs.get("entity") else None,
         logger=info.context.get("logger"),
     )
 

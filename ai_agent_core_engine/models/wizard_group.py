@@ -63,7 +63,10 @@ def create_wizard_group_table(logger: logging.Logger) -> bool:
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
 )
-@method_cache(ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name('models', 'wizard_group'))
+@method_cache(
+    ttl=Config.get_cache_ttl(),
+    cache_name=Config.get_cache_name("models", "wizard_group"),
+)
 def get_wizard_group(endpoint_id: str, wizard_group_uuid: str) -> WizardGroupModel:
     return WizardGroupModel.get(endpoint_id, wizard_group_uuid)
 
@@ -148,7 +151,11 @@ def insert_update_wizard_group(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
     cache_result = purge_wizard_group_cascading_cache(
         endpoint_id=kwargs.get("endpoint_id"),
         wizard_group_uuid=kwargs.get("wizard_group_uuid"),
-        wizard_uuids=kwargs.get("wizard_uuids"),
+        wizard_uuids=(
+            kwargs.get("entity").wizard_uuids
+            if kwargs.get("entity")
+            else kwargs.get("wizard_uuids")
+        ),
         logger=info.context.get("logger"),
     )
 
@@ -191,7 +198,6 @@ def insert_update_wizard_group(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
 
     wizard_group.update(actions=actions)
 
-
     return
 
 
@@ -209,7 +215,9 @@ def delete_wizard_group(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
     cache_result = purge_wizard_group_cascading_cache(
         endpoint_id=kwargs.get("endpoint_id"),
         wizard_group_uuid=kwargs.get("wizard_group_uuid"),
-        wizard_uuids=kwargs.get("wizard_uuids"),
+        wizard_uuids=(
+            kwargs.get("entity").wizard_uuids if kwargs.get("entity") else None
+        ),
         logger=info.context.get("logger"),
     )
 

@@ -85,7 +85,10 @@ def create_flow_snippet_table(logger: logging.Logger) -> bool:
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
 )
-@method_cache(ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name('models', 'flow_snippet'))
+@method_cache(
+    ttl=Config.get_cache_ttl(),
+    cache_name=Config.get_cache_name("models", "flow_snippet"),
+)
 def get_flow_snippet(
     endpoint_id: str, flow_snippet_version_uuid: str
 ) -> FlowSnippetModel:
@@ -236,7 +239,11 @@ def insert_update_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
     cache_result = purge_flow_snippet_cascading_cache(
         endpoint_id=kwargs.get("endpoint_id"),
         flow_snippet_version_uuid=kwargs.get("flow_snippet_version_uuid"),
-        flow_snippet_uuid=kwargs.get("flow_snippet_uuid"),
+        flow_snippet_uuid=(
+            kwargs.get("entity").flow_snippet_uuid
+            if kwargs.get("entity")
+            else kwargs.get("flow_snippet_uuid")
+        ),
         logger=info.context.get("logger"),
     )
 
@@ -334,7 +341,6 @@ def insert_update_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
 
     flow_snippet.update(actions=actions)
 
-
     return
 
 
@@ -352,7 +358,9 @@ def delete_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
     cache_result = purge_flow_snippet_cascading_cache(
         endpoint_id=kwargs.get("endpoint_id"),
         flow_snippet_version_uuid=kwargs.get("flow_snippet_version_uuid"),
-        flow_snippet_uuid=kwargs.get("flow_snippet_uuid"),
+        flow_snippet_uuid=(
+            kwargs.get("entity").flow_snippet_uuid if kwargs.get("entity") else None
+        ),
         logger=info.context.get("logger"),
     )
 

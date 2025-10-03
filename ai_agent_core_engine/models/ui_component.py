@@ -60,7 +60,10 @@ def create_ui_component_table(logger: logging.Logger) -> bool:
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
 )
-@method_cache(ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name('models', 'ui_component'))
+@method_cache(
+    ttl=Config.get_cache_ttl(),
+    cache_name=Config.get_cache_name("models", "ui_component"),
+)
 def get_ui_component(
     ui_component_type: str, ui_component_uuid: str
 ) -> UIComponentModel:
@@ -175,7 +178,6 @@ def insert_update_ui_component(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
             actions.append(field.set(None if kwargs[key] == "null" else kwargs[key]))
 
     ui_component.update(actions=actions)
-
 
     return
 

@@ -90,7 +90,9 @@ def create_agent_table(logger: logging.Logger) -> bool:
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
 )
-@method_cache(ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name('models', 'agent'))
+@method_cache(
+    ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name("models", "agent")
+)
 def get_agent(endpoint_id: str, agent_version_uuid: str) -> AgentModel:
     return AgentModel.get(endpoint_id, agent_version_uuid)
 
@@ -264,6 +266,11 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
 
     cache_result = purge_agent_cascading_cache(
         endpoint_id=kwargs.get("endpoint_id"),
+        agent_uuid=(
+            kwargs.get("entity").agent_uuid
+            if kwargs.get("entity")
+            else kwargs.get("agent_uuid")
+        ),
         agent_version_uuid=kwargs.get("agent_version_uuid"),
         logger=info.context.get("logger"),
     )
@@ -382,7 +389,6 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     # Update the agent
     agent.update(actions=actions)
 
-
     return
 
 
@@ -399,6 +405,7 @@ def delete_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
 
     cache_result = purge_agent_cascading_cache(
         endpoint_id=kwargs.get("endpoint_id"),
+        agent_uuid=kwargs.get("entity").agent_uuid if kwargs.get("entity") else None,
         agent_version_uuid=kwargs.get("agent_version_uuid"),
         logger=info.context.get("logger"),
     )
