@@ -63,6 +63,17 @@ def get_llm_count(llm_provider: str, llm_name: str) -> int:
     return LlmModel.count(llm_provider, LlmModel.llm_name == llm_name)
 
 
+def _purge_cache(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
+    # Use cascading cache purging for llms
+    from ..models.cache import purge_llm_cascading_cache
+
+    cache_result = purge_llm_cascading_cache(
+        llm_provider=kwargs.get("llm_provider"),
+        llm_name=kwargs.get("llm_name"),
+        logger=info.context.get("logger"),
+    )
+
+
 def get_llm_type(info: ResolveInfo, llm: LlmModel) -> LlmType:
     llm = llm.__dict__["attribute_values"]
     return LlmType(**Utility.json_normalize(llm))
@@ -118,14 +129,7 @@ def resolve_llm_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     # activity_history_funct=None,
 )
 def insert_update_llm(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
-    # Use cascading cache purging for llms
-    from ..models.cache import purge_llm_cascading_cache
-
-    cache_result = purge_llm_cascading_cache(
-        llm_provider=kwargs.get("llm_provider"),
-        llm_name=kwargs.get("llm_name"),
-        logger=info.context.get("logger"),
-    )
+    _purge_cache(info, **kwargs)
 
     llm_provider = kwargs.get("llm_provider")
     llm_name = kwargs.get("llm_name")
@@ -177,14 +181,7 @@ def insert_update_llm(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     model_funct=get_llm,
 )
 def delete_llm(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
-    # Use cascading cache purging for llms
-    from ..models.cache import purge_llm_cascading_cache
-
-    cache_result = purge_llm_cascading_cache(
-        llm_provider=kwargs.get("llm_provider"),
-        llm_name=kwargs.get("llm_name"),
-        logger=info.context.get("logger"),
-    )
+    _purge_cache(info, **kwargs)
 
     agent_list = resolve_agent_list(
         info,

@@ -75,6 +75,19 @@ def get_wizard_count(endpoint_id: str, wizard_uuid: str) -> int:
     return WizardModel.count(endpoint_id, WizardModel.wizard_uuid == wizard_uuid)
 
 
+def _purge_cache(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
+    # Use cascading cache purging for wizards
+    from ..models.cache import purge_wizard_cascading_cache
+    wizard = resolve_wizard(info, **kwargs)
+
+    cache_result = purge_wizard_cascading_cache(
+        endpoint_id=kwargs.get("endpoint_id"),
+        wizard_uuid=kwargs.get("wizard_uuid"),
+        element_uuids=[element["element_uuid"] for element in wizard.elements] if wizard else None,
+        logger=info.context.get("logger"),
+    )
+
+
 def get_wizard_type(info: ResolveInfo, wizard: WizardModel) -> WizardType:
     try:
         elements = [
@@ -140,19 +153,7 @@ def resolve_wizard_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     type_funct=get_wizard_type,
 )
 def insert_update_wizard(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
-    # Use cascading cache purging for wizards
-    from ..models.cache import purge_wizard_cascading_cache
-
-    cache_result = purge_wizard_cascading_cache(
-        endpoint_id=kwargs.get("endpoint_id"),
-        wizard_uuid=kwargs.get("wizard_uuid"),
-        element_uuids=(
-            kwargs.get("entity").element_uuids
-            if kwargs.get("entity")
-            else kwargs.get("element_uuids")
-        ),
-        logger=info.context.get("logger"),
-    )
+    _purge_cache(info, **kwargs)
 
     endpoint_id = kwargs.get("endpoint_id")
     wizard_uuid = kwargs.get("wizard_uuid")
@@ -208,17 +209,7 @@ def insert_update_wizard(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     model_funct=get_wizard,
 )
 def delete_wizard(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
-    # Use cascading cache purging for wizards
-    from ..models.cache import purge_wizard_cascading_cache
-
-    cache_result = purge_wizard_cascading_cache(
-        endpoint_id=kwargs.get("endpoint_id"),
-        wizard_uuid=kwargs.get("wizard_uuid"),
-        element_uuids=(
-            kwargs.get("entity").element_uuids if kwargs.get("entity") else None
-        ),
-        logger=info.context.get("logger"),
-    )
+    _purge_cache(info, **kwargs)
 
     kwargs["entity"].delete()
     return True

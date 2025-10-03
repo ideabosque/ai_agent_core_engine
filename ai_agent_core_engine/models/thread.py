@@ -97,6 +97,17 @@ def get_thread_count(endpoint_id: str, thread_uuid: str) -> int:
     return ThreadModel.count(endpoint_id, ThreadModel.thread_uuid == thread_uuid)
 
 
+def _purge_cache(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
+    # Use cascading cache purging for threads
+    from ..models.cache import purge_thread_cascading_cache
+
+    cache_result = purge_thread_cascading_cache(
+        endpoint_id=kwargs.get("endpoint_id"),
+        thread_uuid=kwargs.get("thread_uuid"),
+        logger=info.context.get("logger"),
+    )
+
+
 def get_thread_type(info: ResolveInfo, thread: ThreadModel) -> ThreadType:
     try:
         agent = _get_agent(thread.endpoint_id, thread.agent_uuid)
@@ -219,14 +230,7 @@ def resolve_thread_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     # activity_history_funct=None,
 )
 def insert_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
-    # Use cascading cache purging for threads
-    from ..models.cache import purge_thread_cascading_cache
-
-    cache_result = purge_thread_cascading_cache(
-        endpoint_id=kwargs.get("endpoint_id"),
-        thread_uuid=kwargs.get("thread_uuid"),
-        logger=info.context.get("logger"),
-    )
+    _purge_cache(info, **kwargs)
 
     endpoint_id = kwargs.get("endpoint_id")
     thread_uuid = kwargs.get("thread_uuid")
@@ -256,14 +260,7 @@ def insert_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     model_funct=get_thread,
 )
 def delete_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
-    # Use cascading cache purging for threads
-    from ..models.cache import purge_thread_cascading_cache
-
-    cache_result = purge_thread_cascading_cache(
-        endpoint_id=kwargs.get("endpoint_id"),
-        thread_uuid=kwargs.get("thread_uuid"),
-        logger=info.context.get("logger"),
-    )
+    _purge_cache(info, **kwargs)
 
     run_list = resolve_run_list(
         info,

@@ -76,6 +76,19 @@ class AgentModel(BaseModel):
     agent_uuid_index = AgentUuidIndex()
 
 
+def _purge_cache(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
+    # Use cascading cache purging for agents
+    from ..models.cache import purge_agent_cascading_cache
+    agent = resolve_agent(info, **kwargs)
+
+    cache_result = purge_agent_cascading_cache(
+        endpoint_id=kwargs.get("endpoint_id"),
+        agent_uuid=agent.agent_uuid if agent else None,
+        agent_version_uuid=kwargs.get("agent_version_uuid"),
+        logger=info.context.get("logger"),
+    )
+
+
 def create_agent_table(logger: logging.Logger) -> bool:
     """Create the Agent table if it doesn't exist."""
     if not AgentModel.exists():
@@ -261,19 +274,7 @@ def _inactivate_agents(info: ResolveInfo, endpoint_id: str, agent_uuid: str) -> 
     # activity_history_funct=None,
 )
 def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
-    # Use cascading cache purging for agents
-    from ..models.cache import purge_agent_cascading_cache
-
-    cache_result = purge_agent_cascading_cache(
-        endpoint_id=kwargs.get("endpoint_id"),
-        agent_uuid=(
-            kwargs.get("entity").agent_uuid
-            if kwargs.get("entity")
-            else kwargs.get("agent_uuid")
-        ),
-        agent_version_uuid=kwargs.get("agent_version_uuid"),
-        logger=info.context.get("logger"),
-    )
+    _purge_cache(info, **kwargs)
 
     endpoint_id = kwargs.get("endpoint_id")
     agent_version_uuid = kwargs.get("agent_version_uuid")
@@ -400,15 +401,7 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     model_funct=get_agent,
 )
 def delete_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
-    # Use cascading cache purging for agents
-    from ..models.cache import purge_agent_cascading_cache
-
-    cache_result = purge_agent_cascading_cache(
-        endpoint_id=kwargs.get("endpoint_id"),
-        agent_uuid=kwargs.get("entity").agent_uuid if kwargs.get("entity") else None,
-        agent_version_uuid=kwargs.get("agent_version_uuid"),
-        logger=info.context.get("logger"),
-    )
+    _purge_cache(info, **kwargs)
 
     thread_list = resolve_thread_list(
         info,

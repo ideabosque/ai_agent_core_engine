@@ -124,6 +124,23 @@ def get_flow_snippet_count(endpoint_id: str, flow_snippet_version_uuid: str) -> 
     )
 
 
+def _purge_cache(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
+    # Use cascading cache purging for flow snippets
+    from ..models.cache import purge_flow_snippet_cascading_cache
+    flow_snippet = resolve_flow_snippet(info, **kwargs)
+
+    cache_result = purge_flow_snippet_cascading_cache(
+        endpoint_id=kwargs.get("endpoint_id"),
+        flow_snippet_version_uuid=kwargs.get("flow_snippet_version_uuid"),
+        flow_snippet_uuid=(
+            flow_snippet.flow_snippet_uuid
+            if flow_snippet
+            else None
+        ),
+        logger=info.context.get("logger"),
+    )
+
+
 def get_flow_snippet_type(
     info: ResolveInfo, flow_snippet: FlowSnippetModel
 ) -> FlowSnippetType:
@@ -233,19 +250,7 @@ def _inactivate_flow_snippets(
     type_funct=get_flow_snippet_type,
 )
 def insert_update_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
-    # Use cascading cache purging for flow snippets
-    from ..models.cache import purge_flow_snippet_cascading_cache
-
-    cache_result = purge_flow_snippet_cascading_cache(
-        endpoint_id=kwargs.get("endpoint_id"),
-        flow_snippet_version_uuid=kwargs.get("flow_snippet_version_uuid"),
-        flow_snippet_uuid=(
-            kwargs.get("entity").flow_snippet_uuid
-            if kwargs.get("entity")
-            else kwargs.get("flow_snippet_uuid")
-        ),
-        logger=info.context.get("logger"),
-    )
+    _purge_cache(info, **kwargs)
 
     endpoint_id = kwargs.get("endpoint_id")
     flow_snippet_version_uuid = kwargs.get("flow_snippet_version_uuid")
@@ -352,17 +357,7 @@ def insert_update_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
     model_funct=get_flow_snippet,
 )
 def delete_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
-    # Use cascading cache purging for flow snippets
-    from ..models.cache import purge_flow_snippet_cascading_cache
-
-    cache_result = purge_flow_snippet_cascading_cache(
-        endpoint_id=kwargs.get("endpoint_id"),
-        flow_snippet_version_uuid=kwargs.get("flow_snippet_version_uuid"),
-        flow_snippet_uuid=(
-            kwargs.get("entity").flow_snippet_uuid if kwargs.get("entity") else None
-        ),
-        logger=info.context.get("logger"),
-    )
+    _purge_cache(info, **kwargs)
 
     if kwargs["entity"].status == "active":
         results = FlowSnippetModel.flow_snippet_uuid_index.query(

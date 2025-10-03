@@ -77,6 +77,19 @@ def get_wizard_group_count(endpoint_id: str, wizard_group_uuid: str) -> int:
     )
 
 
+def _purge_cache(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
+    # Use cascading cache purging for wizard groups
+    from ..models.cache import purge_wizard_group_cascading_cache
+    wizard_group = resolve_wizard_group(info, **kwargs)
+
+    cache_result = purge_wizard_group_cascading_cache(
+        endpoint_id=kwargs.get("endpoint_id"),
+        wizard_group_uuid=kwargs.get("wizard_group_uuid"),
+        wizard_uuids=[wizard["wizard_uuid"] for wizard in wizard_group.wizards] if wizard_group else [],
+        logger=info.context.get("logger"),
+    )
+
+
 def get_wizard_group_type(
     info: ResolveInfo, wizard_group: WizardGroupModel
 ) -> WizardGroupType:
@@ -145,19 +158,7 @@ def resolve_wizard_group_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> An
     type_funct=get_wizard_group_type,
 )
 def insert_update_wizard_group(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
-    # Use cascading cache purging for wizard groups
-    from ..models.cache import purge_wizard_group_cascading_cache
-
-    cache_result = purge_wizard_group_cascading_cache(
-        endpoint_id=kwargs.get("endpoint_id"),
-        wizard_group_uuid=kwargs.get("wizard_group_uuid"),
-        wizard_uuids=(
-            kwargs.get("entity").wizard_uuids
-            if kwargs.get("entity")
-            else kwargs.get("wizard_uuids")
-        ),
-        logger=info.context.get("logger"),
-    )
+    _purge_cache(info, **kwargs)
 
     endpoint_id = kwargs.get("endpoint_id")
     wizard_group_uuid = kwargs.get("wizard_group_uuid")
@@ -209,17 +210,7 @@ def insert_update_wizard_group(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
     model_funct=get_wizard_group,
 )
 def delete_wizard_group(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
-    # Use cascading cache purging for wizard groups
-    from ..models.cache import purge_wizard_group_cascading_cache
-
-    cache_result = purge_wizard_group_cascading_cache(
-        endpoint_id=kwargs.get("endpoint_id"),
-        wizard_group_uuid=kwargs.get("wizard_group_uuid"),
-        wizard_uuids=(
-            kwargs.get("entity").wizard_uuids if kwargs.get("entity") else None
-        ),
-        logger=info.context.get("logger"),
-    )
+    _purge_cache(info, **kwargs)
 
     kwargs["entity"].delete()
     return True

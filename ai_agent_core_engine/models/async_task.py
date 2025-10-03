@@ -94,6 +94,17 @@ def get_async_task_count(endpoint_id: str, async_task_uuid: str) -> int:
     )
 
 
+def _purge_cache(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
+    # Use cascading cache purging for async tasks
+    from ..models.cache import purge_async_task_cascading_cache
+
+    cache_result = purge_async_task_cascading_cache(
+        function_name=kwargs.get("function_name"),
+        async_task_uuid=kwargs.get("async_task_uuid"),
+        logger=info.context.get("logger"),
+    )
+
+
 def get_async_task_type(info: ResolveInfo, async_task: AsyncTaskModel) -> AsyncTaskType:
     async_task = async_task.__dict__["attribute_values"]
     return AsyncTaskType(**Utility.json_normalize(async_task))
@@ -152,14 +163,7 @@ def resolve_async_task_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     # activity_history_funct=None,
 )
 def insert_update_async_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
-    # Use cascading cache purging for async tasks
-    from ..models.cache import purge_async_task_cascading_cache
-
-    cache_result = purge_async_task_cascading_cache(
-        function_name=kwargs.get("function_name"),
-        async_task_uuid=kwargs.get("async_task_uuid"),
-        logger=info.context.get("logger"),
-    )
+    _purge_cache(info, **kwargs)
 
     function_name = kwargs.get("function_name")
     async_task_uuid = kwargs.get("async_task_uuid")
@@ -231,14 +235,7 @@ def insert_update_async_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Non
     model_funct=get_async_task,
 )
 def delete_async_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
-    # Use cascading cache purging for async tasks
-    from ..models.cache import purge_async_task_cascading_cache
-
-    cache_result = purge_async_task_cascading_cache(
-        function_name=kwargs.get("function_name"),
-        async_task_uuid=kwargs.get("async_task_uuid"),
-        logger=info.context.get("logger"),
-    )
+    _purge_cache(info, **kwargs)
 
     kwargs.get("entity").delete()
     return True

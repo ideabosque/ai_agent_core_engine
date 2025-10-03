@@ -98,6 +98,19 @@ def get_message_count(thread_uuid: str, message_uuid: str) -> int:
     return MessageModel.count(thread_uuid, MessageModel.message_uuid == message_uuid)
 
 
+def _purge_cache(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
+    # Use cascading cache purging for messages
+    from ..models.cache import purge_message_cascading_cache
+    message = resolve_message(info, **kwargs)
+
+    cache_result = purge_message_cascading_cache(
+        thread_uuid=kwargs.get("thread_uuid"),
+        message_uuid=kwargs.get("message_uuid"),
+        run_uuid=message.run["run_uuid"] if message else None,
+        logger=info.context.get("logger"),
+    )
+
+
 def get_message_type(info: ResolveInfo, message: MessageModel) -> MessageType:
     try:
         run = _get_run(message.thread_uuid, message.run_uuid)
@@ -167,15 +180,7 @@ def resolve_message_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     # activity_history_funct=None,
 )
 def insert_update_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
-    # Use cascading cache purging for messages
-    from ..models.cache import purge_message_cascading_cache
-
-    cache_result = purge_message_cascading_cache(
-        thread_uuid=kwargs.get("thread_uuid"),
-        message_uuid=kwargs.get("message_uuid"),
-        run_uuid=kwargs.get("run_uuid"),
-        logger=info.context.get("logger"),
-    )
+    _purge_cache(info, **kwargs)
 
     thread_uuid = kwargs.get("thread_uuid")
     message_uuid = kwargs.get("message_uuid")
@@ -231,15 +236,7 @@ def insert_update_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     model_funct=get_message,
 )
 def delete_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
-    # Use cascading cache purging for messages
-    from ..models.cache import purge_message_cascading_cache
-
-    cache_result = purge_message_cascading_cache(
-        thread_uuid=kwargs.get("thread_uuid"),
-        message_uuid=kwargs.get("message_uuid"),
-        run_uuid=kwargs.get("run_uuid"),
-        logger=info.context.get("logger"),
-    )
+    _purge_cache(info, **kwargs)
 
     kwargs.get("entity").delete()
     return True

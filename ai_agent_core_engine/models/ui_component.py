@@ -76,6 +76,17 @@ def get_ui_component_count(ui_component_type: str, ui_component_uuid: str) -> in
     )
 
 
+def _purge_cache(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
+    # Use cascading cache purging for ui components
+    from ..models.cache import purge_ui_component_cascading_cache
+
+    cache_result = purge_ui_component_cascading_cache(
+        ui_component_type=kwargs.get("ui_component_type"),
+        ui_component_uuid=kwargs.get("ui_component_uuid"),
+        logger=info.context.get("logger"),
+    )
+
+
 def get_ui_component_type(
     info: ResolveInfo, ui_component: UIComponentModel
 ) -> UIComponentType:
@@ -133,14 +144,7 @@ def resolve_ui_component_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> An
     type_funct=get_ui_component_type,
 )
 def insert_update_ui_component(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
-    # Use cascading cache purging for ui components
-    from ..models.cache import purge_ui_component_cascading_cache
-
-    cache_result = purge_ui_component_cascading_cache(
-        ui_component_type=kwargs.get("ui_component_type"),
-        ui_component_uuid=kwargs.get("ui_component_uuid"),
-        logger=info.context.get("logger"),
-    )
+    _purge_cache(info, **kwargs)
 
     ui_component_type = kwargs.get("ui_component_type")
     ui_component_uuid = kwargs.get("ui_component_uuid")
@@ -190,14 +194,7 @@ def insert_update_ui_component(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
     model_funct=get_ui_component,
 )
 def delete_ui_component(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
-    # Use cascading cache purging for ui components
-    from ..models.cache import purge_ui_component_cascading_cache
-
-    cache_result = purge_ui_component_cascading_cache(
-        ui_component_type=kwargs.get("ui_component_type"),
-        ui_component_uuid=kwargs.get("ui_component_uuid"),
-        logger=info.context.get("logger"),
-    )
+    _purge_cache(info, **kwargs)
 
     kwargs["entity"].delete()
     return True

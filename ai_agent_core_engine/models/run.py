@@ -86,6 +86,17 @@ def get_run_count(thread_uuid: str, run_uuid: str) -> int:
     return RunModel.count(thread_uuid, RunModel.run_uuid == run_uuid)
 
 
+def _purge_cache(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
+    # Use cascading cache purging for runs
+    from ..models.cache import purge_run_cascading_cache
+
+    cache_result = purge_run_cascading_cache(
+        thread_uuid=kwargs.get("thread_uuid"),
+        run_uuid=kwargs.get("run_uuid"),
+        logger=info.context.get("logger"),
+    )
+
+
 def get_run_type(info: ResolveInfo, run: RunModel) -> RunType:
     try:
         thread = _get_thread(run.endpoint_id, run.thread_uuid)
@@ -170,14 +181,7 @@ def resolve_run_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     # activity_history_funct=None,
 )
 def insert_update_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
-    # Use cascading cache purging for runs
-    from ..models.cache import purge_run_cascading_cache
-
-    cache_result = purge_run_cascading_cache(
-        thread_uuid=kwargs.get("thread_uuid"),
-        run_uuid=kwargs.get("run_uuid"),
-        logger=info.context.get("logger"),
-    )
+    _purge_cache(info, **kwargs)
 
     thread_uuid = kwargs.get("thread_uuid")
     run_uuid = kwargs.get("run_uuid")
@@ -236,14 +240,7 @@ def insert_update_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     model_funct=get_run,
 )
 def delete_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
-    # Use cascading cache purging for runs
-    from ..models.cache import purge_run_cascading_cache
-
-    cache_result = purge_run_cascading_cache(
-        thread_uuid=kwargs.get("thread_uuid"),
-        run_uuid=kwargs.get("run_uuid"),
-        logger=info.context.get("logger"),
-    )
+    _purge_cache(info, **kwargs)
 
     message_list = resolve_message_list(
         info,

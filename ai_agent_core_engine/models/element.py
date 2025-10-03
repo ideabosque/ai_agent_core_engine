@@ -90,6 +90,17 @@ def get_element_count(endpoint_id: str, element_uuid: str) -> int:
     return ElementModel.count(endpoint_id, ElementModel.element_uuid == element_uuid)
 
 
+def _purge_cache(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
+    # Use cascading cache purging for elements
+    from ..models.cache import purge_element_cascading_cache
+
+    cache_result = purge_element_cascading_cache(
+        endpoint_id=kwargs.get("endpoint_id"),
+        element_uuid=kwargs.get("element_uuid"),
+        logger=info.context.get("logger"),
+    )
+
+
 def get_element_type(info: ResolveInfo, element: ElementModel) -> ElementType:
     element = element.__dict__["attribute_values"]
     return ElementType(**Utility.json_normalize(element))
@@ -148,14 +159,7 @@ def resolve_element_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     type_funct=get_element_type,
 )
 def insert_update_element(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
-    # Use cascading cache purging for elements
-    from ..models.cache import purge_element_cascading_cache
-
-    cache_result = purge_element_cascading_cache(
-        endpoint_id=kwargs.get("endpoint_id"),
-        element_uuid=kwargs.get("element_uuid"),
-        logger=info.context.get("logger"),
-    )
+    _purge_cache(info, **kwargs)
 
     endpoint_id = kwargs.get("endpoint_id")
     element_uuid = kwargs.get("element_uuid")
@@ -214,14 +218,7 @@ def insert_update_element(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     model_funct=get_element,
 )
 def delete_element(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
-    # Use cascading cache purging for elements
-    from ..models.cache import purge_element_cascading_cache
-
-    cache_result = purge_element_cascading_cache(
-        endpoint_id=kwargs.get("endpoint_id"),
-        element_uuid=kwargs.get("element_uuid"),
-        logger=info.context.get("logger"),
-    )
+    _purge_cache(info, **kwargs)
 
     kwargs["entity"].delete()
     return True

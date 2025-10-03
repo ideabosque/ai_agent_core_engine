@@ -66,6 +66,17 @@ def get_mcp_server_count(endpoint_id: str, mcp_server_uuid: str) -> int:
     )
 
 
+def _purge_cache(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
+    # Use cascading cache purging for mcp servers
+    from ..models.cache import purge_mcp_server_cascading_cache
+
+    cache_result = purge_mcp_server_cascading_cache(
+        endpoint_id=kwargs.get("endpoint_id"),
+        mcp_server_uuid=kwargs.get("mcp_server_uuid"),
+        logger=info.context.get("logger"),
+    )
+
+
 async def _run_list_tools(info: ResolveInfo, mcp_server: MCPServerModel):
     mcp_http_client = MCPHttpClient(
         info.context["logger"],
@@ -138,14 +149,7 @@ def resolve_mcp_server_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     type_funct=get_mcp_server_type,
 )
 def insert_update_mcp_server(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
-    # Use cascading cache purging for mcp servers
-    from ..models.cache import purge_mcp_server_cascading_cache
-
-    cache_result = purge_mcp_server_cascading_cache(
-        endpoint_id=kwargs.get("endpoint_id"),
-        mcp_server_uuid=kwargs.get("mcp_server_uuid"),
-        logger=info.context.get("logger"),
-    )
+    _purge_cache(info, **kwargs)
 
     endpoint_id = kwargs.get("endpoint_id")
     mcp_server_uuid = kwargs.get("mcp_server_uuid")
@@ -196,14 +200,7 @@ def insert_update_mcp_server(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Non
     model_funct=get_mcp_server,
 )
 def delete_mcp_server(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
-    # Use cascading cache purging for mcp servers
-    from ..models.cache import purge_mcp_server_cascading_cache
-
-    cache_result = purge_mcp_server_cascading_cache(
-        endpoint_id=kwargs.get("endpoint_id"),
-        mcp_server_uuid=kwargs.get("mcp_server_uuid"),
-        logger=info.context.get("logger"),
-    )
+    _purge_cache(info, **kwargs)
 
     kwargs["entity"].delete()
     return True
