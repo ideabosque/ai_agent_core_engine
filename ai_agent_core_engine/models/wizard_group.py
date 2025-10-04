@@ -50,34 +50,6 @@ class WizardGroupModel(BaseModel):
     updated_at = UTCDateTimeAttribute()
 
 
-def create_wizard_group_table(logger: logging.Logger) -> bool:
-    """Create the WizardGroup table if it doesn't exist."""
-    if not WizardGroupModel.exists():
-        # Create with on-demand billing (PAY_PER_REQUEST)
-        WizardGroupModel.create_table(billing_mode="PAY_PER_REQUEST", wait=True)
-        logger.info("The WizardGroup table has been created.")
-    return True
-
-
-@retry(
-    reraise=True,
-    wait=wait_exponential(multiplier=1, max=60),
-    stop=stop_after_attempt(5),
-)
-@method_cache(
-    ttl=Config.get_cache_ttl(),
-    cache_name=Config.get_cache_name("models", "wizard_group"),
-)
-def get_wizard_group(endpoint_id: str, wizard_group_uuid: str) -> WizardGroupModel:
-    return WizardGroupModel.get(endpoint_id, wizard_group_uuid)
-
-
-def get_wizard_group_count(endpoint_id: str, wizard_group_uuid: str) -> int:
-    return WizardGroupModel.count(
-        endpoint_id, WizardGroupModel.wizard_group_uuid == wizard_group_uuid
-    )
-
-
 def purge_cache():
     def actual_decorator(original_function):
         @functools.wraps(original_function)
@@ -115,6 +87,34 @@ def purge_cache():
         return wrapper_function
 
     return actual_decorator
+
+
+def create_wizard_group_table(logger: logging.Logger) -> bool:
+    """Create the WizardGroup table if it doesn't exist."""
+    if not WizardGroupModel.exists():
+        # Create with on-demand billing (PAY_PER_REQUEST)
+        WizardGroupModel.create_table(billing_mode="PAY_PER_REQUEST", wait=True)
+        logger.info("The WizardGroup table has been created.")
+    return True
+
+
+@retry(
+    reraise=True,
+    wait=wait_exponential(multiplier=1, max=60),
+    stop=stop_after_attempt(5),
+)
+@method_cache(
+    ttl=Config.get_cache_ttl(),
+    cache_name=Config.get_cache_name("models", "wizard_group"),
+)
+def get_wizard_group(endpoint_id: str, wizard_group_uuid: str) -> WizardGroupModel:
+    return WizardGroupModel.get(endpoint_id, wizard_group_uuid)
+
+
+def get_wizard_group_count(endpoint_id: str, wizard_group_uuid: str) -> int:
+    return WizardGroupModel.count(
+        endpoint_id, WizardGroupModel.wizard_group_uuid == wizard_group_uuid
+    )
 
 
 def get_wizard_group_type(

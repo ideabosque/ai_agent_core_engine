@@ -43,31 +43,6 @@ class MCPServerModel(BaseModel):
     updated_at = UTCDateTimeAttribute()
 
 
-def create_mcp_server_table(logger: logging.Logger) -> bool:
-    """Create the MCPServer table if it doesn't exist."""
-    if not MCPServerModel.exists():
-        # Create with on-demand billing (PAY_PER_REQUEST)
-        MCPServerModel.create_table(billing_mode="PAY_PER_REQUEST", wait=True)
-        logger.info("The MCPServer table has been created.")
-    return True
-
-
-@retry(
-    reraise=True,
-    wait=wait_exponential(multiplier=1, max=60),
-    stop=stop_after_attempt(5),
-)
-@method_cache(ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name('models', 'mcp_server'))
-def get_mcp_server(endpoint_id: str, mcp_server_uuid: str) -> MCPServerModel:
-    return MCPServerModel.get(endpoint_id, mcp_server_uuid)
-
-
-def get_mcp_server_count(endpoint_id: str, mcp_server_uuid: str) -> int:
-    return MCPServerModel.count(
-        endpoint_id, MCPServerModel.mcp_server_uuid == mcp_server_uuid
-    )
-
-
 def purge_cache():
     def actual_decorator(original_function):
         @functools.wraps(original_function)
@@ -94,6 +69,33 @@ def purge_cache():
         return wrapper_function
 
     return actual_decorator
+
+
+def create_mcp_server_table(logger: logging.Logger) -> bool:
+    """Create the MCPServer table if it doesn't exist."""
+    if not MCPServerModel.exists():
+        # Create with on-demand billing (PAY_PER_REQUEST)
+        MCPServerModel.create_table(billing_mode="PAY_PER_REQUEST", wait=True)
+        logger.info("The MCPServer table has been created.")
+    return True
+
+
+@retry(
+    reraise=True,
+    wait=wait_exponential(multiplier=1, max=60),
+    stop=stop_after_attempt(5),
+)
+@method_cache(
+    ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name("models", "mcp_server")
+)
+def get_mcp_server(endpoint_id: str, mcp_server_uuid: str) -> MCPServerModel:
+    return MCPServerModel.get(endpoint_id, mcp_server_uuid)
+
+
+def get_mcp_server_count(endpoint_id: str, mcp_server_uuid: str) -> int:
+    return MCPServerModel.count(
+        endpoint_id, MCPServerModel.mcp_server_uuid == mcp_server_uuid
+    )
 
 
 async def _run_list_tools(info: ResolveInfo, mcp_server: MCPServerModel):
@@ -206,7 +208,6 @@ def insert_update_mcp_server(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Non
             actions.append(field.set(None if kwargs[key] == "null" else kwargs[key]))
 
     mcp_server.update(actions=actions)
-
 
     return
 

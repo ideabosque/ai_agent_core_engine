@@ -86,31 +86,6 @@ class ToolCallModel(BaseModel):
     updated_at_index = UpdatedAtIndex()
 
 
-def create_tool_call_table(logger: logging.Logger) -> bool:
-    """Create the ToolCall table if it doesn't exist."""
-    if not ToolCallModel.exists():
-        # Create with on-demand billing (PAY_PER_REQUEST)
-        ToolCallModel.create_table(billing_mode="PAY_PER_REQUEST", wait=True)
-        logger.info("The ToolCall table has been created.")
-    return True
-
-
-@retry(
-    reraise=True,
-    wait=wait_exponential(multiplier=1, max=60),
-    stop=stop_after_attempt(5),
-)
-@method_cache(ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name('models', 'tool_call'))
-def get_tool_call(thread_uuid: str, tool_call_uuid: str) -> ToolCallModel:
-    return ToolCallModel.get(thread_uuid, tool_call_uuid)
-
-
-def get_tool_call_count(thread_uuid: str, tool_call_uuid: str) -> int:
-    return ToolCallModel.count(
-        thread_uuid, ToolCallModel.tool_call_uuid == tool_call_uuid
-    )
-
-
 def purge_cache():
     def actual_decorator(original_function):
         @functools.wraps(original_function)
@@ -142,6 +117,33 @@ def purge_cache():
         return wrapper_function
 
     return actual_decorator
+
+
+def create_tool_call_table(logger: logging.Logger) -> bool:
+    """Create the ToolCall table if it doesn't exist."""
+    if not ToolCallModel.exists():
+        # Create with on-demand billing (PAY_PER_REQUEST)
+        ToolCallModel.create_table(billing_mode="PAY_PER_REQUEST", wait=True)
+        logger.info("The ToolCall table has been created.")
+    return True
+
+
+@retry(
+    reraise=True,
+    wait=wait_exponential(multiplier=1, max=60),
+    stop=stop_after_attempt(5),
+)
+@method_cache(
+    ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name("models", "tool_call")
+)
+def get_tool_call(thread_uuid: str, tool_call_uuid: str) -> ToolCallModel:
+    return ToolCallModel.get(thread_uuid, tool_call_uuid)
+
+
+def get_tool_call_count(thread_uuid: str, tool_call_uuid: str) -> int:
+    return ToolCallModel.count(
+        thread_uuid, ToolCallModel.tool_call_uuid == tool_call_uuid
+    )
 
 
 def get_tool_call_type(info: ResolveInfo, tool_call: ToolCallModel) -> ToolCallType:
@@ -280,7 +282,6 @@ def insert_update_tool_call(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None
 
     # Update the tool call
     tool_call.update(actions=actions)
-
 
     return
 

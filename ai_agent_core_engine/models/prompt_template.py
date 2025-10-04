@@ -89,6 +89,43 @@ class PromptTemplateModel(BaseModel):
     prompt_type_index = PromptTypeIndex()
 
 
+def purge_cache():
+    def actual_decorator(original_function):
+        @functools.wraps(original_function)
+        def wrapper_function(*args, **kwargs):
+            try:
+                # Use cascading cache purging for prompt templates
+                from ..models.cache import purge_prompt_template_cascading_cache
+
+                try:
+                    prompt_template = resolve_prompt_template(args[0], **kwargs)
+                except Exception as e:
+                    prompt_template = None
+
+                cache_result = purge_prompt_template_cascading_cache(
+                    endpoint_id=args[0].context.get("endpoint_id")
+                    or kwargs.get("endpoint_id"),
+                    prompt_version_uuid=kwargs.get("prompt_version_uuid"),
+                    prompt_uuid=(
+                        prompt_template.prompt_uuid if prompt_template else None
+                    ),
+                    logger=args[0].context.get("logger"),
+                )
+
+                ## Original function.
+                result = original_function(*args, **kwargs)
+
+                return result
+            except Exception as e:
+                log = traceback.format_exc()
+                args[0].context.get("logger").error(log)
+                raise e
+
+        return wrapper_function
+
+    return actual_decorator
+
+
 def create_prompt_template_table(logger: logging.Logger) -> bool:
     """Create the PromptTemplate table if it doesn't exist."""
     if not PromptTemplateModel.exists():
@@ -139,43 +176,6 @@ def get_prompt_template_count(endpoint_id: str, prompt_version_uuid: str) -> int
     return PromptTemplateModel.count(
         endpoint_id, PromptTemplateModel.prompt_version_uuid == prompt_version_uuid
     )
-
-
-def purge_cache():
-    def actual_decorator(original_function):
-        @functools.wraps(original_function)
-        def wrapper_function(*args, **kwargs):
-            try:
-                # Use cascading cache purging for prompt templates
-                from ..models.cache import purge_prompt_template_cascading_cache
-
-                try:
-                    prompt_template = resolve_prompt_template(args[0], **kwargs)
-                except Exception as e:
-                    prompt_template = None
-
-                cache_result = purge_prompt_template_cascading_cache(
-                    endpoint_id=args[0].context.get("endpoint_id")
-                    or kwargs.get("endpoint_id"),
-                    prompt_version_uuid=kwargs.get("prompt_version_uuid"),
-                    prompt_uuid=(
-                        prompt_template.prompt_uuid if prompt_template else None
-                    ),
-                    logger=args[0].context.get("logger"),
-                )
-
-                ## Original function.
-                result = original_function(*args, **kwargs)
-
-                return result
-            except Exception as e:
-                log = traceback.format_exc()
-                args[0].context.get("logger").error(log)
-                raise e
-
-        return wrapper_function
-
-    return actual_decorator
 
 
 def get_prompt_template_type(

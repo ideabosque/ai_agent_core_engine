@@ -51,31 +51,6 @@ class WizardModel(BaseModel):
     updated_at = UTCDateTimeAttribute()
 
 
-def create_wizard_table(logger: logging.Logger) -> bool:
-    """Create the Wizard table if it doesn't exist."""
-    if not WizardModel.exists():
-        # Create with on-demand billing (PAY_PER_REQUEST)
-        WizardModel.create_table(billing_mode="PAY_PER_REQUEST", wait=True)
-        logger.info("The Wizard table has been created.")
-    return True
-
-
-@retry(
-    reraise=True,
-    wait=wait_exponential(multiplier=1, max=60),
-    stop=stop_after_attempt(5),
-)
-@method_cache(
-    ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name("models", "wizard")
-)
-def get_wizard(endpoint_id: str, wizard_uuid: str) -> WizardModel:
-    return WizardModel.get(endpoint_id, wizard_uuid)
-
-
-def get_wizard_count(endpoint_id: str, wizard_uuid: str) -> int:
-    return WizardModel.count(endpoint_id, WizardModel.wizard_uuid == wizard_uuid)
-
-
 def purge_cache():
     def actual_decorator(original_function):
         @functools.wraps(original_function)
@@ -113,6 +88,31 @@ def purge_cache():
         return wrapper_function
 
     return actual_decorator
+
+
+def create_wizard_table(logger: logging.Logger) -> bool:
+    """Create the Wizard table if it doesn't exist."""
+    if not WizardModel.exists():
+        # Create with on-demand billing (PAY_PER_REQUEST)
+        WizardModel.create_table(billing_mode="PAY_PER_REQUEST", wait=True)
+        logger.info("The Wizard table has been created.")
+    return True
+
+
+@retry(
+    reraise=True,
+    wait=wait_exponential(multiplier=1, max=60),
+    stop=stop_after_attempt(5),
+)
+@method_cache(
+    ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name("models", "wizard")
+)
+def get_wizard(endpoint_id: str, wizard_uuid: str) -> WizardModel:
+    return WizardModel.get(endpoint_id, wizard_uuid)
+
+
+def get_wizard_count(endpoint_id: str, wizard_uuid: str) -> int:
+    return WizardModel.count(endpoint_id, WizardModel.wizard_uuid == wizard_uuid)
 
 
 def get_wizard_type(info: ResolveInfo, wizard: WizardModel) -> WizardType:

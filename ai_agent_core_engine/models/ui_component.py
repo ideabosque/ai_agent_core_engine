@@ -47,6 +47,34 @@ class UIComponentModel(BaseModel):
     updated_at = UTCDateTimeAttribute()
 
 
+def purge_cache():
+    def actual_decorator(original_function):
+        @functools.wraps(original_function)
+        def wrapper_function(*args, **kwargs):
+            try:
+                # Use cascading cache purging for ui components
+                from ..models.cache import purge_ui_component_cascading_cache
+
+                cache_result = purge_ui_component_cascading_cache(
+                    ui_component_type=kwargs.get("ui_component_type"),
+                    ui_component_uuid=kwargs.get("ui_component_uuid"),
+                    logger=args[0].context.get("logger"),
+                )
+
+                ## Original function.
+                result = original_function(*args, **kwargs)
+
+                return result
+            except Exception as e:
+                log = traceback.format_exc()
+                args[0].context.get("logger").error(log)
+                raise e
+
+        return wrapper_function
+
+    return actual_decorator
+
+
 def create_ui_component_table(logger: logging.Logger) -> bool:
     """Create the UIComponent table if it doesn't exist."""
     if not UIComponentModel.exists():
@@ -75,34 +103,6 @@ def get_ui_component_count(ui_component_type: str, ui_component_uuid: str) -> in
     return UIComponentModel.count(
         ui_component_type, UIComponentModel.ui_component_uuid == ui_component_uuid
     )
-
-
-def purge_cache():
-    def actual_decorator(original_function):
-        @functools.wraps(original_function)
-        def wrapper_function(*args, **kwargs):
-            try:
-                # Use cascading cache purging for ui components
-                from ..models.cache import purge_ui_component_cascading_cache
-
-                cache_result = purge_ui_component_cascading_cache(
-                    ui_component_type=kwargs.get("ui_component_type"),
-                    ui_component_uuid=kwargs.get("ui_component_uuid"),
-                    logger=args[0].context.get("logger"),
-                )
-
-                ## Original function.
-                result = original_function(*args, **kwargs)
-
-                return result
-            except Exception as e:
-                log = traceback.format_exc()
-                args[0].context.get("logger").error(log)
-                raise e
-
-        return wrapper_function
-
-    return actual_decorator
 
 
 def get_ui_component_type(

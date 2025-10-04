@@ -86,33 +86,6 @@ class FineTuningMessageModel(BaseModel):
     timestamp_index = TimestampIndex()
 
 
-def create_fine_tuning_message_table(logger: logging.Logger) -> bool:
-    """Create the FineTuningMessage table if it doesn't exist."""
-    if not FineTuningMessageModel.exists():
-        # Create with on-demand billing (PAY_PER_REQUEST)
-        FineTuningMessageModel.create_table(billing_mode="PAY_PER_REQUEST", wait=True)
-        logger.info("The FineTuningMessage has been created.")
-    return True
-
-
-@retry(
-    reraise=True,
-    wait=wait_exponential(multiplier=1, max=60),
-    stop=stop_after_attempt(5),
-)
-@method_cache(ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name('models', 'fine_tuning_message'))
-def get_fine_tuning_message(
-    agent_uuid: str, message_uuid: str
-) -> FineTuningMessageModel:
-    return FineTuningMessageModel.get(agent_uuid, message_uuid)
-
-
-def get_fine_tuning_message_count(agent_uuid: str, message_uuid: str) -> int:
-    return FineTuningMessageModel.count(
-        agent_uuid, FineTuningMessageModel.message_uuid == message_uuid
-    )
-
-
 def purge_cache():
     def actual_decorator(original_function):
         @functools.wraps(original_function)
@@ -142,13 +115,41 @@ def purge_cache():
     return actual_decorator
 
 
+def create_fine_tuning_message_table(logger: logging.Logger) -> bool:
+    """Create the FineTuningMessage table if it doesn't exist."""
+    if not FineTuningMessageModel.exists():
+        # Create with on-demand billing (PAY_PER_REQUEST)
+        FineTuningMessageModel.create_table(billing_mode="PAY_PER_REQUEST", wait=True)
+        logger.info("The FineTuningMessage has been created.")
+    return True
+
+
+@retry(
+    reraise=True,
+    wait=wait_exponential(multiplier=1, max=60),
+    stop=stop_after_attempt(5),
+)
+@method_cache(
+    ttl=Config.get_cache_ttl(),
+    cache_name=Config.get_cache_name("models", "fine_tuning_message"),
+)
+def get_fine_tuning_message(
+    agent_uuid: str, message_uuid: str
+) -> FineTuningMessageModel:
+    return FineTuningMessageModel.get(agent_uuid, message_uuid)
+
+
+def get_fine_tuning_message_count(agent_uuid: str, message_uuid: str) -> int:
+    return FineTuningMessageModel.count(
+        agent_uuid, FineTuningMessageModel.message_uuid == message_uuid
+    )
+
+
 def get_fine_tuning_message_type(
     info: ResolveInfo, fine_tuning_message: FineTuningMessageModel
 ) -> FineTuningMessageType:
     fine_tuning_message = fine_tuning_message.__dict__["attribute_values"]
-    return FineTuningMessageType(
-        **Utility.json_normalize(fine_tuning_message)
-    )
+    return FineTuningMessageType(**Utility.json_normalize(fine_tuning_message))
 
 
 def resolve_fine_tuning_message(
@@ -285,7 +286,6 @@ def insert_update_fine_tuning_message(
 
     # Update the fine_tuning_message
     fine_tuning_message.update(actions=actions)
-
 
     return
 

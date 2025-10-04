@@ -68,34 +68,6 @@ class AsyncTaskModel(BaseModel):
     endpoint_id_updated_at_index = EndpointIdUpdatedAtIndex()
 
 
-def create_async_task_table(logger: logging.Logger) -> bool:
-    """Create the AsyncTask table if it doesn't exist."""
-    if not AsyncTaskModel.exists():
-        # Create with on-demand billing (PAY_PER_REQUEST)
-        AsyncTaskModel.create_table(billing_mode="PAY_PER_REQUEST", wait=True)
-        logger.info("The AsyncTask table has been created.")
-    return True
-
-
-@retry(
-    reraise=True,
-    wait=wait_exponential(multiplier=1, max=60),
-    stop=stop_after_attempt(5),
-)
-@method_cache(
-    ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name("models", "async_task")
-)
-def get_async_task(function_name: str, async_task_uuid: str) -> AsyncTaskModel:
-    async_task = AsyncTaskModel.get(function_name, async_task_uuid)
-    return async_task
-
-
-def get_async_task_count(endpoint_id: str, async_task_uuid: str) -> int:
-    return AsyncTaskModel.count(
-        endpoint_id, AsyncTaskModel.async_task_uuid == async_task_uuid
-    )
-
-
 def purge_cache():
     def actual_decorator(original_function):
         @functools.wraps(original_function)
@@ -122,6 +94,34 @@ def purge_cache():
         return wrapper_function
 
     return actual_decorator
+
+
+def create_async_task_table(logger: logging.Logger) -> bool:
+    """Create the AsyncTask table if it doesn't exist."""
+    if not AsyncTaskModel.exists():
+        # Create with on-demand billing (PAY_PER_REQUEST)
+        AsyncTaskModel.create_table(billing_mode="PAY_PER_REQUEST", wait=True)
+        logger.info("The AsyncTask table has been created.")
+    return True
+
+
+@retry(
+    reraise=True,
+    wait=wait_exponential(multiplier=1, max=60),
+    stop=stop_after_attempt(5),
+)
+@method_cache(
+    ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name("models", "async_task")
+)
+def get_async_task(function_name: str, async_task_uuid: str) -> AsyncTaskModel:
+    async_task = AsyncTaskModel.get(function_name, async_task_uuid)
+    return async_task
+
+
+def get_async_task_count(endpoint_id: str, async_task_uuid: str) -> int:
+    return AsyncTaskModel.count(
+        endpoint_id, AsyncTaskModel.async_task_uuid == async_task_uuid
+    )
 
 
 def get_async_task_type(info: ResolveInfo, async_task: AsyncTaskModel) -> AsyncTaskType:

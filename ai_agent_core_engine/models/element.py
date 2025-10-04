@@ -69,29 +69,6 @@ class ElementModel(BaseModel):
     data_type_index = DataTypeIndex()
 
 
-def create_element_table(logger: logging.Logger) -> bool:
-    """Create the Element table if it doesn't exist."""
-    if not ElementModel.exists():
-        # Create with on-demand billing (PAY_PER_REQUEST)
-        ElementModel.create_table(billing_mode="PAY_PER_REQUEST", wait=True)
-        logger.info("The Element table has been created.")
-    return True
-
-
-@retry(
-    reraise=True,
-    wait=wait_exponential(multiplier=1, max=60),
-    stop=stop_after_attempt(5),
-)
-@method_cache(ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name('models', 'element'))
-def get_element(endpoint_id: str, element_uuid: str) -> ElementModel:
-    return ElementModel.get(endpoint_id, element_uuid)
-
-
-def get_element_count(endpoint_id: str, element_uuid: str) -> int:
-    return ElementModel.count(endpoint_id, ElementModel.element_uuid == element_uuid)
-
-
 def purge_cache():
     def actual_decorator(original_function):
         @functools.wraps(original_function)
@@ -118,6 +95,31 @@ def purge_cache():
         return wrapper_function
 
     return actual_decorator
+
+
+def create_element_table(logger: logging.Logger) -> bool:
+    """Create the Element table if it doesn't exist."""
+    if not ElementModel.exists():
+        # Create with on-demand billing (PAY_PER_REQUEST)
+        ElementModel.create_table(billing_mode="PAY_PER_REQUEST", wait=True)
+        logger.info("The Element table has been created.")
+    return True
+
+
+@retry(
+    reraise=True,
+    wait=wait_exponential(multiplier=1, max=60),
+    stop=stop_after_attempt(5),
+)
+@method_cache(
+    ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name("models", "element")
+)
+def get_element(endpoint_id: str, element_uuid: str) -> ElementModel:
+    return ElementModel.get(endpoint_id, element_uuid)
+
+
+def get_element_count(endpoint_id: str, element_uuid: str) -> int:
+    return ElementModel.count(endpoint_id, ElementModel.element_uuid == element_uuid)
 
 
 def get_element_type(info: ResolveInfo, element: ElementModel) -> ElementType:
@@ -224,7 +226,6 @@ def insert_update_element(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
             actions.append(field.set(None if kwargs[key] == "null" else kwargs[key]))
 
     element.update(actions=actions)
-
 
     return
 

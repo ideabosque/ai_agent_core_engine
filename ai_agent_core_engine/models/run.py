@@ -64,29 +64,6 @@ class RunModel(BaseModel):
     updated_at_index = UpdatedAtIndex()
 
 
-def create_run_table(logger: logging.Logger) -> bool:
-    """Create the Run table if it doesn't exist."""
-    if not RunModel.exists():
-        # Create with on-demand billing (PAY_PER_REQUEST)
-        RunModel.create_table(billing_mode="PAY_PER_REQUEST", wait=True)
-        logger.info("The Run table has been created.")
-    return True
-
-
-@retry(
-    reraise=True,
-    wait=wait_exponential(multiplier=1, max=60),
-    stop=stop_after_attempt(5),
-)
-@method_cache(ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name('models', 'run'))
-def get_run(thread_uuid: str, run_uuid: str) -> RunModel:
-    return RunModel.get(thread_uuid, run_uuid)
-
-
-def get_run_count(thread_uuid: str, run_uuid: str) -> int:
-    return RunModel.count(thread_uuid, RunModel.run_uuid == run_uuid)
-
-
 def purge_cache():
     def actual_decorator(original_function):
         @functools.wraps(original_function)
@@ -113,6 +90,31 @@ def purge_cache():
         return wrapper_function
 
     return actual_decorator
+
+
+def create_run_table(logger: logging.Logger) -> bool:
+    """Create the Run table if it doesn't exist."""
+    if not RunModel.exists():
+        # Create with on-demand billing (PAY_PER_REQUEST)
+        RunModel.create_table(billing_mode="PAY_PER_REQUEST", wait=True)
+        logger.info("The Run table has been created.")
+    return True
+
+
+@retry(
+    reraise=True,
+    wait=wait_exponential(multiplier=1, max=60),
+    stop=stop_after_attempt(5),
+)
+@method_cache(
+    ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name("models", "run")
+)
+def get_run(thread_uuid: str, run_uuid: str) -> RunModel:
+    return RunModel.get(thread_uuid, run_uuid)
+
+
+def get_run_count(thread_uuid: str, run_uuid: str) -> int:
+    return RunModel.count(thread_uuid, RunModel.run_uuid == run_uuid)
 
 
 def get_run_type(info: ResolveInfo, run: RunModel) -> RunType:
@@ -245,7 +247,6 @@ def insert_update_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
 
     # Update the run
     run.update(actions=actions)
-
 
     return
 

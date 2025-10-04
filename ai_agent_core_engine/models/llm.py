@@ -42,29 +42,6 @@ class LlmModel(BaseModel):
     updated_at = UTCDateTimeAttribute()
 
 
-def create_llm_table(logger: logging.Logger) -> bool:
-    """Create the LLM table if it doesn't exist."""
-    if not LlmModel.exists():
-        # Create with on-demand billing (PAY_PER_REQUEST)
-        LlmModel.create_table(billing_mode="PAY_PER_REQUEST", wait=True)
-        logger.info("The LLM table has been created.")
-    return True
-
-
-@retry(
-    reraise=True,
-    wait=wait_exponential(multiplier=1, max=60),
-    stop=stop_after_attempt(5),
-)
-@method_cache(ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name('models', 'llm'))
-def get_llm(llm_provider: str, llm_name: str) -> LlmModel:
-    return LlmModel.get(llm_provider, llm_name)
-
-
-def get_llm_count(llm_provider: str, llm_name: str) -> int:
-    return LlmModel.count(llm_provider, LlmModel.llm_name == llm_name)
-
-
 def purge_cache():
     def actual_decorator(original_function):
         @functools.wraps(original_function)
@@ -91,6 +68,31 @@ def purge_cache():
         return wrapper_function
 
     return actual_decorator
+
+
+def create_llm_table(logger: logging.Logger) -> bool:
+    """Create the LLM table if it doesn't exist."""
+    if not LlmModel.exists():
+        # Create with on-demand billing (PAY_PER_REQUEST)
+        LlmModel.create_table(billing_mode="PAY_PER_REQUEST", wait=True)
+        logger.info("The LLM table has been created.")
+    return True
+
+
+@retry(
+    reraise=True,
+    wait=wait_exponential(multiplier=1, max=60),
+    stop=stop_after_attempt(5),
+)
+@method_cache(
+    ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name("models", "llm")
+)
+def get_llm(llm_provider: str, llm_name: str) -> LlmModel:
+    return LlmModel.get(llm_provider, llm_name)
+
+
+def get_llm_count(llm_provider: str, llm_name: str) -> int:
+    return LlmModel.count(llm_provider, LlmModel.llm_name == llm_name)
 
 
 def get_llm_type(info: ResolveInfo, llm: LlmModel) -> LlmType:
@@ -187,7 +189,6 @@ def insert_update_llm(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
 
     # Update the llm
     llm.update(actions=actions)
-
 
     return
 

@@ -72,6 +72,42 @@ class FlowSnippetModel(BaseModel):
     prompt_uuid_index = PromptUuidIndex()
 
 
+def purge_cache():
+    def actual_decorator(original_function):
+        @functools.wraps(original_function)
+        def wrapper_function(*args, **kwargs):
+            try:
+                # Use cascading cache purging for flow snippets
+                from ..models.cache import purge_flow_snippet_cascading_cache
+
+                try:
+                    flow_snippet = resolve_flow_snippet(args[0], **kwargs)
+                except Exception as e:
+                    flow_snippet = None
+
+                cache_result = purge_flow_snippet_cascading_cache(
+                    endpoint_id=kwargs.get("endpoint_id"),
+                    flow_snippet_version_uuid=kwargs.get("flow_snippet_version_uuid"),
+                    flow_snippet_uuid=(
+                        flow_snippet.flow_snippet_uuid if flow_snippet else None
+                    ),
+                    logger=args[0].context.get("logger"),
+                )
+
+                ## Original function.
+                result = original_function(*args, **kwargs)
+
+                return result
+            except Exception as e:
+                log = traceback.format_exc()
+                args[0].context.get("logger").error(log)
+                raise e
+
+        return wrapper_function
+
+    return actual_decorator
+
+
 def create_flow_snippet_table(logger: logging.Logger) -> bool:
     """Create the FlowSnippet table if it doesn't exist."""
     if not FlowSnippetModel.exists():
@@ -123,44 +159,6 @@ def get_flow_snippet_count(endpoint_id: str, flow_snippet_version_uuid: str) -> 
         endpoint_id,
         FlowSnippetModel.flow_snippet_version_uuid == flow_snippet_version_uuid,
     )
-
-
-def purge_cache():
-    def actual_decorator(original_function):
-        @functools.wraps(original_function)
-        def wrapper_function(*args, **kwargs):
-            try:
-                # Use cascading cache purging for flow snippets
-                from ..models.cache import purge_flow_snippet_cascading_cache
-
-                try:
-                    flow_snippet = resolve_flow_snippet(args[0], **kwargs)
-                except Exception as e:
-                    flow_snippet = None
-
-                cache_result = purge_flow_snippet_cascading_cache(
-                    endpoint_id=kwargs.get("endpoint_id"),
-                    flow_snippet_version_uuid=kwargs.get("flow_snippet_version_uuid"),
-                    flow_snippet_uuid=(
-                        flow_snippet.flow_snippet_uuid
-                        if flow_snippet
-                        else None
-                    ),
-                    logger=args[0].context.get("logger"),
-                )
-
-                ## Original function.
-                result = original_function(*args, **kwargs)
-
-                return result
-            except Exception as e:
-                log = traceback.format_exc()
-                args[0].context.get("logger").error(log)
-                raise e
-
-        return wrapper_function
-
-    return actual_decorator
 
 
 def get_flow_snippet_type(

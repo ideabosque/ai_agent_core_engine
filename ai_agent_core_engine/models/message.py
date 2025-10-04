@@ -76,29 +76,6 @@ class MessageModel(BaseModel):
     updated_at_index = UpdatedAtIndex()
 
 
-def create_message_table(logger: logging.Logger) -> bool:
-    """Create the Message table if it doesn't exist."""
-    if not MessageModel.exists():
-        # Create with on-demand billing (PAY_PER_REQUEST)
-        MessageModel.create_table(billing_mode="PAY_PER_REQUEST", wait=True)
-        logger.info("The Message table has been created.")
-    return True
-
-
-@retry(
-    reraise=True,
-    wait=wait_exponential(multiplier=1, max=60),
-    stop=stop_after_attempt(5),
-)
-@method_cache(ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name('models', 'message'))
-def get_message(thread_uuid: str, message_uuid: str) -> MessageModel:
-    return MessageModel.get(thread_uuid, message_uuid)
-
-
-def get_message_count(thread_uuid: str, message_uuid: str) -> int:
-    return MessageModel.count(thread_uuid, MessageModel.message_uuid == message_uuid)
-
-
 def purge_cache():
     def actual_decorator(original_function):
         @functools.wraps(original_function)
@@ -131,6 +108,31 @@ def purge_cache():
         return wrapper_function
 
     return actual_decorator
+
+
+def create_message_table(logger: logging.Logger) -> bool:
+    """Create the Message table if it doesn't exist."""
+    if not MessageModel.exists():
+        # Create with on-demand billing (PAY_PER_REQUEST)
+        MessageModel.create_table(billing_mode="PAY_PER_REQUEST", wait=True)
+        logger.info("The Message table has been created.")
+    return True
+
+
+@retry(
+    reraise=True,
+    wait=wait_exponential(multiplier=1, max=60),
+    stop=stop_after_attempt(5),
+)
+@method_cache(
+    ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name("models", "message")
+)
+def get_message(thread_uuid: str, message_uuid: str) -> MessageModel:
+    return MessageModel.get(thread_uuid, message_uuid)
+
+
+def get_message_count(thread_uuid: str, message_uuid: str) -> int:
+    return MessageModel.count(thread_uuid, MessageModel.message_uuid == message_uuid)
 
 
 def get_message_type(info: ResolveInfo, message: MessageModel) -> MessageType:
@@ -248,7 +250,6 @@ def insert_update_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
 
     # Update the message
     message.update(actions=actions)
-
 
     return
 

@@ -24,8 +24,8 @@ from silvaengine_dynamodb_base import (
 )
 from silvaengine_utility import Utility, method_cache
 
-from ..handlers.config import Config
 from ..handlers.ai_agent_utility import combine_thread_messages
+from ..handlers.config import Config
 from ..types.thread import ThreadListType, ThreadType
 from .run import resolve_run_list
 from .tool_call import resolve_tool_call_list
@@ -75,29 +75,6 @@ class ThreadModel(BaseModel):
     created_at_index = CreatedAtIndex()
 
 
-def create_thread_table(logger: logging.Logger) -> bool:
-    """Create the Thread table if it doesn't exist."""
-    if not ThreadModel.exists():
-        # Create with on-demand billing (PAY_PER_REQUEST)
-        ThreadModel.create_table(billing_mode="PAY_PER_REQUEST", wait=True)
-        logger.info("The Thread table has been created.")
-    return True
-
-
-@retry(
-    reraise=True,
-    wait=wait_exponential(multiplier=1, max=60),
-    stop=stop_after_attempt(5),
-)
-@method_cache(ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name('models', 'thread'))
-def get_thread(endpoint_id: str, thread_uuid: str) -> ThreadModel:
-    return ThreadModel.get(endpoint_id, thread_uuid)
-
-
-def get_thread_count(endpoint_id: str, thread_uuid: str) -> int:
-    return ThreadModel.count(endpoint_id, ThreadModel.thread_uuid == thread_uuid)
-
-
 def purge_cache():
     def actual_decorator(original_function):
         @functools.wraps(original_function)
@@ -124,6 +101,31 @@ def purge_cache():
         return wrapper_function
 
     return actual_decorator
+
+
+def create_thread_table(logger: logging.Logger) -> bool:
+    """Create the Thread table if it doesn't exist."""
+    if not ThreadModel.exists():
+        # Create with on-demand billing (PAY_PER_REQUEST)
+        ThreadModel.create_table(billing_mode="PAY_PER_REQUEST", wait=True)
+        logger.info("The Thread table has been created.")
+    return True
+
+
+@retry(
+    reraise=True,
+    wait=wait_exponential(multiplier=1, max=60),
+    stop=stop_after_attempt(5),
+)
+@method_cache(
+    ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name("models", "thread")
+)
+def get_thread(endpoint_id: str, thread_uuid: str) -> ThreadModel:
+    return ThreadModel.get(endpoint_id, thread_uuid)
+
+
+def get_thread_count(endpoint_id: str, thread_uuid: str) -> int:
+    return ThreadModel.count(endpoint_id, ThreadModel.thread_uuid == thread_uuid)
 
 
 def get_thread_type(info: ResolveInfo, thread: ThreadModel) -> ThreadType:
