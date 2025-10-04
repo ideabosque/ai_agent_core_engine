@@ -56,23 +56,30 @@ def purge_cache():
         def wrapper_function(*args, **kwargs):
             try:
                 # Use cascading cache purging for wizard groups
-                from ..models.cache import purge_wizard_group_cascading_cache
+                from ..models.cache import purge_entity_cascading_cache
 
                 try:
                     wizard_group = resolve_wizard_group(args[0], **kwargs)
                 except Exception as e:
                     wizard_group = None
 
-                cache_result = purge_wizard_group_cascading_cache(
-                    endpoint_id=args[0].context.get("endpoint_id")
-                    or kwargs.get("endpoint_id"),
-                    wizard_group_uuid=kwargs.get("wizard_group_uuid"),
-                    wizard_uuids=(
-                        [wizard["wizard_uuid"] for wizard in wizard_group.wizards]
-                        if wizard_group
-                        else []
-                    ),
-                    logger=args[0].context.get("logger"),
+                endpoint_id = args[0].context.get("endpoint_id") or kwargs.get(
+                    "endpoint_id"
+                )
+                entity_keys = {}
+                if kwargs.get("wizard_group_uuid"):
+                    entity_keys["wizard_group_uuid"] = kwargs.get("wizard_group_uuid")
+                if wizard_group and wizard_group.wizards:
+                    entity_keys["wizard_uuids"] = [
+                        wizard["wizard_uuid"] for wizard in wizard_group.wizards
+                    ]
+
+                result = purge_entity_cascading_cache(
+                    args[0].context.get("logger"),
+                    entity_type="wizard_group",
+                    context_keys={"endpoint_id": endpoint_id} if endpoint_id else None,
+                    entity_keys=entity_keys if entity_keys else None,
+                    cascade_depth=3,
                 )
 
                 ## Original function.

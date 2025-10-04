@@ -53,12 +53,20 @@ def purge_cache():
         def wrapper_function(*args, **kwargs):
             try:
                 # Use cascading cache purging for ui components
-                from ..models.cache import purge_ui_component_cascading_cache
+                from ..models.cache import purge_entity_cascading_cache
 
-                cache_result = purge_ui_component_cascading_cache(
-                    ui_component_type=kwargs.get("ui_component_type"),
-                    ui_component_uuid=kwargs.get("ui_component_uuid"),
-                    logger=args[0].context.get("logger"),
+                entity_keys = {}
+                if kwargs.get("ui_component_type"):
+                    entity_keys["ui_component_type"] = kwargs.get("ui_component_type")
+                if kwargs.get("ui_component_uuid"):
+                    entity_keys["ui_component_uuid"] = kwargs.get("ui_component_uuid")
+
+                result = purge_entity_cascading_cache(
+                    args[0].context.get("logger"),
+                    entity_type="ui_component",
+                    context_keys=None,  # UI components don't use endpoint_id directly
+                    entity_keys=entity_keys if entity_keys else None,
+                    cascade_depth=3,
                 )
 
                 ## Original function.

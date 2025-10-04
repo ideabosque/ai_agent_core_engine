@@ -48,12 +48,20 @@ def purge_cache():
         def wrapper_function(*args, **kwargs):
             try:
                 # Use cascading cache purging for llms
-                from ..models.cache import purge_llm_cascading_cache
+                from ..models.cache import purge_entity_cascading_cache
 
-                cache_result = purge_llm_cascading_cache(
-                    llm_provider=kwargs.get("llm_provider"),
-                    llm_name=kwargs.get("llm_name"),
-                    logger=args[0].context.get("logger"),
+                entity_keys = {}
+                if kwargs.get("llm_provider"):
+                    entity_keys["llm_provider"] = kwargs.get("llm_provider")
+                if kwargs.get("llm_name"):
+                    entity_keys["llm_name"] = kwargs.get("llm_name")
+
+                result = purge_entity_cascading_cache(
+                    args[0].context.get("logger"),
+                    entity_type="llm",
+                    context_keys=None,  # LLMs don't use endpoint_id directly
+                    entity_keys=entity_keys if entity_keys else None,
+                    cascade_depth=3,
                 )
 
                 ## Original function.

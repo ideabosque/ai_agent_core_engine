@@ -92,17 +92,20 @@ def purge_cache():
         def wrapper_function(*args, **kwargs):
             try:
                 # Use cascading cache purging for tool calls
-                from ..models.cache import purge_tool_call_cascading_cache
+                from ..models.cache import purge_entity_cascading_cache
 
-                try:
-                    tool_call = resolve_tool_call(args[0], **kwargs)
-                except Exception as e:
-                    tool_call = None
+                entity_keys = {}
+                if kwargs.get("thread_uuid"):
+                    entity_keys["thread_uuid"] = kwargs.get("thread_uuid")
+                if kwargs.get("tool_call_uuid"):
+                    entity_keys["tool_call_uuid"] = kwargs.get("tool_call_uuid")
 
-                cache_result = purge_tool_call_cascading_cache(
-                    thread_uuid=kwargs.get("thread_uuid"),
-                    tool_call_uuid=kwargs.get("tool_call_uuid"),
-                    logger=args[0].context.get("logger"),
+                result = purge_entity_cascading_cache(
+                    args[0].context.get("logger"),
+                    entity_type="tool_call",
+                    context_keys=None,  # Tool calls don't use endpoint_id directly
+                    entity_keys=entity_keys if entity_keys else None,
+                    cascade_depth=3,
                 )
 
                 ## Original function.

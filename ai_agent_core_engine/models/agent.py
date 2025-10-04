@@ -83,20 +83,30 @@ def purge_cache():
         def wrapper_function(*args, **kwargs):
             try:
                 # Use cascading cache purging for agents
-                from ..models.cache import purge_agent_cascading_cache
+                from ..models.cache import purge_entity_cascading_cache
 
                 try:
                     agent = resolve_agent(args[0], **kwargs)
                 except Exception as e:
                     agent = None
 
-                cache_result = purge_agent_cascading_cache(
-                    endpoint_id=args[0].context.get("endpoint_id")
-                    or kwargs.get("endpoint_id"),
-                    agent_uuid=agent.agent_uuid if agent else None,
-                    agent_version_uuid=kwargs.get("agent_version_uuid"),
-                    logger=args[0].context.get("logger"),
+                endpoint_id = args[0].context.get("endpoint_id") or kwargs.get(
+                    "endpoint_id"
                 )
+                entity_keys = {}
+                if agent:
+                    entity_keys["agent_uuid"] = agent.agent_uuid
+                if kwargs.get("agent_version_uuid"):
+                    entity_keys["agent_version_uuid"] = kwargs.get("agent_version_uuid")
+
+                result = purge_entity_cascading_cache(
+                    args[0].context.get("logger"),
+                    entity_type="agent",
+                    context_keys={"endpoint_id": endpoint_id} if endpoint_id else None,
+                    entity_keys=entity_keys if entity_keys else None,
+                    cascade_depth=3,
+                )
+
 
                 ## Original functoin.
                 result = original_function(*args, **kwargs)

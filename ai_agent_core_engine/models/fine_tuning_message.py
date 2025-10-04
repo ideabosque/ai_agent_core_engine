@@ -92,13 +92,22 @@ def purge_cache():
         def wrapper_function(*args, **kwargs):
             try:
                 # Use cascading cache purging for fine tuning messages
-                from ..models.cache import purge_fine_tuning_message_cascading_cache
+                from ..models.cache import purge_entity_cascading_cache
 
-                cache_result = purge_fine_tuning_message_cascading_cache(
-                    agent_uuid=kwargs.get("agent_uuid"),
-                    thread_uuid=kwargs.get("thread_uuid"),
-                    message_uuid=kwargs.get("message_uuid"),
-                    logger=args[0].context.get("logger"),
+                entity_keys = {}
+                if kwargs.get("agent_uuid"):
+                    entity_keys["agent_uuid"] = kwargs.get("agent_uuid")
+                if kwargs.get("thread_uuid"):
+                    entity_keys["thread_uuid"] = kwargs.get("thread_uuid")
+                if kwargs.get("message_uuid"):
+                    entity_keys["message_uuid"] = kwargs.get("message_uuid")
+
+                result = purge_entity_cascading_cache(
+                    args[0].context.get("logger"),
+                    entity_type="fine_tuning_message",
+                    context_keys=None,  # Fine tuning messages don't use endpoint_id directly
+                    entity_keys=entity_keys if entity_keys else None,
+                    cascade_depth=3,
                 )
 
                 ## Original function.

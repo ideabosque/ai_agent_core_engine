@@ -78,20 +78,30 @@ def purge_cache():
         def wrapper_function(*args, **kwargs):
             try:
                 # Use cascading cache purging for flow snippets
-                from ..models.cache import purge_flow_snippet_cascading_cache
+                from ..models.cache import purge_entity_cascading_cache
 
                 try:
                     flow_snippet = resolve_flow_snippet(args[0], **kwargs)
                 except Exception as e:
                     flow_snippet = None
 
-                cache_result = purge_flow_snippet_cascading_cache(
-                    endpoint_id=kwargs.get("endpoint_id"),
-                    flow_snippet_version_uuid=kwargs.get("flow_snippet_version_uuid"),
-                    flow_snippet_uuid=(
-                        flow_snippet.flow_snippet_uuid if flow_snippet else None
-                    ),
-                    logger=args[0].context.get("logger"),
+                endpoint_id = args[0].context.get("endpoint_id") or kwargs.get(
+                    "endpoint_id"
+                )
+                entity_keys = {}
+                if kwargs.get("flow_snippet_version_uuid"):
+                    entity_keys["flow_snippet_version_uuid"] = kwargs.get(
+                        "flow_snippet_version_uuid"
+                    )
+                if flow_snippet:
+                    entity_keys["flow_snippet_uuid"] = flow_snippet.flow_snippet_uuid
+
+                result = purge_entity_cascading_cache(
+                    args[0].context.get("logger"),
+                    entity_type="flow_snippet",
+                    context_keys={"endpoint_id": endpoint_id} if endpoint_id else None,
+                    entity_keys=entity_keys if entity_keys else None,
+                    cascade_depth=3,
                 )
 
                 ## Original function.

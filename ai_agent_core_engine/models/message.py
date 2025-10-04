@@ -82,18 +82,27 @@ def purge_cache():
         def wrapper_function(*args, **kwargs):
             try:
                 # Use cascading cache purging for messages
-                from ..models.cache import purge_message_cascading_cache
+                from ..models.cache import purge_entity_cascading_cache
 
                 try:
                     message = resolve_message(args[0], **kwargs)
                 except Exception as e:
                     message = None
 
-                cache_result = purge_message_cascading_cache(
-                    thread_uuid=kwargs.get("thread_uuid"),
-                    message_uuid=kwargs.get("message_uuid"),
-                    run_uuid=message.run["run_uuid"] if message else None,
-                    logger=args[0].context.get("logger"),
+                entity_keys = {}
+                if kwargs.get("thread_uuid"):
+                    entity_keys["thread_uuid"] = kwargs.get("thread_uuid")
+                if kwargs.get("message_uuid"):
+                    entity_keys["message_uuid"] = kwargs.get("message_uuid")
+                if message and message.run:
+                    entity_keys["run_uuid"] = message.run["run_uuid"]
+
+                result = purge_entity_cascading_cache(
+                    args[0].context.get("logger"),
+                    entity_type="message",
+                    context_keys=None,  # Messages don't use endpoint_id directly
+                    entity_keys=entity_keys if entity_keys else None,
+                    cascade_depth=3,
                 )
 
                 ## Original function.

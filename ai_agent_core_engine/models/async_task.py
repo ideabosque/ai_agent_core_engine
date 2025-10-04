@@ -74,12 +74,20 @@ def purge_cache():
         def wrapper_function(*args, **kwargs):
             try:
                 # Use cascading cache purging for async tasks
-                from ..models.cache import purge_async_task_cascading_cache
+                from ..models.cache import purge_entity_cascading_cache
 
-                cache_result = purge_async_task_cascading_cache(
-                    function_name=kwargs.get("function_name"),
-                    async_task_uuid=kwargs.get("async_task_uuid"),
-                    logger=args[0].context.get("logger"),
+                entity_keys = {}
+                if kwargs.get("function_name"):
+                    entity_keys["function_name"] = kwargs.get("function_name")
+                if kwargs.get("async_task_uuid"):
+                    entity_keys["async_task_uuid"] = kwargs.get("async_task_uuid")
+
+                result = purge_entity_cascading_cache(
+                    args[0].context.get("logger"),
+                    entity_type="async_task",
+                    context_keys=None,  # Async tasks don't use endpoint_id directly
+                    entity_keys=entity_keys if entity_keys else None,
+                    cascade_depth=3,
                 )
 
                 ## Original function.

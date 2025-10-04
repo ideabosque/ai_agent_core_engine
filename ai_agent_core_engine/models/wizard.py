@@ -57,23 +57,30 @@ def purge_cache():
         def wrapper_function(*args, **kwargs):
             try:
                 # Use cascading cache purging for wizards
-                from ..models.cache import purge_wizard_cascading_cache
+                from ..models.cache import purge_entity_cascading_cache
 
                 try:
                     wizard = resolve_wizard(args[0], **kwargs)
                 except Exception as e:
                     wizard = None
 
-                cache_result = purge_wizard_cascading_cache(
-                    endpoint_id=args[0].context.get("endpoint_id")
-                    or kwargs.get("endpoint_id"),
-                    wizard_uuid=kwargs.get("wizard_uuid"),
-                    element_uuids=(
-                        [element["element_uuid"] for element in wizard.elements]
-                        if wizard
-                        else None
-                    ),
-                    logger=args[0].context.get("logger"),
+                endpoint_id = args[0].context.get("endpoint_id") or kwargs.get(
+                    "endpoint_id"
+                )
+                entity_keys = {}
+                if kwargs.get("wizard_uuid"):
+                    entity_keys["wizard_uuid"] = kwargs.get("wizard_uuid")
+                if wizard and wizard.elements:
+                    entity_keys["element_uuids"] = [
+                        element["element_uuid"] for element in wizard.elements
+                    ]
+
+                result = purge_entity_cascading_cache(
+                    args[0].context.get("logger"),
+                    entity_type="wizard",
+                    context_keys={"endpoint_id": endpoint_id} if endpoint_id else None,
+                    entity_keys=entity_keys if entity_keys else None,
+                    cascade_depth=3,
                 )
 
                 ## Original function.
