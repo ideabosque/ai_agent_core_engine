@@ -4,6 +4,7 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
+import functools
 import logging
 import traceback
 import uuid
@@ -76,17 +77,39 @@ class AgentModel(BaseModel):
     agent_uuid_index = AgentUuidIndex()
 
 
-def _purge_cache(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
-    # Use cascading cache purging for agents
-    from ..models.cache import purge_agent_cascading_cache
-    agent = resolve_agent(info, **kwargs)
+def purge_cache():
+    def actual_decorator(original_function):
+        @functools.wraps(original_function)
+        def wrapper_function(*args, **kwargs):
+            try:
+                # Use cascading cache purging for agents
+                from ..models.cache import purge_agent_cascading_cache
 
-    cache_result = purge_agent_cascading_cache(
-        endpoint_id=kwargs.get("endpoint_id"),
-        agent_uuid=agent.agent_uuid if agent else None,
-        agent_version_uuid=kwargs.get("agent_version_uuid"),
-        logger=info.context.get("logger"),
-    )
+                try:
+                    agent = resolve_agent(args[0], **kwargs)
+                except Exception as e:
+                    agent = None
+
+                cache_result = purge_agent_cascading_cache(
+                    endpoint_id=args[0].context.get("endpoint_id")
+                    or kwargs.get("endpoint_id"),
+                    agent_uuid=agent.agent_uuid if agent else None,
+                    agent_version_uuid=kwargs.get("agent_version_uuid"),
+                    logger=args[0].context.get("logger"),
+                )
+
+                ## Original functoin.
+                result = original_function(*args, **kwargs)
+
+                return result
+            except Exception as e:
+                log = traceback.format_exc()
+                args[0].context.get("logger").error(log)
+                raise e
+
+        return wrapper_function
+
+    return actual_decorator
 
 
 def create_agent_table(logger: logging.Logger) -> bool:
@@ -262,6 +285,7 @@ def _inactivate_agents(info: ResolveInfo, endpoint_id: str, agent_uuid: str) -> 
         raise e
 
 
+@purge_cache()
 @insert_update_decorator(
     keys={
         "hash_key": "endpoint_id",
@@ -274,8 +298,6 @@ def _inactivate_agents(info: ResolveInfo, endpoint_id: str, agent_uuid: str) -> 
     # activity_history_funct=None,
 )
 def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
-    _purge_cache(info, **kwargs)
-
     endpoint_id = kwargs.get("endpoint_id")
     agent_version_uuid = kwargs.get("agent_version_uuid")
     if kwargs.get("entity") is None:
@@ -393,6 +415,7 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     return
 
 
+@purge_cache()
 @delete_decorator(
     keys={
         "hash_key": "endpoint_id",
@@ -401,8 +424,6 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     model_funct=get_agent,
 )
 def delete_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
-    _purge_cache(info, **kwargs)
-
     thread_list = resolve_thread_list(
         info,
         **{

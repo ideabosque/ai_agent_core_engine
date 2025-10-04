@@ -4,6 +4,7 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
+import functools
 import logging
 import traceback
 from typing import Any, Dict
@@ -110,15 +111,37 @@ def get_tool_call_count(thread_uuid: str, tool_call_uuid: str) -> int:
     )
 
 
-def _purge_cache(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
-    # Use cascading cache purging for tool calls
-    from ..models.cache import purge_tool_call_cascading_cache
+def purge_cache():
+    def actual_decorator(original_function):
+        @functools.wraps(original_function)
+        def wrapper_function(*args, **kwargs):
+            try:
+                # Use cascading cache purging for tool calls
+                from ..models.cache import purge_tool_call_cascading_cache
 
-    cache_result = purge_tool_call_cascading_cache(
-        thread_uuid=kwargs.get("thread_uuid"),
-        tool_call_uuid=kwargs.get("tool_call_uuid"),
-        logger=info.context.get("logger"),
-    )
+                try:
+                    tool_call = resolve_tool_call(args[0], **kwargs)
+                except Exception as e:
+                    tool_call = None
+
+                cache_result = purge_tool_call_cascading_cache(
+                    thread_uuid=kwargs.get("thread_uuid"),
+                    tool_call_uuid=kwargs.get("tool_call_uuid"),
+                    logger=args[0].context.get("logger"),
+                )
+
+                ## Original function.
+                result = original_function(*args, **kwargs)
+
+                return result
+            except Exception as e:
+                log = traceback.format_exc()
+                args[0].context.get("logger").error(log)
+                raise e
+
+        return wrapper_function
+
+    return actual_decorator
 
 
 def get_tool_call_type(info: ResolveInfo, tool_call: ToolCallModel) -> ToolCallType:
@@ -188,6 +211,7 @@ def resolve_tool_call_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     return inquiry_funct, count_funct, args
 
 
+@purge_cache()
 @insert_update_decorator(
     keys={"hash_key": "thread_uuid", "range_key": "tool_call_uuid"},
     model_funct=get_tool_call,
@@ -197,7 +221,6 @@ def resolve_tool_call_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     # activity_history_funct=None,
 )
 def insert_update_tool_call(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
-    _purge_cache(info, **kwargs)
 
     thread_uuid = kwargs.get("thread_uuid")
     tool_call_uuid = kwargs.get("tool_call_uuid")
@@ -262,12 +285,12 @@ def insert_update_tool_call(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None
     return
 
 
+@purge_cache()
 @delete_decorator(
     keys={"hash_key": "thread_uuid", "range_key": "tool_call_uuid"},
     model_funct=get_tool_call,
 )
 def delete_tool_call(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
-    _purge_cache(info, **kwargs)
 
     kwargs.get("entity").delete()
     return True

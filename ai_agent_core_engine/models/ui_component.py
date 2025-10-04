@@ -4,6 +4,7 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
+import functools
 import logging
 import traceback
 import uuid
@@ -76,15 +77,32 @@ def get_ui_component_count(ui_component_type: str, ui_component_uuid: str) -> in
     )
 
 
-def _purge_cache(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
-    # Use cascading cache purging for ui components
-    from ..models.cache import purge_ui_component_cascading_cache
+def purge_cache():
+    def actual_decorator(original_function):
+        @functools.wraps(original_function)
+        def wrapper_function(*args, **kwargs):
+            try:
+                # Use cascading cache purging for ui components
+                from ..models.cache import purge_ui_component_cascading_cache
 
-    cache_result = purge_ui_component_cascading_cache(
-        ui_component_type=kwargs.get("ui_component_type"),
-        ui_component_uuid=kwargs.get("ui_component_uuid"),
-        logger=info.context.get("logger"),
-    )
+                cache_result = purge_ui_component_cascading_cache(
+                    ui_component_type=kwargs.get("ui_component_type"),
+                    ui_component_uuid=kwargs.get("ui_component_uuid"),
+                    logger=args[0].context.get("logger"),
+                )
+
+                ## Original function.
+                result = original_function(*args, **kwargs)
+
+                return result
+            except Exception as e:
+                log = traceback.format_exc()
+                args[0].context.get("logger").error(log)
+                raise e
+
+        return wrapper_function
+
+    return actual_decorator
 
 
 def get_ui_component_type(
@@ -134,6 +152,7 @@ def resolve_ui_component_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> An
     return inquiry_funct, count_funct, args
 
 
+@purge_cache()
 @insert_update_decorator(
     keys={
         "hash_key": "ui_component_type",
@@ -144,7 +163,6 @@ def resolve_ui_component_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> An
     type_funct=get_ui_component_type,
 )
 def insert_update_ui_component(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
-    _purge_cache(info, **kwargs)
 
     ui_component_type = kwargs.get("ui_component_type")
     ui_component_uuid = kwargs.get("ui_component_uuid")
@@ -186,6 +204,7 @@ def insert_update_ui_component(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
     return
 
 
+@purge_cache()
 @delete_decorator(
     keys={
         "hash_key": "ui_component_type",
@@ -194,7 +213,6 @@ def insert_update_ui_component(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
     model_funct=get_ui_component,
 )
 def delete_ui_component(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
-    _purge_cache(info, **kwargs)
 
     kwargs["entity"].delete()
     return True

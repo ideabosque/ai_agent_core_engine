@@ -4,6 +4,7 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
+import functools
 import logging
 import traceback
 from typing import Any, Dict
@@ -98,17 +99,38 @@ def get_message_count(thread_uuid: str, message_uuid: str) -> int:
     return MessageModel.count(thread_uuid, MessageModel.message_uuid == message_uuid)
 
 
-def _purge_cache(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
-    # Use cascading cache purging for messages
-    from ..models.cache import purge_message_cascading_cache
-    message = resolve_message(info, **kwargs)
+def purge_cache():
+    def actual_decorator(original_function):
+        @functools.wraps(original_function)
+        def wrapper_function(*args, **kwargs):
+            try:
+                # Use cascading cache purging for messages
+                from ..models.cache import purge_message_cascading_cache
 
-    cache_result = purge_message_cascading_cache(
-        thread_uuid=kwargs.get("thread_uuid"),
-        message_uuid=kwargs.get("message_uuid"),
-        run_uuid=message.run["run_uuid"] if message else None,
-        logger=info.context.get("logger"),
-    )
+                try:
+                    message = resolve_message(args[0], **kwargs)
+                except Exception as e:
+                    message = None
+
+                cache_result = purge_message_cascading_cache(
+                    thread_uuid=kwargs.get("thread_uuid"),
+                    message_uuid=kwargs.get("message_uuid"),
+                    run_uuid=message.run["run_uuid"] if message else None,
+                    logger=args[0].context.get("logger"),
+                )
+
+                ## Original function.
+                result = original_function(*args, **kwargs)
+
+                return result
+            except Exception as e:
+                log = traceback.format_exc()
+                args[0].context.get("logger").error(log)
+                raise e
+
+        return wrapper_function
+
+    return actual_decorator
 
 
 def get_message_type(info: ResolveInfo, message: MessageModel) -> MessageType:
@@ -171,6 +193,7 @@ def resolve_message_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     return inquiry_funct, count_funct, args
 
 
+@purge_cache()
 @insert_update_decorator(
     keys={"hash_key": "thread_uuid", "range_key": "message_uuid"},
     model_funct=get_message,
@@ -180,7 +203,6 @@ def resolve_message_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     # activity_history_funct=None,
 )
 def insert_update_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
-    _purge_cache(info, **kwargs)
 
     thread_uuid = kwargs.get("thread_uuid")
     message_uuid = kwargs.get("message_uuid")
@@ -231,12 +253,12 @@ def insert_update_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     return
 
 
+@purge_cache()
 @delete_decorator(
     keys={"hash_key": "thread_uuid", "range_key": "message_uuid"},
     model_funct=get_message,
 )
 def delete_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
-    _purge_cache(info, **kwargs)
 
     kwargs.get("entity").delete()
     return True

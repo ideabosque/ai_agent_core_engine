@@ -4,7 +4,9 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
+import functools
 import logging
+import traceback
 from typing import Any, Dict
 
 import pendulum
@@ -63,15 +65,32 @@ def get_llm_count(llm_provider: str, llm_name: str) -> int:
     return LlmModel.count(llm_provider, LlmModel.llm_name == llm_name)
 
 
-def _purge_cache(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
-    # Use cascading cache purging for llms
-    from ..models.cache import purge_llm_cascading_cache
+def purge_cache():
+    def actual_decorator(original_function):
+        @functools.wraps(original_function)
+        def wrapper_function(*args, **kwargs):
+            try:
+                # Use cascading cache purging for llms
+                from ..models.cache import purge_llm_cascading_cache
 
-    cache_result = purge_llm_cascading_cache(
-        llm_provider=kwargs.get("llm_provider"),
-        llm_name=kwargs.get("llm_name"),
-        logger=info.context.get("logger"),
-    )
+                cache_result = purge_llm_cascading_cache(
+                    llm_provider=kwargs.get("llm_provider"),
+                    llm_name=kwargs.get("llm_name"),
+                    logger=args[0].context.get("logger"),
+                )
+
+                ## Original function.
+                result = original_function(*args, **kwargs)
+
+                return result
+            except Exception as e:
+                log = traceback.format_exc()
+                args[0].context.get("logger").error(log)
+                raise e
+
+        return wrapper_function
+
+    return actual_decorator
 
 
 def get_llm_type(info: ResolveInfo, llm: LlmModel) -> LlmType:
@@ -116,6 +135,7 @@ def resolve_llm_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     return inquiry_funct, count_funct, args
 
 
+@purge_cache()
 @insert_update_decorator(
     keys={
         "hash_key": "llm_provider",
@@ -129,7 +149,6 @@ def resolve_llm_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     # activity_history_funct=None,
 )
 def insert_update_llm(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
-    _purge_cache(info, **kwargs)
 
     llm_provider = kwargs.get("llm_provider")
     llm_name = kwargs.get("llm_name")
@@ -173,6 +192,7 @@ def insert_update_llm(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     return
 
 
+@purge_cache()
 @delete_decorator(
     keys={
         "hash_key": "llm_provider",
@@ -181,7 +201,6 @@ def insert_update_llm(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     model_funct=get_llm,
 )
 def delete_llm(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
-    _purge_cache(info, **kwargs)
 
     agent_list = resolve_agent_list(
         info,

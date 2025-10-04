@@ -5,7 +5,9 @@ from __future__ import print_function
 __author__ = "bibow"
 
 import asyncio
+import functools
 import logging
+import traceback
 from typing import Any, Dict
 
 import pendulum
@@ -66,15 +68,32 @@ def get_mcp_server_count(endpoint_id: str, mcp_server_uuid: str) -> int:
     )
 
 
-def _purge_cache(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
-    # Use cascading cache purging for mcp servers
-    from ..models.cache import purge_mcp_server_cascading_cache
+def purge_cache():
+    def actual_decorator(original_function):
+        @functools.wraps(original_function)
+        def wrapper_function(*args, **kwargs):
+            try:
+                # Use cascading cache purging for mcp servers
+                from ..models.cache import purge_mcp_server_cascading_cache
 
-    cache_result = purge_mcp_server_cascading_cache(
-        endpoint_id=kwargs.get("endpoint_id"),
-        mcp_server_uuid=kwargs.get("mcp_server_uuid"),
-        logger=info.context.get("logger"),
-    )
+                cache_result = purge_mcp_server_cascading_cache(
+                    endpoint_id=kwargs.get("endpoint_id"),
+                    mcp_server_uuid=kwargs.get("mcp_server_uuid"),
+                    logger=args[0].context.get("logger"),
+                )
+
+                ## Original function.
+                result = original_function(*args, **kwargs)
+
+                return result
+            except Exception as e:
+                log = traceback.format_exc()
+                args[0].context.get("logger").error(log)
+                raise e
+
+        return wrapper_function
+
+    return actual_decorator
 
 
 async def _run_list_tools(info: ResolveInfo, mcp_server: MCPServerModel):
@@ -139,6 +158,7 @@ def resolve_mcp_server_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     return inquiry_funct, count_funct, args
 
 
+@purge_cache()
 @insert_update_decorator(
     keys={
         "hash_key": "endpoint_id",
@@ -149,7 +169,6 @@ def resolve_mcp_server_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     type_funct=get_mcp_server_type,
 )
 def insert_update_mcp_server(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
-    _purge_cache(info, **kwargs)
 
     endpoint_id = kwargs.get("endpoint_id")
     mcp_server_uuid = kwargs.get("mcp_server_uuid")
@@ -192,6 +211,7 @@ def insert_update_mcp_server(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Non
     return
 
 
+@purge_cache()
 @delete_decorator(
     keys={
         "hash_key": "endpoint_id",
@@ -200,7 +220,6 @@ def insert_update_mcp_server(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Non
     model_funct=get_mcp_server,
 )
 def delete_mcp_server(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
-    _purge_cache(info, **kwargs)
 
     kwargs["entity"].delete()
     return True

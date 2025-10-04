@@ -4,6 +4,7 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
+import functools
 import logging
 import traceback
 from typing import Any, Dict
@@ -77,17 +78,43 @@ def get_wizard_group_count(endpoint_id: str, wizard_group_uuid: str) -> int:
     )
 
 
-def _purge_cache(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
-    # Use cascading cache purging for wizard groups
-    from ..models.cache import purge_wizard_group_cascading_cache
-    wizard_group = resolve_wizard_group(info, **kwargs)
+def purge_cache():
+    def actual_decorator(original_function):
+        @functools.wraps(original_function)
+        def wrapper_function(*args, **kwargs):
+            try:
+                # Use cascading cache purging for wizard groups
+                from ..models.cache import purge_wizard_group_cascading_cache
 
-    cache_result = purge_wizard_group_cascading_cache(
-        endpoint_id=kwargs.get("endpoint_id"),
-        wizard_group_uuid=kwargs.get("wizard_group_uuid"),
-        wizard_uuids=[wizard["wizard_uuid"] for wizard in wizard_group.wizards] if wizard_group else [],
-        logger=info.context.get("logger"),
-    )
+                try:
+                    wizard_group = resolve_wizard_group(args[0], **kwargs)
+                except Exception as e:
+                    wizard_group = None
+
+                cache_result = purge_wizard_group_cascading_cache(
+                    endpoint_id=args[0].context.get("endpoint_id")
+                    or kwargs.get("endpoint_id"),
+                    wizard_group_uuid=kwargs.get("wizard_group_uuid"),
+                    wizard_uuids=(
+                        [wizard["wizard_uuid"] for wizard in wizard_group.wizards]
+                        if wizard_group
+                        else []
+                    ),
+                    logger=args[0].context.get("logger"),
+                )
+
+                ## Original function.
+                result = original_function(*args, **kwargs)
+
+                return result
+            except Exception as e:
+                log = traceback.format_exc()
+                args[0].context.get("logger").error(log)
+                raise e
+
+        return wrapper_function
+
+    return actual_decorator
 
 
 def get_wizard_group_type(
@@ -148,6 +175,7 @@ def resolve_wizard_group_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> An
     return inquiry_funct, count_funct, args
 
 
+@purge_cache()
 @insert_update_decorator(
     keys={
         "hash_key": "endpoint_id",
@@ -158,7 +186,6 @@ def resolve_wizard_group_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> An
     type_funct=get_wizard_group_type,
 )
 def insert_update_wizard_group(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
-    _purge_cache(info, **kwargs)
 
     endpoint_id = kwargs.get("endpoint_id")
     wizard_group_uuid = kwargs.get("wizard_group_uuid")
@@ -202,6 +229,7 @@ def insert_update_wizard_group(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
     return
 
 
+@purge_cache()
 @delete_decorator(
     keys={
         "hash_key": "endpoint_id",
@@ -210,7 +238,6 @@ def insert_update_wizard_group(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
     model_funct=get_wizard_group,
 )
 def delete_wizard_group(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
-    _purge_cache(info, **kwargs)
 
     kwargs["entity"].delete()
     return True

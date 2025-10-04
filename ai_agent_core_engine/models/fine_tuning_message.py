@@ -3,8 +3,10 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
+import functools
 import logging
 import time
+import traceback
 from typing import Any, Dict
 
 import pendulum
@@ -111,16 +113,33 @@ def get_fine_tuning_message_count(agent_uuid: str, message_uuid: str) -> int:
     )
 
 
-def _purge_cache(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
-    # Use cascading cache purging for fine tuning messages
-    from ..models.cache import purge_fine_tuning_message_cascading_cache
+def purge_cache():
+    def actual_decorator(original_function):
+        @functools.wraps(original_function)
+        def wrapper_function(*args, **kwargs):
+            try:
+                # Use cascading cache purging for fine tuning messages
+                from ..models.cache import purge_fine_tuning_message_cascading_cache
 
-    cache_result = purge_fine_tuning_message_cascading_cache(
-        agent_uuid=kwargs.get("agent_uuid"),
-        thread_uuid=kwargs.get("thread_uuid"),
-        message_uuid=kwargs.get("message_uuid"),
-        logger=info.context.get("logger"),
-    )
+                cache_result = purge_fine_tuning_message_cascading_cache(
+                    agent_uuid=kwargs.get("agent_uuid"),
+                    thread_uuid=kwargs.get("thread_uuid"),
+                    message_uuid=kwargs.get("message_uuid"),
+                    logger=args[0].context.get("logger"),
+                )
+
+                ## Original function.
+                result = original_function(*args, **kwargs)
+
+                return result
+            except Exception as e:
+                log = traceback.format_exc()
+                args[0].context.get("logger").error(log)
+                raise e
+
+        return wrapper_function
+
+    return actual_decorator
 
 
 def get_fine_tuning_message_type(
@@ -208,6 +227,7 @@ def resolve_fine_tuning_message_list(
     return inquiry_funct, count_funct, args
 
 
+@purge_cache()
 @insert_update_decorator(
     keys={
         "hash_key": "agent_uuid",
@@ -221,7 +241,6 @@ def resolve_fine_tuning_message_list(
 def insert_update_fine_tuning_message(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> None:
-    _purge_cache(info, **kwargs)
 
     agent_uuid = kwargs["agent_uuid"]
     message_uuid = kwargs["message_uuid"]
@@ -271,6 +290,7 @@ def insert_update_fine_tuning_message(
     return
 
 
+@purge_cache()
 @delete_decorator(
     keys={
         "hash_key": "agent_uuid",
@@ -279,7 +299,6 @@ def insert_update_fine_tuning_message(
     model_funct=get_fine_tuning_message,
 )
 def delete_fine_tuning_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
-    _purge_cache(info, **kwargs)
 
     kwargs.get("entity").delete()
     return True

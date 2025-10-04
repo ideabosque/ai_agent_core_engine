@@ -4,7 +4,9 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
+import functools
 import logging
+import traceback
 from typing import Any, Dict
 
 import pendulum
@@ -94,15 +96,32 @@ def get_async_task_count(endpoint_id: str, async_task_uuid: str) -> int:
     )
 
 
-def _purge_cache(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
-    # Use cascading cache purging for async tasks
-    from ..models.cache import purge_async_task_cascading_cache
+def purge_cache():
+    def actual_decorator(original_function):
+        @functools.wraps(original_function)
+        def wrapper_function(*args, **kwargs):
+            try:
+                # Use cascading cache purging for async tasks
+                from ..models.cache import purge_async_task_cascading_cache
 
-    cache_result = purge_async_task_cascading_cache(
-        function_name=kwargs.get("function_name"),
-        async_task_uuid=kwargs.get("async_task_uuid"),
-        logger=info.context.get("logger"),
-    )
+                cache_result = purge_async_task_cascading_cache(
+                    function_name=kwargs.get("function_name"),
+                    async_task_uuid=kwargs.get("async_task_uuid"),
+                    logger=args[0].context.get("logger"),
+                )
+
+                ## Original function.
+                result = original_function(*args, **kwargs)
+
+                return result
+            except Exception as e:
+                log = traceback.format_exc()
+                args[0].context.get("logger").error(log)
+                raise e
+
+        return wrapper_function
+
+    return actual_decorator
 
 
 def get_async_task_type(info: ResolveInfo, async_task: AsyncTaskModel) -> AsyncTaskType:
@@ -151,6 +170,7 @@ def resolve_async_task_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     return inquiry_funct, count_funct, args
 
 
+@purge_cache()
 @insert_update_decorator(
     keys={
         "hash_key": "function_name",
@@ -163,7 +183,6 @@ def resolve_async_task_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     # activity_history_funct=None,
 )
 def insert_update_async_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
-    _purge_cache(info, **kwargs)
 
     function_name = kwargs.get("function_name")
     async_task_uuid = kwargs.get("async_task_uuid")
@@ -227,6 +246,7 @@ def insert_update_async_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Non
     return
 
 
+@purge_cache()
 @delete_decorator(
     keys={
         "hash_key": "function_name",
@@ -235,7 +255,6 @@ def insert_update_async_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Non
     model_funct=get_async_task,
 )
 def delete_async_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
-    _purge_cache(info, **kwargs)
 
     kwargs.get("entity").delete()
     return True

@@ -4,6 +4,7 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
+import functools
 import logging
 import traceback
 from typing import Any, Dict
@@ -86,15 +87,32 @@ def get_run_count(thread_uuid: str, run_uuid: str) -> int:
     return RunModel.count(thread_uuid, RunModel.run_uuid == run_uuid)
 
 
-def _purge_cache(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
-    # Use cascading cache purging for runs
-    from ..models.cache import purge_run_cascading_cache
+def purge_cache():
+    def actual_decorator(original_function):
+        @functools.wraps(original_function)
+        def wrapper_function(*args, **kwargs):
+            try:
+                # Use cascading cache purging for runs
+                from ..models.cache import purge_run_cascading_cache
 
-    cache_result = purge_run_cascading_cache(
-        thread_uuid=kwargs.get("thread_uuid"),
-        run_uuid=kwargs.get("run_uuid"),
-        logger=info.context.get("logger"),
-    )
+                cache_result = purge_run_cascading_cache(
+                    thread_uuid=kwargs.get("thread_uuid"),
+                    run_uuid=kwargs.get("run_uuid"),
+                    logger=args[0].context.get("logger"),
+                )
+
+                ## Original function.
+                result = original_function(*args, **kwargs)
+
+                return result
+            except Exception as e:
+                log = traceback.format_exc()
+                args[0].context.get("logger").error(log)
+                raise e
+
+        return wrapper_function
+
+    return actual_decorator
 
 
 def get_run_type(info: ResolveInfo, run: RunModel) -> RunType:
@@ -169,6 +187,7 @@ def resolve_run_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     return inquiry_funct, count_funct, args
 
 
+@purge_cache()
 @insert_update_decorator(
     keys={
         "hash_key": "thread_uuid",
@@ -181,7 +200,6 @@ def resolve_run_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     # activity_history_funct=None,
 )
 def insert_update_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
-    _purge_cache(info, **kwargs)
 
     thread_uuid = kwargs.get("thread_uuid")
     run_uuid = kwargs.get("run_uuid")
@@ -232,6 +250,7 @@ def insert_update_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     return
 
 
+@purge_cache()
 @delete_decorator(
     keys={
         "hash_key": "thread_uuid",
@@ -240,7 +259,6 @@ def insert_update_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     model_funct=get_run,
 )
 def delete_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
-    _purge_cache(info, **kwargs)
 
     message_list = resolve_message_list(
         info,

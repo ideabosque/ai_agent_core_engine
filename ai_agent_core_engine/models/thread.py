@@ -4,6 +4,7 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
+import functools
 import logging
 import traceback
 from typing import Any, Dict
@@ -97,15 +98,32 @@ def get_thread_count(endpoint_id: str, thread_uuid: str) -> int:
     return ThreadModel.count(endpoint_id, ThreadModel.thread_uuid == thread_uuid)
 
 
-def _purge_cache(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
-    # Use cascading cache purging for threads
-    from ..models.cache import purge_thread_cascading_cache
+def purge_cache():
+    def actual_decorator(original_function):
+        @functools.wraps(original_function)
+        def wrapper_function(*args, **kwargs):
+            try:
+                # Use cascading cache purging for threads
+                from ..models.cache import purge_thread_cascading_cache
 
-    cache_result = purge_thread_cascading_cache(
-        endpoint_id=kwargs.get("endpoint_id"),
-        thread_uuid=kwargs.get("thread_uuid"),
-        logger=info.context.get("logger"),
-    )
+                cache_result = purge_thread_cascading_cache(
+                    endpoint_id=kwargs.get("endpoint_id"),
+                    thread_uuid=kwargs.get("thread_uuid"),
+                    logger=args[0].context.get("logger"),
+                )
+
+                ## Original function.
+                result = original_function(*args, **kwargs)
+
+                return result
+            except Exception as e:
+                log = traceback.format_exc()
+                args[0].context.get("logger").error(log)
+                raise e
+
+        return wrapper_function
+
+    return actual_decorator
 
 
 def get_thread_type(info: ResolveInfo, thread: ThreadModel) -> ThreadType:
@@ -218,6 +236,7 @@ def resolve_thread_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     return inquiry_funct, count_funct, args
 
 
+@purge_cache()
 @insert_update_decorator(
     keys={
         "hash_key": "endpoint_id",
@@ -230,7 +249,6 @@ def resolve_thread_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     # activity_history_funct=None,
 )
 def insert_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
-    _purge_cache(info, **kwargs)
 
     endpoint_id = kwargs.get("endpoint_id")
     thread_uuid = kwargs.get("thread_uuid")
@@ -252,6 +270,7 @@ def insert_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     return
 
 
+@purge_cache()
 @delete_decorator(
     keys={
         "hash_key": "endpoint_id",
@@ -260,7 +279,6 @@ def insert_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     model_funct=get_thread,
 )
 def delete_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
-    _purge_cache(info, **kwargs)
 
     run_list = resolve_run_list(
         info,

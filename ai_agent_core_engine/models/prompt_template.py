@@ -4,6 +4,7 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
+import functools
 import logging
 import traceback
 import uuid
@@ -140,21 +141,41 @@ def get_prompt_template_count(endpoint_id: str, prompt_version_uuid: str) -> int
     )
 
 
-def _purge_cache(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
-    # Use cascading cache purging for prompt templates
-    from ..models.cache import purge_prompt_template_cascading_cache
-    prompt_template = resolve_prompt_template(info, **kwargs)
+def purge_cache():
+    def actual_decorator(original_function):
+        @functools.wraps(original_function)
+        def wrapper_function(*args, **kwargs):
+            try:
+                # Use cascading cache purging for prompt templates
+                from ..models.cache import purge_prompt_template_cascading_cache
 
-    cache_result = purge_prompt_template_cascading_cache(
-        endpoint_id=kwargs.get("endpoint_id"),
-        prompt_version_uuid=kwargs.get("prompt_version_uuid"),
-        prompt_uuid=(
-            prompt_template.prompt_uuid
-            if prompt_template
-            else None
-        ),
-        logger=info.context.get("logger"),
-    )
+                try:
+                    prompt_template = resolve_prompt_template(args[0], **kwargs)
+                except Exception as e:
+                    prompt_template = None
+
+                cache_result = purge_prompt_template_cascading_cache(
+                    endpoint_id=args[0].context.get("endpoint_id")
+                    or kwargs.get("endpoint_id"),
+                    prompt_version_uuid=kwargs.get("prompt_version_uuid"),
+                    prompt_uuid=(
+                        prompt_template.prompt_uuid if prompt_template else None
+                    ),
+                    logger=args[0].context.get("logger"),
+                )
+
+                ## Original function.
+                result = original_function(*args, **kwargs)
+
+                return result
+            except Exception as e:
+                log = traceback.format_exc()
+                args[0].context.get("logger").error(log)
+                raise e
+
+        return wrapper_function
+
+    return actual_decorator
 
 
 def get_prompt_template_type(
@@ -254,6 +275,7 @@ def _inactivate_prompt_templates(
         raise e
 
 
+@purge_cache()
 @insert_update_decorator(
     keys={
         "hash_key": "endpoint_id",
@@ -264,7 +286,6 @@ def _inactivate_prompt_templates(
     type_funct=get_prompt_template_type,
 )
 def insert_update_prompt_template(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
-    _purge_cache(info, **kwargs)
 
     endpoint_id = kwargs.get("endpoint_id")
     prompt_version_uuid = kwargs.get("prompt_version_uuid")
@@ -357,6 +378,7 @@ def insert_update_prompt_template(info: ResolveInfo, **kwargs: Dict[str, Any]) -
     return
 
 
+@purge_cache()
 @delete_decorator(
     keys={
         "hash_key": "endpoint_id",
@@ -365,7 +387,6 @@ def insert_update_prompt_template(info: ResolveInfo, **kwargs: Dict[str, Any]) -
     model_funct=get_prompt_template,
 )
 def delete_prompt_template(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
-    _purge_cache(info, **kwargs)
 
     if kwargs["entity"].status == "active":
         results = PromptTemplateModel.prompt_uuid_index.query(
