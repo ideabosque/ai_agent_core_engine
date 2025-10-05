@@ -241,7 +241,7 @@ def calculate_num_tokens(agent: dict[str, Any], text: str) -> int:
         Exception: If there is an error getting the encoding or calculating tokens
     """
     try:
-        if agent.llm["llm_name"] == "openai":
+        if agent.llm["llm_name"] == "gpt":
             try:
                 encoding = tiktoken.encoding_for_model(agent.configuration["model"])
                 num_tokens = len(encoding.encode(text))
@@ -561,13 +561,18 @@ def __build_detail_element(detail_data: Dict[str, Any]) -> ET.Element:
         element = _build_branch_element(detail_data)
     return element
 
+
 def __process_after_build_detail_element(detail_data: Dict[str, Any]) -> ET.Element:
     element = None
-    if detail_data.get("type") == "action" and detail_data.get("formData", {}).get("type") == "get_contact_profile":
+    if (
+        detail_data.get("type") == "action"
+        and detail_data.get("formData", {}).get("type") == "get_contact_profile"
+    ):
         element = ET.Element("WaitFor")
         element.text = "contact_uuid"
 
     return element
+
 
 def _json_to_xml(json_data: List[Dict[str, Any]]) -> str:
     """

@@ -335,7 +335,7 @@ def _update_user_message_with_files(
     updated_by: str,
 ) -> None:
     """Helper function to update message content with file references"""
-    if agent.llm["llm_name"] == "openai":
+    if agent.llm["llm_name"] == "gpt":
         message_content = [{"type": "input_text", "text": user_message.message}]
 
         # Add each file reference to content array
@@ -410,7 +410,7 @@ def upload_file(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
                 "file_detail": file.__dict__,
             }
         )
-    elif agent.llm["llm_name"] == "openai":
+    elif agent.llm["llm_name"] == "gpt":
         info.context["logger"].info(f"File: {file}.")
         return FileType(**{"identity": "id", "value": file["id"], "file_detail": file})
     else:
@@ -434,7 +434,7 @@ def get_file(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
 
     file = ai_agent_handler.get_file(**kwargs["arguments"])
 
-    if agent.llm["llm_name"] == "openai":
+    if agent.llm["llm_name"] == "gpt":
         return FileType(**{"identity": "id", "value": file["id"], "file_detail": file})
     elif agent.llm["llm_name"] == "gemini":
         return FileType(
@@ -465,7 +465,7 @@ def get_output_file(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
 
     file = ai_agent_handler.get_output_file(**kwargs["arguments"])
 
-    if agent.llm["llm_name"] == "openai":
+    if agent.llm["llm_name"] == "gpt":
         return FileType(**{"identity": "id", "value": file["id"], "file_detail": file})
     else:
         raise Exception(f"Unsupported LLM: {agent.llm['llm_name']}")
