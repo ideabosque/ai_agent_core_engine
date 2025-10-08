@@ -265,7 +265,7 @@ def calculate_num_tokens(agent: dict[str, Any], text: str) -> int:
             ).input_tokens
             return num_tokens
         else:
-            raise Exception(f"Unsupported LLM: {agent.llm['llm_name']}")
+            return max(1, len(text) // 4)
     except Exception as e:
         # Log error and re-raise
         raise e
