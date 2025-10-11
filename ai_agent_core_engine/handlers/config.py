@@ -26,6 +26,7 @@ class Config:
     apigw_client = None
     schemas = {}
     xml_convert = None
+    internal_mcp = None
 
     # Cache Configuration
     CACHE_TTL = 1800  # 30 minutes default TTL
@@ -158,47 +159,47 @@ class Config:
                 "entity_type": "thread",
                 "list_resolver": "resolve_thread_list",
                 "module": "thread",
-                "dependency_key": "agent_uuid"
+                "dependency_key": "agent_uuid",
             },
             {
                 "entity_type": "fine_tuning_message",
                 "list_resolver": "resolve_fine_tuning_message_list",
                 "module": "fine_tuning_message",
-                "dependency_key": "agent_uuid"
-            }
+                "dependency_key": "agent_uuid",
+            },
         ],
         "thread": [
             {
                 "entity_type": "run",
                 "list_resolver": "resolve_run_list",
                 "module": "run",
-                "dependency_key": "thread_uuid"
+                "dependency_key": "thread_uuid",
             },
             {
                 "entity_type": "message",
                 "list_resolver": "resolve_message_list",
                 "module": "message",
-                "dependency_key": "thread_uuid"
+                "dependency_key": "thread_uuid",
             },
             {
                 "entity_type": "tool_call",
                 "list_resolver": "resolve_tool_call_list",
                 "module": "tool_call",
-                "dependency_key": "thread_uuid"
+                "dependency_key": "thread_uuid",
             },
             {
                 "entity_type": "fine_tuning_message",
                 "list_resolver": "resolve_fine_tuning_message_list",
                 "module": "fine_tuning_message",
-                "dependency_key": "thread_uuid"
-            }
+                "dependency_key": "thread_uuid",
+            },
         ],
         "run": [
             {
                 "entity_type": "message",
                 "list_resolver": "resolve_message_list",
                 "module": "message",
-                "dependency_key": "run_uuid"
+                "dependency_key": "run_uuid",
             }
         ],
         "llm": [
@@ -206,7 +207,7 @@ class Config:
                 "entity_type": "agent",
                 "list_resolver": "resolve_agent_list",
                 "module": "agent",
-                "dependency_key": "llm_provider"
+                "dependency_key": "llm_provider",
             }
         ],
         "flow_snippet": [
@@ -214,7 +215,7 @@ class Config:
                 "entity_type": "agent",
                 "list_resolver": "resolve_agent_list",
                 "module": "agent",
-                "dependency_key": "flow_snippet_version_uuid"
+                "dependency_key": "flow_snippet_version_uuid",
             }
         ],
         "mcp_server": [
@@ -223,7 +224,7 @@ class Config:
                 "list_resolver": "resolve_agent_list",
                 "module": "agent",
                 "dependency_key": "mcp_server_uuids",
-                "parent_key": "mcp_server_uuid"
+                "parent_key": "mcp_server_uuid",
             }
         ],
         "wizard_group": [
@@ -233,7 +234,7 @@ class Config:
                 "module": "wizard",
                 "dependency_key": "wizard_group_uuid",
                 "parent_key": "wizard_uuids",
-                "direct_clear_parent_ids": True
+                "direct_clear_parent_ids": True,
             }
         ],
         "wizard": [
@@ -243,7 +244,7 @@ class Config:
                 "module": "element",
                 "dependency_key": "element_uuid",
                 "parent_key": "element_uuids",
-                "direct_clear_parent_ids": True
+                "direct_clear_parent_ids": True,
             }
         ],
         "prompt_template": [
@@ -251,15 +252,15 @@ class Config:
                 "entity_type": "ui_component",
                 "list_resolver": "resolve_ui_component_list",
                 "module": "ui_component",
-                "dependency_key": "prompt_uuid"
+                "dependency_key": "prompt_uuid",
             },
             {
                 "entity_type": "flow_snippet",
                 "list_resolver": "resolve_flow_snippet_list",
                 "module": "flow_snippet",
-                "dependency_key": "prompt_uuid"
-            }
-        ]
+                "dependency_key": "prompt_uuid",
+            },
+        ],
     }
 
     @classmethod
@@ -275,6 +276,7 @@ class Config:
             cls._initialize_aws_services(setting)
             cls._initialize_task_queue(setting)
             cls._initialize_apigw_client(setting)
+            cls._initialize_internal_mcp(setting)
             if setting.get("test_mode") == "local_for_all":
                 cls._initialize_tables(logger)
             logger.info("Configuration initialized successfully.")
@@ -357,6 +359,25 @@ class Config:
             )
 
     @classmethod
+    def _initialize_internal_mcp(cls, setting: Dict[str, Any]) -> None:
+        """
+        Initialize internal MCP server configuration.
+        Args:
+            setting (Dict[str, Any]): Configuration dictionary.
+        """
+        if "internal_mcp" not in setting:
+            return
+        mcp_server = setting.get("internal_mcp", {})
+        cls.internal_mcp = {
+            "name": "internal_mcp",
+            "setting": {
+                "base_url": mcp_server["base_url"],
+                "bearer_token": mcp_server.get("bearer_token"),
+                "headers": mcp_server["headers"],
+            },
+        }
+
+    @classmethod
     def _initialize_tables(cls, logger: logging.Logger) -> None:
         """
         Initialize database tables by calling the utils._initialize_tables() method.
@@ -433,3 +454,13 @@ class Config:
                 test_mode=setting.get("test_mode"),
             )
         return Config.schemas[function_name]
+
+    @classmethod
+    def get_internal_mcp(cls, endpoint_id: str) -> Dict[str, Any]:
+        """Get internal MCP server configuration."""
+        if cls.internal_mcp is None:
+            return cls.internal_mcp
+
+        internal_mcp = cls.internal_mcp.copy()
+        internal_mcp["setting"]["base_url"] = internal_mcp["setting"]["base_url"].format(endpoint_id=endpoint_id)
+        return internal_mcp
