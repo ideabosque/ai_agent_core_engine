@@ -12,6 +12,7 @@ from typing import Any, Dict
 import pendulum
 from graphene import ResolveInfo
 from pynamodb.attributes import (
+    BooleanAttribute,
     ListAttribute,
     MapAttribute,
     NumberAttribute,
@@ -31,7 +32,25 @@ from silvaengine_utility import Utility, method_cache
 
 from ..handlers.config import Config
 from ..types.wizard import WizardListType, WizardType
-from .utils import _get_element
+from .utils import _get_element, _get_wizard_schema
+
+wizard_attributes_fn = lambda wizard_attributes: [
+    {
+        "name": wizard_attribute["name"],
+        "value": wizard_attribute["value"],
+    }
+    for wizard_attribute in wizard_attributes
+]
+
+wizard_elements_fn = lambda wizard_elements: [
+    {
+        "element_uuid": wizard_element["element_uuid"],
+        "required": wizard_element.get("required", False),
+        "placeholder": wizard_element.get("placeholder"),
+        "pattern": wizard_element.get("pattern"),
+    }
+    for wizard_element in wizard_elements
+]
 
 
 class WizardModel(BaseModel):
@@ -43,9 +62,11 @@ class WizardModel(BaseModel):
     wizard_title = UnicodeAttribute()
     wizard_description = UnicodeAttribute(null=True)
     wizard_type = UnicodeAttribute()
-    form_schema = UnicodeAttribute(null=True)
+    wizard_schema_type = UnicodeAttribute()
+    wizard_schema_name = UnicodeAttribute()
+    wizard_attributes = ListAttribute(of=MapAttribute)
+    wizard_elements = ListAttribute(of=MapAttribute)
     priority = NumberAttribute(default=0)
-    element_uuids = ListAttribute(null=True)
     updated_by = UnicodeAttribute()
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()
@@ -70,9 +91,10 @@ def purge_cache():
                 entity_keys = {}
                 if kwargs.get("wizard_uuid"):
                     entity_keys["wizard_uuid"] = kwargs.get("wizard_uuid")
-                if wizard and wizard.elements:
+                if wizard and wizard.wizard_elements:
                     entity_keys["element_uuids"] = [
-                        element["element_uuid"] for element in wizard.elements
+                        wizard_element["element"]["element_uuid"]
+                        for wizard_element in wizard.wizard_elements
                     ]
 
                 result = purge_entity_cascading_cache(
@@ -124,18 +146,29 @@ def get_wizard_count(endpoint_id: str, wizard_uuid: str) -> int:
 
 def get_wizard_type(info: ResolveInfo, wizard: WizardModel) -> WizardType:
     try:
-        elements = [
-            _get_element(wizard.endpoint_id, element_uuid)
-            for element_uuid in wizard.element_uuids
-        ]
+        wizard_schema = _get_wizard_schema(
+            wizard.wizard_schema_type, wizard.wizard_schema_name
+        )
+
+        wizard_elements = []
+        for wizard_element in wizard.wizard_elements:
+            wizard_element = Utility.json_normalize(wizard_element)
+            element = _get_element(
+                wizard.endpoint_id, wizard_element.pop("element_uuid")
+            )
+            wizard_element["element"] = element
+            wizard_elements.append(wizard_element)
+
+        wizard = wizard.__dict__["attribute_values"]
+        wizard["wizard_schema"] = wizard_schema
+        wizard.pop("wizard_schema_type")
+        wizard.pop("wizard_schema_name")
+        wizard["wizard_elements"] = wizard_elements
+        return WizardType(**Utility.json_normalize(wizard))
     except Exception as e:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)
         raise e
-    wizard = wizard.__dict__["attribute_values"]
-    wizard["elements"] = elements
-    wizard.pop("element_uuids")
-    return WizardType(**Utility.json_normalize(wizard))
 
 
 def resolve_wizard(info: ResolveInfo, **kwargs: Dict[str, Any]) -> WizardType:
@@ -197,9 +230,13 @@ def insert_update_wizard(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
             "wizard_title": kwargs["wizard_title"],
             "wizard_description": kwargs.get("wizard_description"),
             "wizard_type": kwargs["wizard_type"],
-            "form_schema": kwargs.get("form_schema"),
+            "wizard_schema_type": kwargs["wizard_schema_type"],
+            "wizard_schema_name": kwargs["wizard_schema_name"],
+            "wizard_attributes": wizard_attributes_fn(
+                kwargs.get("wizard_attributes", [])
+            ),
+            "wizard_elements": wizard_elements_fn(kwargs.get("wizard_elements", [])),
             "priority": kwargs.get("priority", 0),
-            "element_uuids": kwargs.get("element_uuids", []),
             "updated_by": kwargs["updated_by"],
             "created_at": pendulum.now("UTC"),
             "updated_at": pendulum.now("UTC"),
@@ -221,13 +258,24 @@ def insert_update_wizard(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
         "wizard_title": WizardModel.wizard_title,
         "wizard_description": WizardModel.wizard_description,
         "wizard_type": WizardModel.wizard_type,
-        "form_schema": WizardModel.form_schema,
+        "wizard_schema_type": WizardModel.wizard_schema_type,
+        "wizard_schema_name": WizardModel.wizard_schema_name,
+        "wizard_attributes": WizardModel.wizard_attributes,
+        "wizard_elements": WizardModel.wizard_elements,
         "priority": WizardModel.priority,
-        "element_uuids": WizardModel.element_uuids,
+    }
+
+    fn_map = {
+        "wizard_attributes": wizard_attributes_fn,
+        "wizard_elements": wizard_elements_fn,
     }
 
     for key, field in field_map.items():
         if key in kwargs:
+            if key in fn_map:
+                actions.append(field.set(fn_map[key](kwargs.get(key, []))))
+                continue
+
             actions.append(field.set(None if kwargs[key] == "null" else kwargs[key]))
 
     wizard.update(actions=actions)

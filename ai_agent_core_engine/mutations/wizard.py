@@ -25,9 +25,11 @@ class InsertUpdateWizard(Mutation):
         wizard_title = String(required=True)
         wizard_description = String(required=False)
         wizard_type = String(required=True)
-        form_schema = String(required=False)
+        wizard_schema_type = String(required=True)
+        wizard_schema_name = String(required=True)
+        wizard_attributes = List(JSON, required=False)
+        wizard_elements = List(JSON, required=False)
         priority = Int(required=False)
-        element_uuids = List(String, required=False)
         updated_by = String(required=True)
 
     @staticmethod

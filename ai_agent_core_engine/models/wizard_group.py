@@ -132,14 +132,15 @@ def get_wizard_group_type(
             _get_wizard(wizard_group.endpoint_id, wizard_uuid)
             for wizard_uuid in wizard_group.wizard_uuids
         ]
+
+        wizard_group = wizard_group.__dict__["attribute_values"]
+        wizard_group["wizards"] = wizards
+        wizard_group.pop("wizard_uuids")
+        return WizardGroupType(**Utility.json_normalize(wizard_group))
     except Exception as e:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)
         raise e
-    wizard_group = wizard_group.__dict__["attribute_values"]
-    wizard_group["wizards"] = wizards
-    wizard_group.pop("wizard_uuids")
-    return WizardGroupType(**Utility.json_normalize(wizard_group))
 
 
 def resolve_wizard_group(

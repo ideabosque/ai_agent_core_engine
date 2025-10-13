@@ -128,15 +128,16 @@ def get_run_count(thread_uuid: str, run_uuid: str) -> int:
 def get_run_type(info: ResolveInfo, run: RunModel) -> RunType:
     try:
         thread = _get_thread(run.endpoint_id, run.thread_uuid)
+
+        run = run.__dict__["attribute_values"]
+        run["thread"] = thread
+        run.pop("thread_uuid")
+        run.pop("endpoint_id")
+        return RunType(**Utility.json_normalize(run))
     except Exception as e:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)
         raise e
-    run = run.__dict__["attribute_values"]
-    run["thread"] = thread
-    run.pop("thread_uuid")
-    run.pop("endpoint_id")
-    return RunType(**Utility.json_normalize(run))
 
 
 def resolve_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> RunType:
