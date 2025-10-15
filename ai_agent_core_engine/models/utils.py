@@ -8,6 +8,8 @@ from typing import Any, Dict, List
 
 from graphene import ResolveInfo
 
+from silvaengine_utility import Utility
+
 
 def _initialize_tables(logger: logging.Logger) -> None:
     from .agent import create_agent_table
@@ -185,16 +187,15 @@ def _get_mcp_servers(
 
     internal_mcp = Config.get_internal_mcp(info.context["endpoint_id"])
     if internal_mcp:
-        mcp_servers.append(
-            get_mcp_server_type(
-                info,
-                {
-                    "headers": internal_mcp["setting"]["headers"],
-                    "mcp_label": internal_mcp["name"],
-                    "mcp_server_url": internal_mcp["setting"]["base_url"],
-                },
-            )
+        mcp_server = get_mcp_server_type(
+            info,
+            {
+                "headers": internal_mcp["setting"]["headers"],
+                "mcp_label": internal_mcp["name"],
+                "mcp_server_url": internal_mcp["setting"]["base_url"],
+            },
         )
+        mcp_servers.append(mcp_server.__dict__)
 
     return mcp_servers
 
