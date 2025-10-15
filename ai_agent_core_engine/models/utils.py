@@ -27,6 +27,7 @@ def _initialize_tables(logger: logging.Logger) -> None:
     from .ui_component import create_ui_component_table
     from .wizard import create_wizard_table
     from .wizard_group import create_wizard_group_table
+    from .wizard_schema import create_wizard_schema_table
 
     create_llm_table(logger)
     create_agent_table(logger)
@@ -38,6 +39,7 @@ def _initialize_tables(logger: logging.Logger) -> None:
     create_fine_tuning_message_table(logger)
     create_element_table(logger)
     create_wizard_table(logger)
+    create_wizard_schema_table(logger)
     create_wizard_group_table(logger)
     create_mcp_server_table(logger)
     create_ui_component_table(logger)
@@ -130,21 +132,34 @@ def _get_element(endpoint_id: str, element_uuid: str) -> Dict[str, Any]:
 
 
 def _get_wizard(endpoint_id: str, wizard_uuid: str) -> Dict[str, Any]:
+    from silvaengine_utility import Utility
+
     from .wizard import get_wizard
 
     wizard = get_wizard(endpoint_id, wizard_uuid)
-    elements = [
-        _get_element(endpoint_id, element_uuid) for element_uuid in wizard.element_uuids
-    ]
+
+    wizard_schema = _get_wizard_schema(
+        wizard.wizard_schema_type, wizard.wizard_schema_name
+    )
+
+    wizard_elements = []
+    for wizard_element in wizard.wizard_elements:
+        wizard_element = Utility.json_normalize(wizard_element)
+        element = _get_element(endpoint_id, wizard_element.pop("element_uuid"))
+        wizard_element["element"] = element
+        wizard_elements.append(wizard_element)
 
     return {
         "wizard_uuid": wizard.wizard_uuid,
         "wizard_title": wizard.wizard_title,
         "wizard_description": wizard.wizard_description,
         "wizard_type": wizard.wizard_type,
-        "form_schema": wizard.form_schema,
+        "wizard_schema": wizard_schema,
+        "wizard_attributes": [
+            Utility.json_normalize(attr) for attr in wizard.wizard_attributes
+        ],
+        "wizard_elements": wizard_elements,
         "priority": wizard.priority,
-        "elements": elements,
     }
 
 
@@ -225,6 +240,21 @@ def _get_ui_components(
         for component in ui_components
     ]
     return ui_components
+
+
+def _get_wizard_schema(
+    wizard_schema_type: str, wizard_schema_name: str
+) -> Dict[str, Any]:
+    from .wizard_schema import get_wizard_schema
+
+    wizard_schema = get_wizard_schema(wizard_schema_type, wizard_schema_name)
+
+    return {
+        "wizard_schema_type": wizard_schema.wizard_schema_type,
+        "wizard_schema_name": wizard_schema.wizard_schema_name,
+        "wizard_schema_description": wizard_schema.wizard_schema_description,
+        "attributes": wizard_schema.attributes,
+    }
 
 
 def _get_prompt_template(info: ResolveInfo, prompt_uuid: str) -> Dict[str, Any]:

@@ -147,15 +147,16 @@ def get_message_count(thread_uuid: str, message_uuid: str) -> int:
 def get_message_type(info: ResolveInfo, message: MessageModel) -> MessageType:
     try:
         run = _get_run(message.thread_uuid, message.run_uuid)
+    
+        message = message.__dict__["attribute_values"]
+        message["run"] = run
+        message.pop("thread_uuid")
+        message.pop("run_uuid")
+        return MessageType(**Utility.json_normalize(message))
     except Exception as e:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)
         raise e
-    message = message.__dict__["attribute_values"]
-    message["run"] = run
-    message.pop("thread_uuid")
-    message.pop("run_uuid")
-    return MessageType(**Utility.json_normalize(message))
 
 
 def resolve_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> MessageType:
