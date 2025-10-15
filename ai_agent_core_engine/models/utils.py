@@ -166,7 +166,7 @@ def _get_mcp_servers(
     info: ResolveInfo, mcp_servers: List[Dict[str, Any]]
 ) -> List[Dict[str, Any]]:
     from ..handlers.config import Config
-    from .mcp_server import resolve_mcp_server
+    from .mcp_server import get_mcp_server_type, resolve_mcp_server
 
     mcp_servers = [
         resolve_mcp_server(info, **{"mcp_server_uuid": mcp_server["mcp_server_uuid"]})
@@ -186,11 +186,14 @@ def _get_mcp_servers(
     internal_mcp = Config.get_internal_mcp(info.context["endpoint_id"])
     if internal_mcp:
         mcp_servers.append(
-            {
-                "headers": internal_mcp["setting"]["headers"],
-                "mcp_label": internal_mcp["name"],
-                "mcp_server_url": internal_mcp["setting"]["base_url"],
-            }
+            get_mcp_server_type(
+                info,
+                {
+                    "headers": internal_mcp["setting"]["headers"],
+                    "mcp_label": internal_mcp["name"],
+                    "mcp_server_url": internal_mcp["setting"]["base_url"],
+                },
+            )
         )
 
     return mcp_servers
