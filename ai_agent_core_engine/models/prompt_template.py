@@ -194,7 +194,13 @@ def get_prompt_template_type(
         mcp_servers = _get_mcp_servers(info, prompt_template.mcp_servers)
         internal_mcp = Config.get_internal_mcp(info.context["endpoint_id"])
         if internal_mcp:
-            mcp_servers.append(internal_mcp)
+            mcp_servers.append(
+                {
+                    "headers": internal_mcp["setting"]["headers"],
+                    "mcp_label": internal_mcp["name"],
+                    "mcp_server_url": internal_mcp["setting"]["base_url"],
+                }
+            )
 
         ui_components = _get_ui_components(info, prompt_template.ui_components)
     except Exception as e:
