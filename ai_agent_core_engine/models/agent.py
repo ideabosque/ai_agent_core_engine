@@ -204,10 +204,6 @@ def get_agent_type(info: ResolveInfo, agent: AgentModel) -> AgentType:
         for mcp_server in mcp_servers
     ]
 
-    internal_mcp = Config.get_internal_mcp(info.context["endpoint_id"])
-    if internal_mcp:
-        agent["mcp_servers"].append(internal_mcp)
-
     agent["flow_snippet"] = flow_snippet
     agent.pop("llm_provider")
     agent.pop("llm_name")

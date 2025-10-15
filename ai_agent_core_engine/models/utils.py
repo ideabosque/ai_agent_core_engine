@@ -165,6 +165,7 @@ def _get_flow_snippet(endpoint_id: str, flow_snippet_uuid: str) -> Dict[str, Any
 def _get_mcp_servers(
     info: ResolveInfo, mcp_servers: List[Dict[str, Any]]
 ) -> List[Dict[str, Any]]:
+    from ..handlers.config import Config
     from .mcp_server import resolve_mcp_server
 
     mcp_servers = [
@@ -181,6 +182,17 @@ def _get_mcp_servers(
         for mcp_server in mcp_servers
         if mcp_server is not None
     ]
+
+    internal_mcp = Config.get_internal_mcp(info.context["endpoint_id"])
+    if internal_mcp:
+        mcp_servers.append(
+            {
+                "headers": internal_mcp["setting"]["headers"],
+                "mcp_label": internal_mcp["name"],
+                "mcp_server_url": internal_mcp["setting"]["base_url"],
+            }
+        )
+
     return mcp_servers
 
 
