@@ -8,6 +8,8 @@ from typing import Any, Dict, List
 
 from graphene import ResolveInfo
 
+from silvaengine_utility import Utility
+
 
 def _initialize_tables(logger: logging.Logger) -> None:
     from .agent import create_agent_table
@@ -180,7 +182,8 @@ def _get_flow_snippet(endpoint_id: str, flow_snippet_uuid: str) -> Dict[str, Any
 def _get_mcp_servers(
     info: ResolveInfo, mcp_servers: List[Dict[str, Any]]
 ) -> List[Dict[str, Any]]:
-    from .mcp_server import resolve_mcp_server
+    from ..handlers.config import Config
+    from .mcp_server import get_mcp_server_type, resolve_mcp_server
 
     mcp_servers = [
         resolve_mcp_server(info, **{"mcp_server_uuid": mcp_server["mcp_server_uuid"]})
@@ -196,6 +199,19 @@ def _get_mcp_servers(
         for mcp_server in mcp_servers
         if mcp_server is not None
     ]
+
+    internal_mcp = Config.get_internal_mcp(info.context["endpoint_id"])
+    if internal_mcp:
+        mcp_server = get_mcp_server_type(
+            info,
+            {
+                "headers": internal_mcp["setting"]["headers"],
+                "mcp_label": internal_mcp["name"],
+                "mcp_server_url": internal_mcp["setting"]["base_url"],
+            },
+        )
+        mcp_servers.append(mcp_server.__dict__)
+
     return mcp_servers
 
 

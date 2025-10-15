@@ -107,21 +107,32 @@ def get_mcp_server_count(endpoint_id: str, mcp_server_uuid: str) -> int:
     )
 
 
-async def _run_list_tools(info: ResolveInfo, mcp_server: MCPServerModel):
+async def _run_list_tools(
+    info: ResolveInfo, mcp_server: MCPServerModel | Dict[str, Any]
+):
+    if isinstance(mcp_server, MCPServerModel):
+        base_url = mcp_server.mcp_server_url
+        headers = mcp_server.headers.__dict__["attribute_values"]
+    else:
+        base_url = mcp_server["mcp_server_url"]
+        headers = mcp_server["headers"]
     mcp_http_client = MCPHttpClient(
         info.context["logger"],
         **{
-            "base_url": mcp_server.mcp_server_url,
-            "headers": mcp_server.headers.__dict__["attribute_values"],
+            "base_url": base_url,
+            "headers": headers,
         },
     )
     async with mcp_http_client as client:
         return await client.list_tools()
 
 
-def get_mcp_server_type(info: ResolveInfo, mcp_server: MCPServerModel) -> MCPServerType:
+def get_mcp_server_type(
+    info: ResolveInfo, mcp_server: MCPServerModel | Dict[str, Any]
+) -> MCPServerType:
     tools = asyncio.run(_run_list_tools(info, mcp_server))
-    mcp_server = mcp_server.__dict__["attribute_values"]
+    if isinstance(mcp_server, MCPServerModel):
+        mcp_server = mcp_server.__dict__["attribute_values"]
     mcp_server["tools"] = [
         {
             "name": tool.name,

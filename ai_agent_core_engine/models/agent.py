@@ -217,6 +217,28 @@ def get_agent_type(info: ResolveInfo, agent: AgentModel) -> AgentType:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)
         raise e
+    agent = agent.__dict__["attribute_values"]
+    agent["llm"] = llm
+    agent["mcp_servers"] = [
+        {
+            "name": mcp_server["mcp_label"],
+            "mcp_server_uuid": mcp_server["mcp_server_uuid"],
+            "setting": {
+                "base_url": mcp_server["mcp_server_url"],
+                "headers": mcp_server["headers"],
+            },
+        }
+        for mcp_server in mcp_servers
+    ]
+
+    agent["flow_snippet"] = flow_snippet
+    agent.pop("llm_provider")
+    agent.pop("llm_name")
+    if "mcp_server_uuids" in agent:
+        agent.pop("mcp_server_uuids")
+    if "flow_snippet_version_uuid" in agent:
+        agent.pop("flow_snippet_version_uuid")
+    return AgentType(**Utility.json_normalize(agent))
 
 
 def resolve_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AgentType:
