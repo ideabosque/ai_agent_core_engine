@@ -374,7 +374,7 @@ class Config:
             "setting": {
                 "base_url": mcp_server["base_url"],
                 "bearer_token": mcp_server.get("bearer_token"),
-                "headers": mcp_server("headers", {}),
+                "headers": mcp_server.get("headers", {}),
             },
         }
 
