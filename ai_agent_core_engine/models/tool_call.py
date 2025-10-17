@@ -259,7 +259,7 @@ def insert_update_tool_call(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None
     tool_call = kwargs.get("entity")
     if "status" in kwargs and kwargs["status"] == "completed":
         kwargs["time_spent"] = (
-            pendulum.now("UTC").diff(tool_call.created_at).in_seconds()
+            int(pendulum.now("UTC").diff(tool_call.created_at).in_seconds() * 1000)
         )
     actions = [
         ToolCallModel.updated_by.set(kwargs["updated_by"]),

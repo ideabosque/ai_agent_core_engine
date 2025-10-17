@@ -234,7 +234,7 @@ def insert_update_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     run = kwargs.get("entity")
     if "completion_tokens" in kwargs and kwargs["completion_tokens"] > 0:
         kwargs["total_tokens"] = kwargs["completion_tokens"] + run.prompt_tokens
-        kwargs["time_spent"] = pendulum.now("UTC").diff(run.created_at).in_seconds()
+        kwargs["time_spent"] = int(pendulum.now("UTC").diff(run.created_at).in_seconds() * 1000)
     actions = [
         RunModel.updated_by.set(kwargs["updated_by"]),
         RunModel.updated_at.set(pendulum.now("UTC")),

@@ -226,7 +226,7 @@ def insert_update_async_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Non
     async_task = kwargs.get("entity")
     if "status" in kwargs and kwargs["status"] == "completed":
         kwargs["time_spent"] = (
-            pendulum.now("UTC").diff(async_task.created_at).in_seconds()
+            int(pendulum.now("UTC").diff(async_task.created_at).in_seconds() * 1000)
         )
     actions = [
         AsyncTaskModel.updated_by.set(kwargs["updated_by"]),
