@@ -378,6 +378,7 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
                     cols["mcp_server_uuids"] = [
                         mcp_server["mcp_server_uuid"]
                         for mcp_server in prmopt_template["mcp_servers"]
+                        if mcp_server.get("mcp_server_uuid")
                     ]
 
         AgentModel(
