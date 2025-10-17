@@ -233,6 +233,11 @@ def _get_prompt_template(info: ResolveInfo, prompt_uuid: str) -> Dict[str, Any]:
     prompt_template = _get_active_prompt_template(
         info.context["endpoint_id"], prompt_uuid
     )
+    mcp_servers = [
+        mcp_server
+        for mcp_server in _get_mcp_servers(info, prompt_template.mcp_servers)
+        if mcp_server.get("mcp_server_uuid")
+    ]
 
     return {
         "prompt_version_uuid": prompt_template.prompt_version_uuid,
@@ -242,7 +247,7 @@ def _get_prompt_template(info: ResolveInfo, prompt_uuid: str) -> Dict[str, Any]:
         "prompt_description": prompt_template.prompt_description,
         "template_context": prompt_template.template_context,
         "variables": prompt_template.variables,
-        "mcp_servers": _get_mcp_servers(info, prompt_template.mcp_servers),
+        "mcp_servers": mcp_servers,
         "ui_components": _get_ui_components(info, prompt_template.ui_components),
         "status": prompt_template.status,
     }
