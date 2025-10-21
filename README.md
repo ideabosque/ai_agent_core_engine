@@ -481,7 +481,7 @@ setting = {
     "aws_secret_access_key": os.getenv("aws_secret_access_key"),
     "endpoint_id": os.getenv("endpoint_id"),
     "connection_id": os.getenv("connection_id"),
-    "test_mode": os.getenv("test_mode"),
+    "execute_mode": os.getenv("execute_mode"),
 }
 
 class GenericChatbotTest(unittest.TestCase):
@@ -493,7 +493,7 @@ class GenericChatbotTest(unittest.TestCase):
             self.endpoint_id,
             "ai_agent_core_graphql",
             setting=setting,
-            test_mode="local_for_all",
+            execute_mode="local_for_all",
         )
 
     def test_run_chatbot_loop_local(self):

@@ -277,7 +277,7 @@ class Config:
             cls._initialize_task_queue(setting)
             cls._initialize_apigw_client(setting)
             cls._initialize_internal_mcp(setting)
-            if setting.get("test_mode") == "local_for_all":
+            if setting.get("execute_mode") == "local_for_all":
                 cls._initialize_tables(logger)
             logger.info("Configuration initialized successfully.")
         except Exception as e:
@@ -451,7 +451,7 @@ class Config:
                 function_name,
                 setting=setting,
                 aws_lambda=Config.aws_lambda,
-                test_mode=setting.get("test_mode"),
+                execute_mode=setting.get("execute_mode"),
             )
         return Config.schemas[function_name]
 

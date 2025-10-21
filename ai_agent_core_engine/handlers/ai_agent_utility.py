@@ -96,7 +96,7 @@ def start_async_task(
         function_name,
         params=params,
         setting=info.context["setting"],
-        test_mode=info.context["setting"].get("test_mode"),
+        execute_mode=info.context["setting"].get("execute_mode"),
         aws_lambda=Config.aws_lambda,
         invocation_type="Event",
     )
