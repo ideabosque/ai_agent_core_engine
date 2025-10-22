@@ -6,7 +6,6 @@ __author__ = "bibow"
 
 import time
 from typing import Any, Dict
-
 from graphene import (
     Boolean,
     DateTime,
