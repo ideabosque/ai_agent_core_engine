@@ -110,7 +110,7 @@ def get_input_messages(
     thread_uuid: str,
     num_of_messages: int,
     tool_call_role: str,
-) -> List[Dict[str, any]]:
+) -> List[Dict[str, Any]]:
     """
     Retrieves message history for a thread.
 
@@ -146,7 +146,7 @@ def combine_thread_messages(
     info: ResolveInfo,
     thread_uuid: str,
     tool_call_role: str,
-) -> List[Dict[str, any]]:
+) -> List[Dict[str, Any]]:
     """Helper function to get and combine messages from message list and tool call list"""
     # Get message list for thread
     message_list = resolve_message_list(
@@ -256,7 +256,7 @@ def calculate_num_tokens(agent: dict[str, Any], text: str) -> int:
             num_tokens = client.models.count_tokens(
                 model=agent.configuration["model"], contents=text
             ).total_tokens
-            return num_tokens
+            return int(num_tokens)
         elif agent.llm["llm_name"] == "claude":
             client = anthropic.Anthropic(api_key=agent.configuration["api_key"])
             num_tokens = client.messages.count_tokens(
@@ -387,7 +387,6 @@ def _build_step_with_conditions(step_el: ET.Element, step_data: Dict[str, Any]):
     hierarchy_nodes = get_details_hierarchy(step_data)
 
     def build_element_with_children(node):
-
         current_element = __build_detail_element(node)
         for child in node.get("children", []):
             child_element = build_element_with_children(child)
@@ -417,10 +416,10 @@ def _build_step_with_conditions(step_el: ET.Element, step_data: Dict[str, Any]):
     return step_el
 
 
-def get_details_hierarchy(data):
+def get_details_hierarchy(data: Dict[str, Any]) -> List[Dict[str, Any]]:
     details = data.get("details", [])
     if not details:
-        return None
+        return []
     conditions_map = {
         condition.get("id"): condition for condition in data.get("conditions", [])
     }
@@ -543,7 +542,7 @@ def _build_step_element(step_index: int, step_data: Dict[str, Any]) -> ET.Elemen
     return step_el
 
 
-def __build_detail_element(detail_data: Dict[str, Any]) -> ET.Element:
+def __build_detail_element(detail_data: Dict[str, Any]) -> ET.Element | None:
     element = None
     if "type" not in detail_data:
         return element
@@ -562,7 +561,9 @@ def __build_detail_element(detail_data: Dict[str, Any]) -> ET.Element:
     return element
 
 
-def __process_after_build_detail_element(detail_data: Dict[str, Any]) -> ET.Element:
+def __process_after_build_detail_element(
+    detail_data: Dict[str, Any],
+) -> ET.Element | None:
     element = None
     if (
         detail_data.get("type") == "action"

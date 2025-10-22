@@ -456,11 +456,13 @@ class Config:
         return Config.schemas[function_name]
 
     @classmethod
-    def get_internal_mcp(cls, endpoint_id: str) -> Dict[str, Any]:
+    def get_internal_mcp(cls, endpoint_id: str) -> Dict[str, Any] | None:
         """Get internal MCP server configuration."""
         if cls.internal_mcp is None:
             return cls.internal_mcp
 
         internal_mcp = cls.internal_mcp.copy()
-        internal_mcp["setting"]["base_url"] = internal_mcp["setting"]["base_url"].format(endpoint_id=endpoint_id)
+        internal_mcp["setting"]["base_url"] = internal_mcp["setting"][
+            "base_url"
+        ].format(endpoint_id=endpoint_id)
         return internal_mcp

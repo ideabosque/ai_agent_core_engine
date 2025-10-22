@@ -144,7 +144,9 @@ def get_mcp_server_type(
     return MCPServerType(**Utility.json_normalize(mcp_server))
 
 
-def resolve_mcp_server(info: ResolveInfo, **kwargs: Dict[str, Any]) -> MCPServerType:
+def resolve_mcp_server(
+    info: ResolveInfo, **kwargs: Dict[str, Any]
+) -> MCPServerType | None:
     count = get_mcp_server_count(info.context["endpoint_id"], kwargs["mcp_server_uuid"])
     if count == 0:
         return None
@@ -191,7 +193,6 @@ def resolve_mcp_server_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     type_funct=get_mcp_server_type,
 )
 def insert_update_mcp_server(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
-
     endpoint_id = kwargs.get("endpoint_id")
     mcp_server_uuid = kwargs.get("mcp_server_uuid")
 
@@ -241,6 +242,5 @@ def insert_update_mcp_server(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Non
     model_funct=get_mcp_server,
 )
 def delete_mcp_server(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
-
     kwargs["entity"].delete()
     return True

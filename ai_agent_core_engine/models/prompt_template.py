@@ -32,8 +32,6 @@ from silvaengine_utility import Utility, method_cache
 
 from ..handlers.config import Config
 from ..types.prompt_template import PromptTemplateListType, PromptTemplateType
-from .mcp_server import resolve_mcp_server
-from .ui_component import resolve_ui_component
 from .utils import _get_mcp_servers, _get_ui_components
 
 
@@ -99,7 +97,7 @@ def purge_cache():
 
                 try:
                     prompt_template = resolve_prompt_template(args[0], **kwargs)
-                except Exception as e:
+                except Exception:
                     prompt_template = None
 
                 endpoint_id = args[0].context.get("endpoint_id") or kwargs.get(
@@ -166,7 +164,7 @@ def get_prompt_template(
 )
 def _get_active_prompt_template(
     endpoint_id: str, prompt_uuid: str
-) -> PromptTemplateModel:
+) -> PromptTemplateModel | None:
     try:
         results = PromptTemplateModel.prompt_uuid_index.query(
             endpoint_id,
@@ -205,7 +203,7 @@ def get_prompt_template_type(
 
 def resolve_prompt_template(
     info: ResolveInfo, **kwargs: Dict[str, Any]
-) -> PromptTemplateType:
+) -> PromptTemplateType | None:
     if "prompt_uuid" in kwargs:
         return get_prompt_template_type(
             info,
@@ -295,7 +293,6 @@ def _inactivate_prompt_templates(
     type_funct=get_prompt_template_type,
 )
 def insert_update_prompt_template(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
-
     endpoint_id = kwargs.get("endpoint_id")
     prompt_version_uuid = kwargs.get("prompt_version_uuid")
 
@@ -396,7 +393,6 @@ def insert_update_prompt_template(info: ResolveInfo, **kwargs: Dict[str, Any]) -
     model_funct=get_prompt_template,
 )
 def delete_prompt_template(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
-
     if kwargs["entity"].status == "active":
         results = PromptTemplateModel.prompt_uuid_index.query(
             kwargs["entity"].endpoint_id,

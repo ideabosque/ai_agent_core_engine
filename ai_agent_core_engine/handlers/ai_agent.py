@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
+
 __author__ = "bibow"
 
 import threading
@@ -18,7 +19,6 @@ from ..models.message import insert_update_message
 from ..models.run import insert_update_run
 from ..models.thread import insert_thread, resolve_thread
 from ..types.ai_agent import AskModelType, FileType, PresignedAWSS3UrlType
-from ..types.async_task import AsyncTaskType
 from ..types.message import MessageType
 from .ai_agent_utility import calculate_num_tokens, get_input_messages, start_async_task
 from .config import Config
@@ -112,7 +112,7 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
         raise e
 
 
-def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskType:
+def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
     """
     Execute an AI model query and handle the response asynchronously.
 
@@ -252,7 +252,9 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskT
         assert isinstance(ai_agent_handler.final_output, dict) and all(
             key in ai_agent_handler.final_output and ai_agent_handler.final_output[key]
             for key in ["message_id", "role", "content"]
-        ), "final_output must be a dict containing non-empty values for message_id, role and content fields"
+        ), (
+            "final_output must be a dict containing non-empty values for message_id, role and content fields"
+        )
 
         if ai_agent_handler.uploaded_files:
             _update_user_message_with_files(
@@ -385,7 +387,7 @@ def _update_user_message_with_files(
     return
 
 
-def upload_file(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
+def upload_file(info: ResolveInfo, **kwargs: Dict[str, Any]) -> FileType:
     # Retrieve AI agent configuration
     agent = resolve_agent(info, **{"agent_uuid": kwargs["agent_uuid"]})
 
@@ -417,7 +419,7 @@ def upload_file(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
         raise Exception(f"Unsupported LLM: {agent.llm['llm_name']}")
 
 
-def get_file(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
+def get_file(info: ResolveInfo, **kwargs: Dict[str, Any]) -> FileType:
     # Retrieve AI agent configuration
     agent = resolve_agent(info, **{"agent_uuid": kwargs["agent_uuid"]})
 
@@ -448,7 +450,7 @@ def get_file(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
         raise Exception(f"Unsupported LLM: {agent.llm['llm_name']}")
 
 
-def get_output_file(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
+def get_output_file(info: ResolveInfo, **kwargs: Dict[str, Any]) -> FileType:
     # Retrieve AI agent configuration
     agent = resolve_agent(info, **{"agent_uuid": kwargs["agent_uuid"]})
 
