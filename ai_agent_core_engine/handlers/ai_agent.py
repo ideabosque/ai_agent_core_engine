@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
-
 __author__ = "bibow"
 
 import threading
@@ -9,6 +8,7 @@ import traceback
 from queue import Queue
 from typing import Any, Dict, List
 
+import pendulum
 from graphene import ResolveInfo
 
 from silvaengine_utility import Utility
@@ -17,9 +17,10 @@ from ..models.agent import resolve_agent
 from ..models.async_task import insert_update_async_task
 from ..models.message import insert_update_message
 from ..models.run import insert_update_run
-from ..models.thread import insert_thread, resolve_thread
+from ..models.thread import insert_thread, resolve_thread, resolve_thread_list
 from ..types.ai_agent import AskModelType, FileType, PresignedAWSS3UrlType
 from ..types.message import MessageType
+from ..types.thread import ThreadListType, ThreadType
 from .ai_agent_utility import calculate_num_tokens, get_input_messages, start_async_task
 from .config import Config
 
@@ -50,22 +51,7 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
             f"connection_id: {info.context.get('connectionId')}"
         )
 
-        # Get or create conversation thread
-        thread = None
-        if "thread_uuid" in kwargs:
-            thread = resolve_thread(
-                info,
-                **{"thread_uuid": kwargs["thread_uuid"]},
-            )
-        else:
-            thread = insert_thread(
-                info,
-                **{
-                    "agent_uuid": kwargs["agent_uuid"],
-                    "user_id": kwargs.get("user_id"),
-                    "updated_by": kwargs["updated_by"],
-                },
-            )
+        thread = _get_thread(info, **kwargs)
 
         # Create new run instance for this request
         run = insert_update_run(
@@ -106,6 +92,57 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
             current_run_uuid=run.run_uuid,
         )
 
+    except Exception as e:
+        log = traceback.format_exc()
+        info.context.get("logger").error(log)
+        raise e
+
+
+def _get_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType:
+    """
+    Retrieve a conversation thread by its UUID.
+
+    Args:
+        info: GraphQL resolver context
+        **kwargs: Contains thread_uuid
+
+    Returns:
+        Dict[str, Any]: Thread data
+    """
+    try:
+        if "thread_uuid" in kwargs:
+            thread = resolve_thread(
+                info,
+                **{"thread_uuid": kwargs["thread_uuid"]},
+            )
+            return thread
+
+        if "user_id" in kwargs:
+            # Only retrieve threads from the past 24 hours
+            created_at_gt = pendulum.now("UTC").subtract(hours=24)
+
+            thread_list: ThreadListType = resolve_thread_list(
+                info,
+                **{
+                    "agent_uuid": kwargs["agent_uuid"],
+                    "user_id": kwargs["user_id"],
+                    "created_at_gt": created_at_gt,
+                },
+            )
+            if thread_list.total > 0:
+                # Return the latest thread based on updated_time or created_time
+                latest_thread = max(thread_list.thread_list, key=lambda t: t.created_at)
+                return latest_thread
+
+        thread = insert_thread(
+            info,
+            **{
+                "agent_uuid": kwargs["agent_uuid"],
+                "user_id": kwargs.get("user_id"),
+                "updated_by": kwargs["updated_by"],
+            },
+        )
+        return thread
     except Exception as e:
         log = traceback.format_exc()
         info.context.get("logger").error(log)
@@ -252,9 +289,7 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
         assert isinstance(ai_agent_handler.final_output, dict) and all(
             key in ai_agent_handler.final_output and ai_agent_handler.final_output[key]
             for key in ["message_id", "role", "content"]
-        ), (
-            "final_output must be a dict containing non-empty values for message_id, role and content fields"
-        )
+        ), "final_output must be a dict containing non-empty values for message_id, role and content fields"
 
         if ai_agent_handler.uploaded_files:
             _update_user_message_with_files(

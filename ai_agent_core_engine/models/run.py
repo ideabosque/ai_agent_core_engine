@@ -161,12 +161,26 @@ def resolve_run_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     token_type = kwargs.get("token_type")
     great_token = kwargs.get("great_token")
     less_token = kwargs.get("less_token")
+    updated_at_gt = kwargs.get("updated_at_gt")
+    updated_at_lt = kwargs.get("updated_at_lt")
 
     args = []
     inquiry_funct = RunModel.scan
     count_funct = RunModel.count
     if thread_uuid:
-        args = [thread_uuid, None]
+        range_key_condition = None
+
+        # Build range key condition for updated_at
+        if updated_at_gt is not None and updated_at_lt is not None:
+            range_key_condition = RunModel.updated_at.between(
+                updated_at_gt, updated_at_lt
+            )
+        elif updated_at_gt is not None:
+            range_key_condition = RunModel.updated_at > updated_at_gt
+        elif updated_at_lt is not None:
+            range_key_condition = RunModel.updated_at < updated_at_lt
+
+        args = [thread_uuid, range_key_condition]
         inquiry_funct = RunModel.updated_at_index.query
         count_funct = RunModel.updated_at_index.count
 
@@ -234,7 +248,9 @@ def insert_update_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     run = kwargs.get("entity")
     if "completion_tokens" in kwargs and kwargs["completion_tokens"] > 0:
         kwargs["total_tokens"] = kwargs["completion_tokens"] + run.prompt_tokens
-        kwargs["time_spent"] = int(pendulum.now("UTC").diff(run.created_at).in_seconds() * 1000)
+        kwargs["time_spent"] = int(
+            pendulum.now("UTC").diff(run.created_at).in_seconds() * 1000
+        )
     actions = [
         RunModel.updated_by.set(kwargs["updated_by"]),
         RunModel.updated_at.set(pendulum.now("UTC")),

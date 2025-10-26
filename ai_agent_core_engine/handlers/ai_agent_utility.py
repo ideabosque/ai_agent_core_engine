@@ -11,6 +11,7 @@ import xml.etree.ElementTree as ET
 from typing import Any, Dict, List
 
 import anthropic
+import pendulum
 import tiktoken
 from google import genai
 from graphene import ResolveInfo
@@ -148,6 +149,9 @@ def combine_thread_messages(
     tool_call_role: str,
 ) -> List[Dict[str, Any]]:
     """Helper function to get and combine messages from message list and tool call list"""
+    # Only retrieve messages and tool calls from the past 24 hours
+    updated_at_gt = pendulum.now("UTC").subtract(hours=24)
+
     # Get message list for thread
     message_list = resolve_message_list(
         info,
@@ -155,6 +159,7 @@ def combine_thread_messages(
             "thread_uuid": thread_uuid,
             "pageNumber": 1,
             "limit": 100,
+            "updated_at_gt": updated_at_gt,
         },
     )
     # Get tool call list for thread
@@ -164,6 +169,7 @@ def combine_thread_messages(
             "thread_uuid": thread_uuid,
             "pageNumber": 1,
             "limit": 100,
+            "updated_at_gt": updated_at_gt,
         },
     )
 

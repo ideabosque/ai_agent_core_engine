@@ -187,20 +187,37 @@ def resolve_tool_call_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     tool_type = kwargs.get("tool_type")
     name = kwargs.get("name")
     statuses = kwargs.get("statuses")
+    updated_at_gt = kwargs.get("updated_at_gt")
+    updated_at_lt = kwargs.get("updated_at_lt")
 
     args = []
     inquiry_funct = ToolCallModel.scan
     count_funct = ToolCallModel.count
     if thread_uuid:
-        args = [thread_uuid, None]
+        range_key_condition = None
+
+        # Build range key condition for updated_at when using updated_at_index
+        if updated_at_gt is not None and updated_at_lt is not None:
+            range_key_condition = ToolCallModel.updated_at.between(
+                updated_at_gt, updated_at_lt
+            )
+        elif updated_at_gt is not None:
+            range_key_condition = ToolCallModel.updated_at > updated_at_gt
+        elif updated_at_lt is not None:
+            range_key_condition = ToolCallModel.updated_at < updated_at_lt
+
+        args = [thread_uuid, range_key_condition]
         inquiry_funct = ToolCallModel.updated_at_index.query
         count_funct = ToolCallModel.updated_at_index.count
-        if run_uuid:
+
+        if run_uuid and args[1] is None:
             inquiry_funct = ToolCallModel.run_uuid_index.query
             args[1] = ToolCallModel.run_uuid == run_uuid
             count_funct = ToolCallModel.run_uuid_index.count
 
     the_filters = None
+    if run_uuid and args[1] is not None:
+        the_filters &= ToolCallModel.run_uuid == run_uuid
     if tool_call_id:
         the_filters &= ToolCallModel.tool_call_id.exists()
         the_filters &= ToolCallModel.tool_call_id == tool_call_id
@@ -258,8 +275,8 @@ def insert_update_tool_call(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None
 
     tool_call = kwargs.get("entity")
     if "status" in kwargs and kwargs["status"] == "completed":
-        kwargs["time_spent"] = (
-            int(pendulum.now("UTC").diff(tool_call.created_at).in_seconds() * 1000)
+        kwargs["time_spent"] = int(
+            pendulum.now("UTC").diff(tool_call.created_at).in_seconds() * 1000
         )
     actions = [
         ToolCallModel.updated_by.set(kwargs["updated_by"]),
