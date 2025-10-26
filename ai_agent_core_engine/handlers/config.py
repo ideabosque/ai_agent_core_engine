@@ -367,14 +367,15 @@ class Config:
         """
         if "internal_mcp" not in setting:
             return
-        mcp_server = setting.get("internal_mcp", {})
+        mcp_server = setting["internal_mcp"]
+        if mcp_server.get("bearer_token"):
+            mcp_server["headers"] = {
+                "Authorization": f"Bearer {mcp_server['bearer_token']}"
+            }
         cls.internal_mcp = {
             "name": "internal_mcp",
-            "setting": {
-                "base_url": mcp_server["base_url"],
-                "bearer_token": mcp_server.get("bearer_token"),
-                "headers": mcp_server["headers"],
-            },
+            "base_url": mcp_server["base_url"],
+            "headers": mcp_server["headers"],
         }
 
     @classmethod
@@ -462,7 +463,7 @@ class Config:
             return cls.internal_mcp
 
         internal_mcp = cls.internal_mcp.copy()
-        internal_mcp["setting"]["base_url"] = internal_mcp["setting"][
-            "base_url"
-        ].format(endpoint_id=endpoint_id)
+        internal_mcp["base_url"] = internal_mcp["base_url"].format(
+            endpoint_id=endpoint_id
+        )
         return internal_mcp

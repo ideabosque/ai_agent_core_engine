@@ -190,9 +190,9 @@ def _get_mcp_servers(
         mcp_server = get_mcp_server_type(
             info,
             {
-                "headers": internal_mcp["setting"]["headers"],
+                "headers": internal_mcp["headers"],
                 "mcp_label": internal_mcp["name"],
-                "mcp_server_url": internal_mcp["setting"]["base_url"],
+                "mcp_server_url": internal_mcp["base_url"],
             },
         )
         mcp_servers.append(mcp_server.__dict__)
