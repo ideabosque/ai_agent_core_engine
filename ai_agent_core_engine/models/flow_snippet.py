@@ -255,6 +255,7 @@ def _inactivate_flow_snippets(
     info: ResolveInfo, endpoint_id: str, flow_snippet_uuid: str
 ) -> None:
     try:
+        endpoint_id = endpoint_id or info.context.get("endpoint_id")
         flow_snippets = FlowSnippetModel.flow_snippet_uuid_index.query(
             endpoint_id,
             FlowSnippetModel.flow_snippet_uuid == flow_snippet_uuid,

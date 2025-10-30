@@ -267,6 +267,7 @@ def _inactivate_prompt_templates(
     info: ResolveInfo, endpoint_id: str, prompt_uuid: str
 ) -> None:
     try:
+        endpoint_id = endpoint_id or info.context.get("endpoint_id")
         prompt_templates = PromptTemplateModel.prompt_uuid_index.query(
             endpoint_id,
             PromptTemplateModel.prompt_uuid == prompt_uuid,

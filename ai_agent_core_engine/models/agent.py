@@ -279,6 +279,7 @@ def resolve_agent_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
 def _inactivate_agents(info: ResolveInfo, endpoint_id: str, agent_uuid: str) -> None:
     try:
         # Query for active agents matching the type and ID
+        endpoint_id = endpoint_id or info.context.get("endpoint_id")
         agents = AgentModel.agent_uuid_index.query(
             endpoint_id,
             AgentModel.agent_uuid == agent_uuid,
