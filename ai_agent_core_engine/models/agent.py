@@ -366,6 +366,9 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
             "flow_snippet_version_uuid",
         ]:
             if key in kwargs:
+                if key == "configuration":
+                    cols[key] = Utility.json_normalize(kwargs[key])
+                    continue
                 cols[key] = kwargs[key]
 
                 if key == "flow_snippet_version_uuid":
