@@ -29,7 +29,7 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility, method_cache
+from silvaengine_utility import Utility, convert_decimal_to_number, method_cache
 
 from ..handlers.config import Config
 from ..types.agent import AgentListType, AgentType
@@ -366,9 +366,6 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
             "flow_snippet_version_uuid",
         ]:
             if key in kwargs:
-                if key == "configuration":
-                    cols[key] = Utility.json_normalize(kwargs[key])
-                    continue
                 cols[key] = kwargs[key]
 
                 if key == "flow_snippet_version_uuid":
@@ -388,7 +385,7 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
         AgentModel(
             endpoint_id,
             agent_version_uuid,
-            **cols,
+            **convert_decimal_to_number(cols),
         ).save()
         return
 
