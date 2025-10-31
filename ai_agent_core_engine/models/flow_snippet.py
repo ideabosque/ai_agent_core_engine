@@ -23,7 +23,7 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility, method_cache
+from silvaengine_utility import Utility, convert_decimal_to_number, method_cache
 
 from ..handlers.ai_agent_utility import convert_flow_snippet_xml
 from ..handlers.config import Config
@@ -336,7 +336,7 @@ def insert_update_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
         FlowSnippetModel(
             endpoint_id,
             flow_snippet_version_uuid,
-            **cols,
+            **convert_decimal_to_number(cols),
         ).save()
 
         if active_flow_snippet is not None:
