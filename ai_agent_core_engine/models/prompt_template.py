@@ -296,6 +296,7 @@ def _inactivate_prompt_templates(
 def insert_update_prompt_template(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     endpoint_id = kwargs.get("endpoint_id")
     prompt_version_uuid = kwargs.get("prompt_version_uuid")
+    duplicate = kwargs.get("duplicate", False)
 
     if kwargs.get("entity") is None:
         cols = {
@@ -330,7 +331,12 @@ def insert_update_prompt_template(info: ResolveInfo, **kwargs: Dict[str, Any]) -
                     if k not in excluded_fields
                 }
             )
-            _inactivate_prompt_templates(info, endpoint_id, kwargs["prompt_uuid"])
+            if duplicate:
+                timestamp = pendulum.now("UTC").int_timestamp
+                cols["prompt_uuid"] = f"prompt-{timestamp}-{str(uuid.uuid4())[:8]}"
+                cols["prompt_name"] = f"{cols['prompt_name']} (Copy)"
+            else:
+                _inactivate_prompt_templates(info, endpoint_id, kwargs["prompt_uuid"])
         else:
             timestamp = pendulum.now("UTC").int_timestamp
             cols["prompt_uuid"] = f"prompt-{timestamp}-{str(uuid.uuid4())[:8]}"

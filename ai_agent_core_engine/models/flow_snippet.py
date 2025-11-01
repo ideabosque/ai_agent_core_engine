@@ -282,9 +282,9 @@ def _inactivate_flow_snippets(
     type_funct=get_flow_snippet_type,
 )
 def insert_update_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
-
     endpoint_id = kwargs.get("endpoint_id")
     flow_snippet_version_uuid = kwargs.get("flow_snippet_version_uuid")
+    duplicate = kwargs.get("duplicate", False)
 
     if kwargs.get("entity") is None:
         cols = {
@@ -314,7 +314,16 @@ def insert_update_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
                     if k not in excluded_fields
                 }
             )
-            _inactivate_flow_snippets(info, endpoint_id, kwargs["flow_snippet_uuid"])
+            if duplicate:
+                timestamp = pendulum.now("UTC").int_timestamp
+                cols["flow_snippet_uuid"] = (
+                    f"flow-snippet-{timestamp}-{str(uuid.uuid4())[:8]}"
+                )
+                cols["flow_name"] = f"{cols['flow_name']} (Copy)"
+            else:
+                _inactivate_flow_snippets(
+                    info, endpoint_id, kwargs["flow_snippet_uuid"]
+                )
         else:
             timestamp = pendulum.now("UTC").int_timestamp
             cols["flow_snippet_uuid"] = (

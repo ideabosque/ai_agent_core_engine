@@ -311,6 +311,8 @@ def _inactivate_agents(info: ResolveInfo, endpoint_id: str, agent_uuid: str) -> 
 def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     endpoint_id = kwargs.get("endpoint_id")
     agent_version_uuid = kwargs.get("agent_version_uuid")
+    duplicate = kwargs.get("duplicate", False)
+
     if kwargs.get("entity") is None:
         cols = {
             "configuration": {},
@@ -345,8 +347,15 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
                 }
             )
 
-            # Deactivate previous versions before creating new one
-            _inactivate_agents(info, endpoint_id, kwargs["agent_uuid"])
+            if duplicate:
+                timestamp = pendulum.now("UTC").int_timestamp
+                cols["agent_version_uuid"] = (
+                    f"agent-{timestamp}-{str(uuid.uuid4())[:8]}"
+                )
+                cols["agent_name"] = f"{cols['agent_name']} (Copy)"
+            else:
+                # Deactivate previous versions before creating new one
+                _inactivate_agents(info, endpoint_id, kwargs["agent_uuid"])
         else:
             # Generate new unique agent UUID with timestamp
             timestamp = pendulum.now("UTC").int_timestamp

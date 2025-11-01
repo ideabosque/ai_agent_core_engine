@@ -8,10 +8,7 @@ from typing import Any, Dict
 
 from graphene import Boolean, Field, Mutation, String
 
-from ..models.flow_snippet import (
-    delete_flow_snippet,
-    insert_update_flow_snippet,
-)
+from ..models.flow_snippet import delete_flow_snippet, insert_update_flow_snippet
 from ..types.flow_snippet import FlowSnippetType
 
 
@@ -26,6 +23,7 @@ class InsertUpdateFlowSnippet(Mutation):
         flow_relationship = String(required=False)
         flow_context = String(required=False)
         status = String(required=False)
+        duplicate = Boolean(required=False)
         updated_by = String(required=True)
 
     @staticmethod
