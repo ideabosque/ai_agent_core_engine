@@ -321,6 +321,7 @@ def insert_update_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
                 )
                 cols["flow_name"] = f"{cols['flow_name']} (Copy)"
             else:
+                # Deactivate previous versions before creating new one
                 _inactivate_flow_snippets(
                     info, endpoint_id, kwargs["flow_snippet_uuid"]
                 )

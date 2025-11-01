@@ -336,6 +336,7 @@ def insert_update_prompt_template(info: ResolveInfo, **kwargs: Dict[str, Any]) -
                 cols["prompt_uuid"] = f"prompt-{timestamp}-{str(uuid.uuid4())[:8]}"
                 cols["prompt_name"] = f"{cols['prompt_name']} (Copy)"
             else:
+                # Deactivate previous versions before creating new one
                 _inactivate_prompt_templates(info, endpoint_id, kwargs["prompt_uuid"])
         else:
             timestamp = pendulum.now("UTC").int_timestamp
