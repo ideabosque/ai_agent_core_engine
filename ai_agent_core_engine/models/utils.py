@@ -8,8 +8,6 @@ from typing import Any, Dict, List
 
 from graphene import ResolveInfo
 
-from silvaengine_utility import Utility
-
 
 def _initialize_tables(logger: logging.Logger) -> None:
     from .agent import create_agent_table
