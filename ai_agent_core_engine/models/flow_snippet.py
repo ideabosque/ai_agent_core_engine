@@ -188,7 +188,7 @@ def get_flow_snippet_type(
 
 def resolve_flow_snippet(
     info: ResolveInfo, **kwargs: Dict[str, Any]
-) -> FlowSnippetType:
+) -> FlowSnippetType | None:
     if "flow_snippet_uuid" in kwargs:
         return get_flow_snippet_type(
             info,

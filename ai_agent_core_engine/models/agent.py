@@ -212,7 +212,7 @@ def get_agent_type(info: ResolveInfo, agent: AgentModel) -> AgentType:
     return AgentType(**Utility.json_normalize(agent))
 
 
-def resolve_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AgentType:
+def resolve_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AgentType | None:
     if "agent_uuid" in kwargs:
         return get_agent_type(
             info, _get_active_agent(info.context["endpoint_id"], kwargs["agent_uuid"])

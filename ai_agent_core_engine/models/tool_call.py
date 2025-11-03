@@ -12,7 +12,6 @@ from typing import Any, Dict
 import pendulum
 from graphene import ResolveInfo
 from pynamodb.attributes import (
-    MapAttribute,
     NumberAttribute,
     UnicodeAttribute,
     UTCDateTimeAttribute,
@@ -163,7 +162,7 @@ def get_tool_call_type(info: ResolveInfo, tool_call: ToolCallModel) -> ToolCallT
     return ToolCallType(**Utility.json_normalize(tool_call))
 
 
-def resolve_tool_call(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ToolCallType:
+def resolve_tool_call(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ToolCallType | None:
     count = get_tool_call_count(kwargs["thread_uuid"], kwargs["tool_call_uuid"])
     if count == 0:
         return None

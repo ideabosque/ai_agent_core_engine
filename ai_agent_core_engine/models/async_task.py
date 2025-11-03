@@ -137,7 +137,7 @@ def get_async_task_type(info: ResolveInfo, async_task: AsyncTaskModel) -> AsyncT
     return AsyncTaskType(**Utility.json_normalize(async_task))
 
 
-def resolve_async_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskType:
+def resolve_async_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskType | None:
     count = get_async_task_count(kwargs["function_name"], kwargs["async_task_uuid"])
     if count == 0:
         return None

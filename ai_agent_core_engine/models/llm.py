@@ -108,7 +108,7 @@ def get_llm_type(info: ResolveInfo, llm: LlmModel) -> LlmType:
     return LlmType(**Utility.json_normalize(llm))
 
 
-def resolve_llm(info: ResolveInfo, **kwargs: Dict[str, Any]) -> LlmType:
+def resolve_llm(info: ResolveInfo, **kwargs: Dict[str, Any]) -> LlmType | None:
     count = get_llm_count(kwargs["llm_provider"], kwargs["llm_name"])
     if count == 0:
         return None

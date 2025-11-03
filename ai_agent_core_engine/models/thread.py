@@ -197,7 +197,7 @@ def get_thread_type(info: ResolveInfo, thread: ThreadModel) -> ThreadType:
     return ThreadType(**Utility.json_normalize(thread))
 
 
-def resolve_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType:
+def resolve_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType | None:
     count = get_thread_count(info.context["endpoint_id"], kwargs["thread_uuid"])
     if count == 0:
         return None

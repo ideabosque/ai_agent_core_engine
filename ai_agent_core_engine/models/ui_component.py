@@ -122,7 +122,7 @@ def get_ui_component_type(
 
 def resolve_ui_component(
     info: ResolveInfo, **kwargs: Dict[str, Any]
-) -> UIComponentType:
+) -> UIComponentType | None:
     count = get_ui_component_count(
         kwargs["ui_component_type"], kwargs["ui_component_uuid"]
     )

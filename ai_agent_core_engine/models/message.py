@@ -158,7 +158,7 @@ def get_message_type(info: ResolveInfo, message: MessageModel) -> MessageType:
     return MessageType(**Utility.json_normalize(message))
 
 
-def resolve_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> MessageType:
+def resolve_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> MessageType | None:
     count = get_message_count(kwargs["thread_uuid"], kwargs["message_uuid"])
     if count == 0:
         return None

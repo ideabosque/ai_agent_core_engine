@@ -139,7 +139,7 @@ def get_run_type(info: ResolveInfo, run: RunModel) -> RunType:
     return RunType(**Utility.json_normalize(run))
 
 
-def resolve_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> RunType:
+def resolve_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> RunType | None:
     count = get_run_count(kwargs["thread_uuid"], kwargs["run_uuid"])
     if count == 0:
         return None
