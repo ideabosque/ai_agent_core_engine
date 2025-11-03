@@ -205,12 +205,10 @@ def get_agent_type(info: ResolveInfo, agent: AgentModel) -> AgentType:
     ]
 
     agent["flow_snippet"] = flow_snippet
-    agent.pop("llm_provider")
-    agent.pop("llm_name")
-    if "mcp_server_uuids" in agent:
-        agent.pop("mcp_server_uuids")
-    if "flow_snippet_version_uuid" in agent:
-        agent.pop("flow_snippet_version_uuid")
+    agent.pop("llm_provider", None)
+    agent.pop("llm_name", None)
+    agent.pop("mcp_server_uuids", None)
+    agent.pop("flow_snippet_version_uuid", None)
     return AgentType(**Utility.json_normalize(agent))
 
 
