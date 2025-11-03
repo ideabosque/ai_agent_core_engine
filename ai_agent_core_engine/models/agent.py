@@ -147,7 +147,7 @@ def get_agent(endpoint_id: str, agent_version_uuid: str) -> AgentModel:
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
 )
-def _get_active_agent(endpoint_id: str, agent_uuid: str) -> AgentModel:
+def _get_active_agent(endpoint_id: str, agent_uuid: str) -> AgentModel | None:
     try:
         results = AgentModel.agent_uuid_index.query(
             endpoint_id,
