@@ -185,8 +185,8 @@ def resolve_message_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     args = []
     inquiry_funct = MessageModel.scan
     count_funct = MessageModel.count
+    range_key_condition = None
     if thread_uuid:
-        range_key_condition = None
 
         # Build range key condition for updated_at when using updated_at_index
         if updated_at_gt is not None and updated_at_lt is not None:
@@ -208,7 +208,7 @@ def resolve_message_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
             count_funct = MessageModel.run_uuid_index.count
 
     the_filters = None
-    if run_uuid and args[1] is not None:
+    if run_uuid and range_key_condition is not None:
         the_filters &= MessageModel.run_uuid == run_uuid
     if message_id:
         the_filters &= MessageModel.message_id.exists()

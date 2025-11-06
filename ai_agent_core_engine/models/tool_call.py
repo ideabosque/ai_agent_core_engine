@@ -11,11 +11,7 @@ from typing import Any, Dict
 
 import pendulum
 from graphene import ResolveInfo
-from pynamodb.attributes import (
-    NumberAttribute,
-    UnicodeAttribute,
-    UTCDateTimeAttribute,
-)
+from pynamodb.attributes import NumberAttribute, UnicodeAttribute, UTCDateTimeAttribute
 from pynamodb.indexes import AllProjection, LocalSecondaryIndex
 from tenacity import retry, stop_after_attempt, wait_exponential
 
@@ -162,7 +158,9 @@ def get_tool_call_type(info: ResolveInfo, tool_call: ToolCallModel) -> ToolCallT
     return ToolCallType(**Utility.json_normalize(tool_call))
 
 
-def resolve_tool_call(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ToolCallType | None:
+def resolve_tool_call(
+    info: ResolveInfo, **kwargs: Dict[str, Any]
+) -> ToolCallType | None:
     count = get_tool_call_count(kwargs["thread_uuid"], kwargs["tool_call_uuid"])
     if count == 0:
         return None
@@ -192,8 +190,8 @@ def resolve_tool_call_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     args = []
     inquiry_funct = ToolCallModel.scan
     count_funct = ToolCallModel.count
+    range_key_condition = None
     if thread_uuid:
-        range_key_condition = None
 
         # Build range key condition for updated_at when using updated_at_index
         if updated_at_gt is not None and updated_at_lt is not None:
@@ -215,7 +213,7 @@ def resolve_tool_call_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
             count_funct = ToolCallModel.run_uuid_index.count
 
     the_filters = None
-    if run_uuid and args[1] is not None:
+    if run_uuid and range_key_condition is not None:
         the_filters &= ToolCallModel.run_uuid == run_uuid
     if tool_call_id:
         the_filters &= ToolCallModel.tool_call_id.exists()
