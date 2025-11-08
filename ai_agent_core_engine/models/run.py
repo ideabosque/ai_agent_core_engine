@@ -167,8 +167,8 @@ def resolve_run_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     args = []
     inquiry_funct = RunModel.scan
     count_funct = RunModel.count
+    range_key_condition = None
     if thread_uuid:
-        range_key_condition = None
 
         # Build range key condition for updated_at
         if updated_at_gt is not None and updated_at_lt is not None:
