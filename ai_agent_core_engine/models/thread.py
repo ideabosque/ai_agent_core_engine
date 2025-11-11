@@ -276,7 +276,7 @@ def resolve_thread_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     # data_attributes_except_for_data_diff=["created_at", "updated_at"],
     # activity_history_funct=None,
 )
-def insert_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
+def insert_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
 
     endpoint_id = kwargs.get("endpoint_id")
     thread_uuid = kwargs.get("thread_uuid")

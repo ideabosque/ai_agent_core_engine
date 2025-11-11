@@ -281,7 +281,7 @@ def _inactivate_flow_snippets(
     count_funct=get_flow_snippet_count,
     type_funct=get_flow_snippet_type,
 )
-def insert_update_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
+def insert_update_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     endpoint_id = kwargs.get("endpoint_id")
     flow_snippet_version_uuid = kwargs.get("flow_snippet_version_uuid")
     duplicate = kwargs.get("duplicate", False)

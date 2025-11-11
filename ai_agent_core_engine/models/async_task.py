@@ -190,7 +190,7 @@ def resolve_async_task_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     # data_attributes_except_for_data_diff=["created_at", "updated_at"],
     # activity_history_funct=None,
 )
-def insert_update_async_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
+def insert_update_async_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
 
     function_name = kwargs.get("function_name")
     async_task_uuid = kwargs.get("async_task_uuid")

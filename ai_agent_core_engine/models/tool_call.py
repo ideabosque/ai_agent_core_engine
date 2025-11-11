@@ -239,7 +239,7 @@ def resolve_tool_call_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     # data_attributes_except_for_data_diff=["created_at", "updated_at"],
     # activity_history_funct=None,
 )
-def insert_update_tool_call(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
+def insert_update_tool_call(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
 
     thread_uuid = kwargs.get("thread_uuid")
     tool_call_uuid = kwargs.get("tool_call_uuid")

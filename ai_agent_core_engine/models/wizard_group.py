@@ -190,7 +190,7 @@ def resolve_wizard_group_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> An
     count_funct=get_wizard_group_count,
     type_funct=get_wizard_group_type,
 )
-def insert_update_wizard_group(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
+def insert_update_wizard_group(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
 
     endpoint_id = kwargs.get("endpoint_id")
     wizard_group_uuid = kwargs.get("wizard_group_uuid")

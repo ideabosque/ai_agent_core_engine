@@ -188,7 +188,7 @@ def resolve_element_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     count_funct=get_element_count,
     type_funct=get_element_type,
 )
-def insert_update_element(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
+def insert_update_element(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
 
     endpoint_id = kwargs.get("endpoint_id")
     element_uuid = kwargs.get("element_uuid")

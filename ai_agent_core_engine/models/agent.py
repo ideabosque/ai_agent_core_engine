@@ -306,7 +306,7 @@ def _inactivate_agents(info: ResolveInfo, endpoint_id: str, agent_uuid: str) -> 
     # data_attributes_except_for_data_diff=["created_at", "updated_at"],
     # activity_history_funct=None,
 )
-def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
+def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     endpoint_id = kwargs.get("endpoint_id")
     agent_version_uuid = kwargs.get("agent_version_uuid")
     duplicate = kwargs.get("duplicate", False)

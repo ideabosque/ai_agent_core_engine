@@ -32,12 +32,14 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
     Args:
         info: GraphQL resolver context containing logger, endpoint and connection info
         **kwargs: Parameters including:
+            - agent_uuid: ID of AI agent to use (required)
             - thread_uuid: Optional ID of existing conversation thread
-            - agent_uuid: ID of AI agent to use
             - user_id: Optional ID of the user
-            - user_query: The actual query text
+            - user_query: The actual query text (required)
+            - input_files: Optional list of input files in JSON format
             - stream: Whether to stream responses (default False)
-            - updated_by: User making the request
+            - thread_life_minutes: Optional thread lifetime in minutes (default 30)
+            - updated_by: User making the request (required)
 
     Returns:
         AskModelType containing thread, task and run identifiers
@@ -118,8 +120,9 @@ def _get_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType:
             return thread
 
         if "user_id" in kwargs:
-            # Only retrieve threads from the past 24 hours
-            created_at_gt = pendulum.now("UTC").subtract(hours=24)
+            # Only retrieve threads from the past 'thread_life_minutes' minutes
+            thread_life_minutes = kwargs.get("thread_life_minutes", 30)
+            created_at_gt = pendulum.now("UTC").subtract(minutes=thread_life_minutes)
 
             thread_list: ThreadListType = resolve_thread_list(
                 info,

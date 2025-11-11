@@ -293,7 +293,7 @@ def _inactivate_prompt_templates(
     count_funct=get_prompt_template_count,
     type_funct=get_prompt_template_type,
 )
-def insert_update_prompt_template(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
+def insert_update_prompt_template(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     endpoint_id = kwargs.get("endpoint_id")
     prompt_version_uuid = kwargs.get("prompt_version_uuid")
     duplicate = kwargs.get("duplicate", False)

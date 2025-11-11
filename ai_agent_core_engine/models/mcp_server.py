@@ -192,7 +192,7 @@ def resolve_mcp_server_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     count_funct=get_mcp_server_count,
     type_funct=get_mcp_server_type,
 )
-def insert_update_mcp_server(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
+def insert_update_mcp_server(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     endpoint_id = kwargs.get("endpoint_id")
     mcp_server_uuid = kwargs.get("mcp_server_uuid")
 
