@@ -270,7 +270,7 @@ class Query(ObjectType):
         user_query=String(required=True),
         input_files=List(JSON, required=False),
         stream=Boolean(required=False),
-        thread_life_minutes =Int(required=False),
+        thread_life_minutes=Int(required=False),
         updated_by=String(required=True),
     )
 
