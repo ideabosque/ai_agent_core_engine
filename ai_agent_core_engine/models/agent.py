@@ -372,9 +372,42 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
                     prmopt_template = _get_prompt_template(
                         info, flow_snippet["prompt_uuid"]
                     )
+
+                    # replace variables
+                    agent_variables = {
+                        variable["name"]: variable["value"]
+                        for variable in kwargs.get("variables", [])
+                    }
+                    
+                    replace_prmopt_template_variables = [
+                        variable["name"]
+                        for variable in prmopt_template.get("variables", [])
+                        if variable["name"] in agent_variables
+                    ]
+                    
+                    has_flow_context_content = False
+                    if flow_snippet["flow_context"] is not None and flow_snippet["flow_context"] != "":
+                        if len(replace_prmopt_template_variables) > 0:
+                            for variable in replace_prmopt_template_variables:
+                                flow_snippet["flow_context"] = flow_snippet["flow_context"].replace(
+                                    f"{{{variable}}}",
+                                    agent_variables[variable],
+                                )
+                        has_flow_context_content = True
+                            
+
                     cols["instructions"] = prmopt_template["template_context"].replace(
                         "{flow_snippet}", flow_snippet["flow_context"]
                     )
+
+                    if not has_flow_context_content:
+                        if len(replace_prmopt_template_variables) > 0:
+                            for variable in replace_prmopt_template_variables:
+                                cols["instructions"] = cols["instructions"].replace(
+                                    f"{{{variable}}}",
+                                    agent_variables[variable],
+                            )
+                    
                     cols["mcp_server_uuids"] = [
                         mcp_server["mcp_server_uuid"]
                         for mcp_server in prmopt_template["mcp_servers"]

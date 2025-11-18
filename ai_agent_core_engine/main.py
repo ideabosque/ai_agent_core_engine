@@ -143,6 +143,14 @@ def deploy() -> List:
                             "action": "deleteFineTuningMessage",
                             "label": "Delete Fine Tuning Message",
                         },
+                        {
+                            "action": "insertUpdateWizardGroupWithWizards",
+                            "label": "Insert Update Wizard Group With Wizards",
+                        },
+                        {
+                            "action": "deleteWizardFromWizardGroup",
+                            "label": "Delete Wizard From WizardGroup",
+                        },
                     ],
                     "type": "RequestResponse",
                     "support_methods": ["POST"],

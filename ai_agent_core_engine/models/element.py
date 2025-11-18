@@ -63,6 +63,7 @@ class ElementModel(BaseModel):
     attribute_type = UnicodeAttribute()
     option_values = ListAttribute(of=MapAttribute)
     conditions = ListAttribute(of=MapAttribute)
+    pattern = UnicodeAttribute()
     updated_by = UnicodeAttribute()
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()
@@ -126,6 +127,13 @@ def create_element_table(logger: logging.Logger) -> bool:
 def get_element(endpoint_id: str, element_uuid: str) -> ElementModel:
     return ElementModel.get(endpoint_id, element_uuid)
 
+@retry(
+    reraise=True,
+    wait=wait_exponential(multiplier=1, max=60),
+    stop=stop_after_attempt(5),
+)
+def _get_element(endpoint_id: str, element_uuid: str) -> ElementModel:
+    return ElementModel.get(endpoint_id, element_uuid)
 
 def get_element_count(endpoint_id: str, element_uuid: str) -> int:
     return ElementModel.count(endpoint_id, ElementModel.element_uuid == element_uuid)
@@ -185,7 +193,7 @@ def resolve_element_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
         "hash_key": "endpoint_id",
         "range_key": "element_uuid",
     },
-    model_funct=get_element,
+    model_funct=_get_element,
     count_funct=get_element_count,
     type_funct=get_element_type,
 )
@@ -203,6 +211,7 @@ def insert_update_element(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
             "attribute_type": kwargs["attribute_type"],
             "option_values": kwargs.get("option_values", []),
             "conditions": kwargs.get("conditions", []),
+            "pattern": kwargs.get("pattern", ""),
             "updated_by": kwargs["updated_by"],
             "created_at": pendulum.now("UTC"),
             "updated_at": pendulum.now("UTC"),
@@ -228,6 +237,7 @@ def insert_update_element(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
         "attribute_type": ElementModel.attribute_type,
         "option_values": ElementModel.option_values,
         "conditions": ElementModel.conditions,
+        "pattern": ElementModel.pattern,
     }
 
     for key, field in field_map.items():

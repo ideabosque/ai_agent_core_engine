@@ -40,6 +40,7 @@ from .mutations.ui_component import DeleteUIComponent, InsertUpdateUIComponent
 from .mutations.wizard import DeleteWizard, InsertUpdateWizard
 from .mutations.wizard_schema import DeleteWizardSchema, InsertUpdateWizardSchema
 from .mutations.wizard_group import DeleteWizardGroup, InsertUpdateWizardGroup
+from .mutations.wizard_group_wizards import InsertUpdateWizardGroupWithWizards, DeleteWizardFromWizardGroup
 from .queries.agent import resolve_agent, resolve_agent_list
 from .queries.ai_agent import (
     resolve_ask_model,
@@ -607,3 +608,5 @@ class Mutations(ObjectType):
     delete_flow_snippet = DeleteFlowSnippet.Field()
     insert_update_prompt_template = InsertUpdatePromptTemplate.Field()
     delete_prompt_template = DeletePromptTemplate.Field()
+    insert_update_wizard_group_with_wizards= InsertUpdateWizardGroupWithWizards.Field()
+    delete_wizard_from_wizard_group = DeleteWizardFromWizardGroup.Field()

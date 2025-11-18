@@ -118,6 +118,14 @@ def get_wizard_group(endpoint_id: str, wizard_group_uuid: str) -> WizardGroupMod
     return WizardGroupModel.get(endpoint_id, wizard_group_uuid)
 
 
+@retry(
+    reraise=True,
+    wait=wait_exponential(multiplier=1, max=60),
+    stop=stop_after_attempt(5),
+)
+def _get_wizard_group(endpoint_id: str, wizard_group_uuid: str) -> WizardGroupModel:
+    return WizardGroupModel.get(endpoint_id, wizard_group_uuid)
+
 def get_wizard_group_count(endpoint_id: str, wizard_group_uuid: str) -> int:
     return WizardGroupModel.count(
         endpoint_id, WizardGroupModel.wizard_group_uuid == wizard_group_uuid
@@ -189,7 +197,7 @@ def resolve_wizard_group_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> An
         "hash_key": "endpoint_id",
         "range_key": "wizard_group_uuid",
     },
-    model_funct=get_wizard_group,
+    model_funct=_get_wizard_group,
     count_funct=get_wizard_group_count,
     type_funct=get_wizard_group_type,
 )

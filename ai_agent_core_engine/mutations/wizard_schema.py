@@ -25,6 +25,7 @@ class InsertUpdateWizardSchema(Mutation):
         wizard_schema_name = String(required=True)
         wizard_schema_description = String(required=False)
         attributes = List(JSON, required=False)
+        attribute_groups = List(JSON, required=False)
         updated_by = String(required=True)
 
     @staticmethod

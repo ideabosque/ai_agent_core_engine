@@ -26,6 +26,7 @@ class InsertUpdateElement(Mutation):
         attribute_type = String(required=True)
         option_values = List(JSON, required=False)
         conditions = List(JSON, required=False)
+        pattern = String(required=False)
         updated_by = String(required=True)
 
     @staticmethod

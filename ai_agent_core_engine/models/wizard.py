@@ -47,7 +47,6 @@ wizard_elements_fn = lambda wizard_elements: [
         "element_uuid": wizard_element["element_uuid"],
         "required": wizard_element.get("required", False),
         "placeholder": wizard_element.get("placeholder"),
-        "pattern": wizard_element.get("pattern"),
     }
     for wizard_element in wizard_elements
 ]
@@ -147,6 +146,14 @@ def create_wizard_table(logger: logging.Logger) -> bool:
 def get_wizard(endpoint_id: str, wizard_uuid: str) -> WizardModel:
     return WizardModel.get(endpoint_id, wizard_uuid)
 
+@retry(
+    reraise=True,
+    wait=wait_exponential(multiplier=1, max=60),
+    stop=stop_after_attempt(5),
+)
+def _get_wizard(endpoint_id: str, wizard_uuid: str) -> WizardModel:
+    return WizardModel.get(endpoint_id, wizard_uuid)
+
 
 def get_wizard_count(endpoint_id: str, wizard_uuid: str) -> int:
     return WizardModel.count(endpoint_id, WizardModel.wizard_uuid == wizard_uuid)
@@ -224,7 +231,7 @@ def resolve_wizard_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
         "hash_key": "endpoint_id",
         "range_key": "wizard_uuid",
     },
-    model_funct=get_wizard,
+    model_funct=_get_wizard,
     count_funct=get_wizard_count,
     type_funct=get_wizard_type,
 )

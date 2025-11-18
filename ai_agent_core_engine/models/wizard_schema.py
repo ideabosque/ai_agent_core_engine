@@ -39,8 +39,20 @@ attributes_fn = lambda attributes: [
         "attribute_type": attribute.get("attribute_type"),
         "required": attribute.get("required", False),
         "options": attribute.get("options", []),
+        "pattern": attribute.get("pattern", ""),
+        "col": attribute.get("col", ""),
+        "label": attribute.get("label", ""),
+        "group_name": attribute.get("group_name", "")
     }
     for attribute in attributes
+]
+
+attribute_groups_fn = lambda attribute_groups: [
+    {
+        "name": attribute_group.get("name"),
+        "label": attribute_group.get("label"),
+    }
+    for attribute_group in attribute_groups
 ]
 
 
@@ -52,6 +64,7 @@ class WizardSchemaModel(BaseModel):
     wizard_schema_name = UnicodeAttribute(range_key=True)
     wizard_schema_description = UnicodeAttribute(null=True)
     attributes = ListAttribute(of=MapAttribute)
+    attribute_groups = ListAttribute(of=MapAttribute)
     updated_by = UnicodeAttribute()
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()
@@ -120,6 +133,16 @@ def get_wizard_schema(
     return WizardSchemaModel.get(wizard_schema_type, wizard_schema_name)
 
 
+@retry(
+    reraise=True,
+    wait=wait_exponential(multiplier=1, max=60),
+    stop=stop_after_attempt(5),
+)
+def _get_wizard_schema(
+    wizard_schema_type: str, wizard_schema_name: str
+) -> WizardSchemaModel:
+    return WizardSchemaModel.get(wizard_schema_type, wizard_schema_name)
+
 def get_wizard_schema_count(wizard_schema_type: str, wizard_schema_name: str) -> int:
     return WizardSchemaModel.count(
         wizard_schema_type,
@@ -187,7 +210,7 @@ def resolve_wizard_schema_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> A
         "range_key": "wizard_schema_name",
     },
     range_key_required=True,
-    model_funct=get_wizard_schema,
+    model_funct=_get_wizard_schema,
     count_funct=get_wizard_schema_count,
     type_funct=get_wizard_schema_type,
 )
@@ -199,6 +222,7 @@ def insert_update_wizard_schema(info: ResolveInfo, **kwargs: Dict[str, Any]) -> 
         cols = {
             "wizard_schema_description": kwargs.get("wizard_schema_description"),
             "attributes": attributes_fn(kwargs.get("attributes", [])),
+            "attribute_groups": attribute_groups_fn(kwargs.get("attribute_groups", [])),
             "updated_by": kwargs["updated_by"],
             "created_at": pendulum.now("UTC"),
             "updated_at": pendulum.now("UTC"),
@@ -218,11 +242,13 @@ def insert_update_wizard_schema(info: ResolveInfo, **kwargs: Dict[str, Any]) -> 
 
     field_map = {
         "attributes": WizardSchemaModel.attributes,
+        "attribute_groups": WizardSchemaModel.attribute_groups,
         "wizard_schema_description": WizardSchemaModel.wizard_schema_description,
     }
 
     fn_map = {
         "attributes": attributes_fn,
+        "attribute_groups": attribute_groups_fn
     }
 
     for key, field in field_map.items():

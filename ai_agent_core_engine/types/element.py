@@ -20,6 +20,7 @@ class ElementType(ObjectType):
     attribute_type = String()
     option_values = List(JSON)
     conditions = List(JSON)
+    pattern = String()
     updated_by = String()
     created_at = DateTime()
     updated_at = DateTime()

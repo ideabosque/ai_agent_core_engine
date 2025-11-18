@@ -15,6 +15,7 @@ class WizardSchemaType(ObjectType):
     wizard_schema_name = String()
     wizard_schema_description = String()
     attributes = List(JSON)
+    attribute_groups = List(JSON)
     updated_by = String()
     created_at = DateTime()
     updated_at = DateTime()
