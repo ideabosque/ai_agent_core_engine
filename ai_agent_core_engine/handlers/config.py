@@ -277,7 +277,7 @@ class Config:
             cls._initialize_task_queue(setting)
             cls._initialize_apigw_client(setting)
             cls._initialize_internal_mcp(setting)
-            if setting.get("execute_mode") == "local_for_all":
+            if setting.get("initialize_tables"):
                 cls._initialize_tables(logger)
             logger.info("Configuration initialized successfully.")
         except Exception as e:
