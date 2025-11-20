@@ -180,21 +180,22 @@ def get_thread_type(info: ResolveInfo, thread: ThreadModel) -> ThreadType:
                 tool_call_list.tool_call_list, key=lambda x: x.created_at
             )
         ]
+
+        thread = thread.__dict__["attribute_values"]
+        thread["agent"] = {
+            "agent_uuid": agent["agent_uuid"],
+            "agent_name": agent["agent_name"],
+            "agent_description": agent["agent_description"],
+        }
+        thread["messages"] = messages
+        thread["tool_calls"] = tool_calls
+        thread.pop("endpoint_id")
+        thread.pop("agent_uuid")
+        return ThreadType(**Utility.json_normalize(thread))
     except Exception as e:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)
         raise e
-    thread = thread.__dict__["attribute_values"]
-    thread["agent"] = {
-        "agent_uuid": agent["agent_uuid"],
-        "agent_name": agent["agent_name"],
-        "agent_description": agent["agent_description"],
-    }
-    thread["messages"] = messages
-    thread["tool_calls"] = tool_calls
-    thread.pop("endpoint_id")
-    thread.pop("agent_uuid")
-    return ThreadType(**Utility.json_normalize(thread))
 
 
 def resolve_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType | None:

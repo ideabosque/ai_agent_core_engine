@@ -147,15 +147,16 @@ def get_tool_call_count(thread_uuid: str, tool_call_uuid: str) -> int:
 def get_tool_call_type(info: ResolveInfo, tool_call: ToolCallModel) -> ToolCallType:
     try:
         run = _get_run(tool_call.thread_uuid, tool_call.run_uuid)
+
+        tool_call = tool_call.__dict__["attribute_values"]
+        tool_call["run"] = run
+        tool_call.pop("thread_uuid")
+        tool_call.pop("run_uuid")
+        return ToolCallType(**Utility.json_normalize(tool_call))
     except Exception as e:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)
         raise e
-    tool_call = tool_call.__dict__["attribute_values"]
-    tool_call["run"] = run
-    tool_call.pop("thread_uuid")
-    tool_call.pop("run_uuid")
-    return ToolCallType(**Utility.json_normalize(tool_call))
 
 
 def resolve_tool_call(

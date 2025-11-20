@@ -176,14 +176,15 @@ def get_flow_snippet_type(
 ) -> FlowSnippetType:
     try:
         prompt_template = _get_prompt_template(info, flow_snippet.prompt_uuid)
+
+        flow_snippet = flow_snippet.__dict__["attribute_values"]
+        flow_snippet["prompt_template"] = prompt_template
+        flow_snippet.pop("prompt_uuid")
+        return FlowSnippetType(**Utility.json_normalize(flow_snippet))
     except Exception as e:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)
         raise e
-    flow_snippet = flow_snippet.__dict__["attribute_values"]
-    flow_snippet["prompt_template"] = prompt_template
-    flow_snippet.pop("prompt_uuid")
-    return FlowSnippetType(**Utility.json_normalize(flow_snippet))
 
 
 def resolve_flow_snippet(

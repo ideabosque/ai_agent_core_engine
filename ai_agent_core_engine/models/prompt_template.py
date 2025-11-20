@@ -191,14 +191,15 @@ def get_prompt_template_type(
     try:
         mcp_servers = _get_mcp_servers(info, prompt_template.mcp_servers)
         ui_components = _get_ui_components(info, prompt_template.ui_components)
+
+        prompt_template = prompt_template.__dict__["attribute_values"]
+        prompt_template["mcp_servers"] = mcp_servers
+        prompt_template["ui_components"] = ui_components
+        return PromptTemplateType(**Utility.json_normalize(prompt_template))
     except Exception as e:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)
         raise e
-    prompt_template = prompt_template.__dict__["attribute_values"]
-    prompt_template["mcp_servers"] = mcp_servers
-    prompt_template["ui_components"] = ui_components
-    return PromptTemplateType(**Utility.json_normalize(prompt_template))
 
 
 def resolve_prompt_template(

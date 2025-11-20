@@ -38,7 +38,9 @@ from .mutations.thread import DeleteThread, InsertThread
 from .mutations.tool_call import DeleteToolCall, InsertUpdateToolCall
 from .mutations.ui_component import DeleteUIComponent, InsertUpdateUIComponent
 from .mutations.wizard import DeleteWizard, InsertUpdateWizard
+from .mutations.wizard_schema import DeleteWizardSchema, InsertUpdateWizardSchema
 from .mutations.wizard_group import DeleteWizardGroup, InsertUpdateWizardGroup
+from .mutations.wizard_group_wizards import InsertUpdateWizardGroupWithWizards, DeleteWizardFromWizardGroup
 from .queries.agent import resolve_agent, resolve_agent_list
 from .queries.ai_agent import (
     resolve_ask_model,
@@ -65,6 +67,7 @@ from .queries.thread import resolve_thread, resolve_thread_list
 from .queries.tool_call import resolve_tool_call, resolve_tool_call_list
 from .queries.ui_component import resolve_ui_component, resolve_ui_component_list
 from .queries.wizard import resolve_wizard, resolve_wizard_list
+from .queries.wizard_schema import resolve_wizard_schema, resolve_wizard_schema_list
 from .queries.wizard_group import resolve_wizard_group, resolve_wizard_group_list
 from .types.agent import AgentListType, AgentType
 from .types.ai_agent import AskModelType, FileType, PresignedAWSS3UrlType
@@ -81,6 +84,7 @@ from .types.thread import ThreadListType, ThreadType
 from .types.tool_call import ToolCallListType, ToolCallType
 from .types.ui_component import UIComponentListType, UIComponentType
 from .types.wizard import WizardListType, WizardType
+from .types.wizard_schema import WizardSchemaListType, WizardSchemaType
 from .types.wizard_group import WizardGroupListType, WizardGroupType
 
 
@@ -106,6 +110,8 @@ def type_class():
         ElementListType,
         WizardType,
         WizardListType,
+        WizardSchemaType,
+        WizardSchemaListType,
         WizardGroupType,
         WizardGroupListType,
         MCPServerType,
@@ -312,6 +318,20 @@ class Query(ObjectType):
         wizard_title=String(required=False),
     )
 
+    wizard_schema = Field(
+        WizardSchemaType,
+        wizard_schema_type=String(required=True),
+        wizard_schema_name=String(required=True),
+    )
+
+    wizard_schema_list = Field(
+        WizardSchemaListType,
+        page_number=Int(required=False),
+        limit=Int(required=False),
+        wizard_schema_type=String(required=False),
+        wizard_schema_name=String(required=False),
+    )
+
     wizard_group = Field(
         WizardGroupType,
         wizard_group_uuid=String(required=True),
@@ -497,6 +517,16 @@ class Query(ObjectType):
     ) -> WizardListType:
         return resolve_wizard_list(info, **kwargs)
 
+    def resolve_wizard_schema(
+        self, info: ResolveInfo, **kwargs: Dict[str, Any]
+    ) -> WizardSchemaType:
+        return resolve_wizard_schema(info, **kwargs)
+
+    def resolve_wizard_schema_list(
+        self, info: ResolveInfo, **kwargs: Dict[str, Any]
+    ) -> WizardSchemaListType:
+        return resolve_wizard_schema_list(info, **kwargs)
+
     def resolve_wizard_group(
         self, info: ResolveInfo, **kwargs: Dict[str, Any]
     ) -> WizardGroupType:
@@ -576,6 +606,8 @@ class Mutations(ObjectType):
     delete_element = DeleteElement.Field()
     insert_update_wizard = InsertUpdateWizard.Field()
     delete_wizard = DeleteWizard.Field()
+    insert_update_wizard_schema = InsertUpdateWizardSchema.Field()
+    delete_wizard_schema = DeleteWizardSchema.Field()
     insert_update_wizard_group = InsertUpdateWizardGroup.Field()
     delete_wizard_group = DeleteWizardGroup.Field()
     insert_update_mcp_server = InsertUpdateMCPServer.Field()
@@ -586,3 +618,5 @@ class Mutations(ObjectType):
     delete_flow_snippet = DeleteFlowSnippet.Field()
     insert_update_prompt_template = InsertUpdatePromptTemplate.Field()
     delete_prompt_template = DeletePromptTemplate.Field()
+    insert_update_wizard_group_with_wizards= InsertUpdateWizardGroupWithWizards.Field()
+    delete_wizard_from_wizard_group = DeleteWizardFromWizardGroup.Field()
