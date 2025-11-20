@@ -29,7 +29,7 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility, method_cache
+from silvaengine_utility import Utility, convert_decimal_to_number, method_cache
 
 from ..handlers.config import Config
 from ..types.agent import AgentListType, AgentType
@@ -147,7 +147,7 @@ def get_agent(endpoint_id: str, agent_version_uuid: str) -> AgentModel:
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
 )
-def _get_active_agent(endpoint_id: str, agent_uuid: str) -> AgentModel:
+def _get_active_agent(endpoint_id: str, agent_uuid: str) -> AgentModel | None:
     try:
         results = AgentModel.agent_uuid_index.query(
             endpoint_id,
@@ -205,16 +205,14 @@ def get_agent_type(info: ResolveInfo, agent: AgentModel) -> AgentType:
     ]
 
     agent["flow_snippet"] = flow_snippet
-    agent.pop("llm_provider")
-    agent.pop("llm_name")
-    if "mcp_server_uuids" in agent:
-        agent.pop("mcp_server_uuids")
-    if "flow_snippet_version_uuid" in agent:
-        agent.pop("flow_snippet_version_uuid")
+    agent.pop("llm_provider", None)
+    agent.pop("llm_name", None)
+    agent.pop("mcp_server_uuids", None)
+    agent.pop("flow_snippet_version_uuid", None)
     return AgentType(**Utility.json_normalize(agent))
 
 
-def resolve_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AgentType:
+def resolve_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AgentType | None:
     if "agent_uuid" in kwargs:
         return get_agent_type(
             info, _get_active_agent(info.context["endpoint_id"], kwargs["agent_uuid"])
@@ -279,6 +277,7 @@ def resolve_agent_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
 def _inactivate_agents(info: ResolveInfo, endpoint_id: str, agent_uuid: str) -> None:
     try:
         # Query for active agents matching the type and ID
+        endpoint_id = endpoint_id or info.context.get("endpoint_id")
         agents = AgentModel.agent_uuid_index.query(
             endpoint_id,
             AgentModel.agent_uuid == agent_uuid,
@@ -307,9 +306,11 @@ def _inactivate_agents(info: ResolveInfo, endpoint_id: str, agent_uuid: str) -> 
     # data_attributes_except_for_data_diff=["created_at", "updated_at"],
     # activity_history_funct=None,
 )
-def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
+def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     endpoint_id = kwargs.get("endpoint_id")
     agent_version_uuid = kwargs.get("agent_version_uuid")
+    duplicate = kwargs.get("duplicate", False)
+
     if kwargs.get("entity") is None:
         cols = {
             "configuration": {},
@@ -344,8 +345,15 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
                 }
             )
 
-            # Deactivate previous versions before creating new one
-            _inactivate_agents(info, endpoint_id, kwargs["agent_uuid"])
+            if duplicate:
+                timestamp = pendulum.now("UTC").int_timestamp
+                cols["agent_version_uuid"] = (
+                    f"agent-{timestamp}-{str(uuid.uuid4())[:8]}"
+                )
+                cols["agent_name"] = f"{cols['agent_name']} (Copy)"
+            else:
+                # Deactivate previous versions before creating new one
+                _inactivate_agents(info, endpoint_id, kwargs["agent_uuid"])
         else:
             # Generate new unique agent UUID with timestamp
             timestamp = pendulum.now("UTC").int_timestamp
@@ -411,12 +419,13 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
                     cols["mcp_server_uuids"] = [
                         mcp_server["mcp_server_uuid"]
                         for mcp_server in prmopt_template["mcp_servers"]
+                        if mcp_server.get("mcp_server_uuid")
                     ]
 
         AgentModel(
             endpoint_id,
             agent_version_uuid,
-            **cols,
+            **convert_decimal_to_number(cols),
         ).save()
         return
 

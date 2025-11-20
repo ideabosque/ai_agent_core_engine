@@ -11,12 +11,7 @@ from typing import Any, Dict
 
 import pendulum
 from graphene import ResolveInfo
-from pynamodb.attributes import (
-    MapAttribute,
-    NumberAttribute,
-    UnicodeAttribute,
-    UTCDateTimeAttribute,
-)
+from pynamodb.attributes import NumberAttribute, UnicodeAttribute, UTCDateTimeAttribute
 from pynamodb.indexes import AllProjection, LocalSecondaryIndex
 from tenacity import retry, stop_after_attempt, wait_exponential
 
@@ -164,7 +159,9 @@ def get_tool_call_type(info: ResolveInfo, tool_call: ToolCallModel) -> ToolCallT
         raise e
 
 
-def resolve_tool_call(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ToolCallType:
+def resolve_tool_call(
+    info: ResolveInfo, **kwargs: Dict[str, Any]
+) -> ToolCallType | None:
     count = get_tool_call_count(kwargs["thread_uuid"], kwargs["tool_call_uuid"])
     if count == 0:
         return None
@@ -188,20 +185,37 @@ def resolve_tool_call_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     tool_type = kwargs.get("tool_type")
     name = kwargs.get("name")
     statuses = kwargs.get("statuses")
+    updated_at_gt = kwargs.get("updated_at_gt")
+    updated_at_lt = kwargs.get("updated_at_lt")
 
     args = []
     inquiry_funct = ToolCallModel.scan
     count_funct = ToolCallModel.count
+    range_key_condition = None
     if thread_uuid:
-        args = [thread_uuid, None]
+
+        # Build range key condition for updated_at when using updated_at_index
+        if updated_at_gt is not None and updated_at_lt is not None:
+            range_key_condition = ToolCallModel.updated_at.between(
+                updated_at_gt, updated_at_lt
+            )
+        elif updated_at_gt is not None:
+            range_key_condition = ToolCallModel.updated_at > updated_at_gt
+        elif updated_at_lt is not None:
+            range_key_condition = ToolCallModel.updated_at < updated_at_lt
+
+        args = [thread_uuid, range_key_condition]
         inquiry_funct = ToolCallModel.updated_at_index.query
         count_funct = ToolCallModel.updated_at_index.count
-        if run_uuid:
+
+        if run_uuid and args[1] is None:
             inquiry_funct = ToolCallModel.run_uuid_index.query
             args[1] = ToolCallModel.run_uuid == run_uuid
             count_funct = ToolCallModel.run_uuid_index.count
 
     the_filters = None
+    if run_uuid and range_key_condition is not None:
+        the_filters &= ToolCallModel.run_uuid == run_uuid
     if tool_call_id:
         the_filters &= ToolCallModel.tool_call_id.exists()
         the_filters &= ToolCallModel.tool_call_id == tool_call_id
@@ -226,7 +240,7 @@ def resolve_tool_call_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     # data_attributes_except_for_data_diff=["created_at", "updated_at"],
     # activity_history_funct=None,
 )
-def insert_update_tool_call(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
+def insert_update_tool_call(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
 
     thread_uuid = kwargs.get("thread_uuid")
     tool_call_uuid = kwargs.get("tool_call_uuid")
@@ -259,8 +273,8 @@ def insert_update_tool_call(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None
 
     tool_call = kwargs.get("entity")
     if "status" in kwargs and kwargs["status"] == "completed":
-        kwargs["time_spent"] = (
-            pendulum.now("UTC").diff(tool_call.created_at).in_seconds()
+        kwargs["time_spent"] = int(
+            pendulum.now("UTC").diff(tool_call.created_at).in_seconds() * 1000
         )
     actions = [
         ToolCallModel.updated_by.set(kwargs["updated_by"]),

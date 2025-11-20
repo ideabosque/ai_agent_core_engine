@@ -198,7 +198,7 @@ def get_thread_type(info: ResolveInfo, thread: ThreadModel) -> ThreadType:
         raise e
 
 
-def resolve_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType:
+def resolve_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType | None:
     count = get_thread_count(info.context["endpoint_id"], kwargs["thread_uuid"])
     if count == 0:
         return None
@@ -225,20 +225,37 @@ def resolve_thread_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     endpoint_id = info.context["endpoint_id"]
     agent_uuid = kwargs.get("agent_uuid", None)
     user_id = kwargs.get("user_id", None)
+    created_at_gt = kwargs.get("created_at_gt", None)
+    created_at_lt = kwargs.get("created_at_lt", None)
 
     args = []
     inquiry_funct = ThreadModel.scan
     count_funct = ThreadModel.count
+    range_key_condition = None
     if endpoint_id:
-        args = [endpoint_id, None]
+
+        # Build range key condition for created_at when using created_at_index
+        if created_at_gt is not None and created_at_lt is not None:
+            range_key_condition = ThreadModel.created_at.between(
+                created_at_gt, created_at_lt
+            )
+        elif created_at_gt is not None:
+            range_key_condition = ThreadModel.created_at > created_at_gt
+        elif created_at_lt is not None:
+            range_key_condition = ThreadModel.created_at < created_at_lt
+
+        args = [endpoint_id, range_key_condition]
         inquiry_funct = ThreadModel.created_at_index.query
         count_funct = ThreadModel.created_at_index.count
-        if agent_uuid:
+
+        if agent_uuid and args[1] is None:
             inquiry_funct = ThreadModel.agent_uuid_index.query
             args[1] = ThreadModel.agent_uuid == agent_uuid
             count_funct = ThreadModel.agent_uuid_index.count
 
     the_filters = None
+    if agent_uuid and range_key_condition is not None:
+        the_filters &= ThreadModel.agent_uuid == agent_uuid
     if user_id is not None:
         the_filters &= ThreadModel.user_id.exists()
         the_filters &= ThreadModel.user_id == user_id
@@ -260,7 +277,7 @@ def resolve_thread_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     # data_attributes_except_for_data_diff=["created_at", "updated_at"],
     # activity_history_funct=None,
 )
-def insert_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
+def insert_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
 
     endpoint_id = kwargs.get("endpoint_id")
     thread_uuid = kwargs.get("thread_uuid")

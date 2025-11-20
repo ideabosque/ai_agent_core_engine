@@ -31,6 +31,7 @@ class InsertUpdatePromptTemplate(Mutation):
         mcp_servers = List(JSON, required=False)
         ui_components = List(JSON, required=False)
         status = String(required=False)
+        duplicate = Boolean(required=False)
         updated_by = String(required=True)
 
     @staticmethod

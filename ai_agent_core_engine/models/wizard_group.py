@@ -13,12 +13,10 @@ import pendulum
 from graphene import ResolveInfo
 from pynamodb.attributes import (
     ListAttribute,
-    MapAttribute,
     NumberAttribute,
     UnicodeAttribute,
     UTCDateTimeAttribute,
 )
-from pynamodb.indexes import AllProjection, LocalSecondaryIndex
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from silvaengine_dynamodb_base import (
@@ -153,7 +151,7 @@ def get_wizard_group_type(
 
 def resolve_wizard_group(
     info: ResolveInfo, **kwargs: Dict[str, Any]
-) -> WizardGroupType:
+) -> WizardGroupType | None:
     count = get_wizard_group_count(
         info.context["endpoint_id"], kwargs["wizard_group_uuid"]
     )
@@ -201,7 +199,7 @@ def resolve_wizard_group_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> An
     count_funct=get_wizard_group_count,
     type_funct=get_wizard_group_type,
 )
-def insert_update_wizard_group(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
+def insert_update_wizard_group(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
 
     endpoint_id = kwargs.get("endpoint_id")
     wizard_group_uuid = kwargs.get("wizard_group_uuid")

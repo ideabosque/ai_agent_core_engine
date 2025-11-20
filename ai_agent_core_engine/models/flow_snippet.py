@@ -23,7 +23,7 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility, method_cache
+from silvaengine_utility import Utility, convert_decimal_to_number, method_cache
 
 from ..handlers.ai_agent_utility import convert_flow_snippet_xml
 from ..handlers.config import Config
@@ -189,7 +189,7 @@ def get_flow_snippet_type(
 
 def resolve_flow_snippet(
     info: ResolveInfo, **kwargs: Dict[str, Any]
-) -> FlowSnippetType:
+) -> FlowSnippetType | None:
     if "flow_snippet_uuid" in kwargs:
         return get_flow_snippet_type(
             info,
@@ -256,6 +256,7 @@ def _inactivate_flow_snippets(
     info: ResolveInfo, endpoint_id: str, flow_snippet_uuid: str
 ) -> None:
     try:
+        endpoint_id = endpoint_id or info.context.get("endpoint_id")
         flow_snippets = FlowSnippetModel.flow_snippet_uuid_index.query(
             endpoint_id,
             FlowSnippetModel.flow_snippet_uuid == flow_snippet_uuid,
@@ -281,10 +282,10 @@ def _inactivate_flow_snippets(
     count_funct=get_flow_snippet_count,
     type_funct=get_flow_snippet_type,
 )
-def insert_update_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
-
+def insert_update_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     endpoint_id = kwargs.get("endpoint_id")
     flow_snippet_version_uuid = kwargs.get("flow_snippet_version_uuid")
+    duplicate = kwargs.get("duplicate", False)
 
     if kwargs.get("entity") is None:
         cols = {
@@ -314,7 +315,17 @@ def insert_update_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
                     if k not in excluded_fields
                 }
             )
-            _inactivate_flow_snippets(info, endpoint_id, kwargs["flow_snippet_uuid"])
+            if duplicate:
+                timestamp = pendulum.now("UTC").int_timestamp
+                cols["flow_snippet_uuid"] = (
+                    f"flow-snippet-{timestamp}-{str(uuid.uuid4())[:8]}"
+                )
+                cols["flow_name"] = f"{cols['flow_name']} (Copy)"
+            else:
+                # Deactivate previous versions before creating new one
+                _inactivate_flow_snippets(
+                    info, endpoint_id, kwargs["flow_snippet_uuid"]
+                )
         else:
             timestamp = pendulum.now("UTC").int_timestamp
             cols["flow_snippet_uuid"] = (
@@ -336,7 +347,7 @@ def insert_update_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
         FlowSnippetModel(
             endpoint_id,
             flow_snippet_version_uuid,
-            **cols,
+            **convert_decimal_to_number(cols),
         ).save()
 
         if active_flow_snippet is not None:

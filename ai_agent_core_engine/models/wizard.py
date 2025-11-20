@@ -14,7 +14,6 @@ from graphene import ResolveInfo
 from pynamodb.attributes import (
     BooleanAttribute,
     ListAttribute,
-    MapAttribute,
     NumberAttribute,
     UnicodeAttribute,
     UTCDateTimeAttribute,
@@ -235,7 +234,7 @@ def resolve_wizard_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     count_funct=get_wizard_count,
     type_funct=get_wizard_type,
 )
-def insert_update_wizard(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
+def insert_update_wizard(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
 
     endpoint_id = kwargs.get("endpoint_id")
     wizard_uuid = kwargs.get("wizard_uuid")

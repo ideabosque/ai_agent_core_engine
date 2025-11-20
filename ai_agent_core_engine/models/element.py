@@ -7,7 +7,6 @@ __author__ = "bibow"
 import functools
 import logging
 import traceback
-import uuid
 from typing import Any, Dict
 
 import pendulum
@@ -144,7 +143,7 @@ def get_element_type(info: ResolveInfo, element: ElementModel) -> ElementType:
     return ElementType(**Utility.json_normalize(element))
 
 
-def resolve_element(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ElementType:
+def resolve_element(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ElementType | None:
     count = get_element_count(info.context["endpoint_id"], kwargs["element_uuid"])
     if count == 0:
         return None
@@ -197,7 +196,7 @@ def resolve_element_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     count_funct=get_element_count,
     type_funct=get_element_type,
 )
-def insert_update_element(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
+def insert_update_element(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
 
     endpoint_id = kwargs.get("endpoint_id")
     element_uuid = kwargs.get("element_uuid")

@@ -137,7 +137,7 @@ def get_async_task_type(info: ResolveInfo, async_task: AsyncTaskModel) -> AsyncT
     return AsyncTaskType(**Utility.json_normalize(async_task))
 
 
-def resolve_async_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskType:
+def resolve_async_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskType | None:
     count = get_async_task_count(kwargs["function_name"], kwargs["async_task_uuid"])
     if count == 0:
         return None
@@ -190,7 +190,7 @@ def resolve_async_task_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     # data_attributes_except_for_data_diff=["created_at", "updated_at"],
     # activity_history_funct=None,
 )
-def insert_update_async_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
+def insert_update_async_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
 
     function_name = kwargs.get("function_name")
     async_task_uuid = kwargs.get("async_task_uuid")
@@ -226,7 +226,7 @@ def insert_update_async_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Non
     async_task = kwargs.get("entity")
     if "status" in kwargs and kwargs["status"] == "completed":
         kwargs["time_spent"] = (
-            pendulum.now("UTC").diff(async_task.created_at).in_seconds()
+            int(pendulum.now("UTC").diff(async_task.created_at).in_seconds() * 1000)
         )
     actions = [
         AsyncTaskModel.updated_by.set(kwargs["updated_by"]),

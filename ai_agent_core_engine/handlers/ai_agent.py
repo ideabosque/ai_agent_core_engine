@@ -8,6 +8,7 @@ import traceback
 from queue import Queue
 from typing import Any, Dict, List
 
+import pendulum
 from graphene import ResolveInfo
 
 from silvaengine_utility import Utility
@@ -16,10 +17,10 @@ from ..models.agent import resolve_agent
 from ..models.async_task import insert_update_async_task
 from ..models.message import insert_update_message
 from ..models.run import insert_update_run
-from ..models.thread import insert_thread, resolve_thread
+from ..models.thread import insert_thread, resolve_thread, resolve_thread_list
 from ..types.ai_agent import AskModelType, FileType, PresignedAWSS3UrlType
-from ..types.async_task import AsyncTaskType
 from ..types.message import MessageType
+from ..types.thread import ThreadListType, ThreadType
 from .ai_agent_utility import calculate_num_tokens, get_input_messages, start_async_task
 from .config import Config
 
@@ -31,12 +32,14 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
     Args:
         info: GraphQL resolver context containing logger, endpoint and connection info
         **kwargs: Parameters including:
+            - agent_uuid: ID of AI agent to use (required)
             - thread_uuid: Optional ID of existing conversation thread
-            - agent_uuid: ID of AI agent to use
             - user_id: Optional ID of the user
-            - user_query: The actual query text
+            - user_query: The actual query text (required)
+            - input_files: Optional list of input files in JSON format
             - stream: Whether to stream responses (default False)
-            - updated_by: User making the request
+            - thread_life_minutes: Optional thread lifetime in minutes (default 30)
+            - updated_by: User making the request (required)
 
     Returns:
         AskModelType containing thread, task and run identifiers
@@ -50,22 +53,7 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
             f"connection_id: {info.context.get('connectionId')}"
         )
 
-        # Get or create conversation thread
-        thread = None
-        if "thread_uuid" in kwargs:
-            thread = resolve_thread(
-                info,
-                **{"thread_uuid": kwargs["thread_uuid"]},
-            )
-        else:
-            thread = insert_thread(
-                info,
-                **{
-                    "agent_uuid": kwargs["agent_uuid"],
-                    "user_id": kwargs.get("user_id"),
-                    "updated_by": kwargs["updated_by"],
-                },
-            )
+        thread = _get_thread(info, **kwargs)
 
         # Create new run instance for this request
         run = insert_update_run(
@@ -112,7 +100,59 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
         raise e
 
 
-def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskType:
+def _get_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType:
+    """
+    Retrieve a conversation thread by its UUID.
+
+    Args:
+        info: GraphQL resolver context
+        **kwargs: Contains thread_uuid
+
+    Returns:
+        Dict[str, Any]: Thread data
+    """
+    try:
+        if "thread_uuid" in kwargs:
+            thread = resolve_thread(
+                info,
+                **{"thread_uuid": kwargs["thread_uuid"]},
+            )
+            return thread
+
+        if "user_id" in kwargs:
+            # Only retrieve threads from the past 'thread_life_minutes' minutes
+            thread_life_minutes = kwargs.get("thread_life_minutes", 30)
+            created_at_gt = pendulum.now("UTC").subtract(minutes=thread_life_minutes)
+
+            thread_list: ThreadListType = resolve_thread_list(
+                info,
+                **{
+                    "agent_uuid": kwargs["agent_uuid"],
+                    "user_id": kwargs["user_id"],
+                    "created_at_gt": created_at_gt,
+                },
+            )
+            if thread_list.total > 0:
+                # Return the latest thread based on updated_time or created_time
+                latest_thread = max(thread_list.thread_list, key=lambda t: t.created_at)
+                return latest_thread
+
+        thread = insert_thread(
+            info,
+            **{
+                "agent_uuid": kwargs["agent_uuid"],
+                "user_id": kwargs.get("user_id"),
+                "updated_by": kwargs["updated_by"],
+            },
+        )
+        return thread
+    except Exception as e:
+        log = traceback.format_exc()
+        info.context.get("logger").error(log)
+        raise e
+
+
+def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
     """
     Execute an AI model query and handle the response asynchronously.
 
@@ -385,7 +425,7 @@ def _update_user_message_with_files(
     return
 
 
-def upload_file(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
+def upload_file(info: ResolveInfo, **kwargs: Dict[str, Any]) -> FileType:
     # Retrieve AI agent configuration
     agent = resolve_agent(info, **{"agent_uuid": kwargs["agent_uuid"]})
 
@@ -417,7 +457,7 @@ def upload_file(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
         raise Exception(f"Unsupported LLM: {agent.llm['llm_name']}")
 
 
-def get_file(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
+def get_file(info: ResolveInfo, **kwargs: Dict[str, Any]) -> FileType:
     # Retrieve AI agent configuration
     agent = resolve_agent(info, **{"agent_uuid": kwargs["agent_uuid"]})
 
@@ -448,7 +488,7 @@ def get_file(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
         raise Exception(f"Unsupported LLM: {agent.llm['llm_name']}")
 
 
-def get_output_file(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
+def get_output_file(info: ResolveInfo, **kwargs: Dict[str, Any]) -> FileType:
     # Retrieve AI agent configuration
     agent = resolve_agent(info, **{"agent_uuid": kwargs["agent_uuid"]})
 

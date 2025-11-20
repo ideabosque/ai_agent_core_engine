@@ -159,7 +159,7 @@ def get_message_type(info: ResolveInfo, message: MessageModel) -> MessageType:
         raise e
 
 
-def resolve_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> MessageType:
+def resolve_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> MessageType | None:
     count = get_message_count(kwargs["thread_uuid"], kwargs["message_uuid"])
     if count == 0:
         return None
@@ -180,20 +180,37 @@ def resolve_message_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     run_uuid = kwargs.get("run_uuid")
     message_id = kwargs.get("message_id")
     roles = kwargs.get("roles")
+    updated_at_gt = kwargs.get("updated_at_gt")
+    updated_at_lt = kwargs.get("updated_at_lt")
 
     args = []
     inquiry_funct = MessageModel.scan
     count_funct = MessageModel.count
+    range_key_condition = None
     if thread_uuid:
-        args = [thread_uuid, None]
+
+        # Build range key condition for updated_at when using updated_at_index
+        if updated_at_gt is not None and updated_at_lt is not None:
+            range_key_condition = MessageModel.updated_at.between(
+                updated_at_gt, updated_at_lt
+            )
+        elif updated_at_gt is not None:
+            range_key_condition = MessageModel.updated_at > updated_at_gt
+        elif updated_at_lt is not None:
+            range_key_condition = MessageModel.updated_at < updated_at_lt
+
+        args = [thread_uuid, range_key_condition]
         inquiry_funct = MessageModel.updated_at_index.query
         count_funct = MessageModel.updated_at_index.count
-        if run_uuid:
+
+        if run_uuid and args[1] is None:
             inquiry_funct = MessageModel.run_uuid_index.query
             args[1] = MessageModel.run_uuid == run_uuid
             count_funct = MessageModel.run_uuid_index.count
 
     the_filters = None
+    if run_uuid and range_key_condition is not None:
+        the_filters &= MessageModel.run_uuid == run_uuid
     if message_id:
         the_filters &= MessageModel.message_id.exists()
         the_filters &= MessageModel.message_id == message_id
@@ -214,7 +231,7 @@ def resolve_message_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     # data_attributes_except_for_data_diff=["created_at", "updated_at"],
     # activity_history_funct=None,
 )
-def insert_update_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
+def insert_update_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
 
     thread_uuid = kwargs.get("thread_uuid")
     message_uuid = kwargs.get("message_uuid")

@@ -277,7 +277,7 @@ class Config:
             cls._initialize_task_queue(setting)
             cls._initialize_apigw_client(setting)
             cls._initialize_internal_mcp(setting)
-            if setting.get("test_mode") == "local_for_all":
+            if setting.get("initialize_tables"):
                 cls._initialize_tables(logger)
             logger.info("Configuration initialized successfully.")
         except Exception as e:
@@ -367,15 +367,15 @@ class Config:
         """
         if "internal_mcp" not in setting:
             return
-        mcp_server = setting.get("internal_mcp", {})
-        assert mcp_server.get("base_url"), "Internal MCP server base URL is required."
+        mcp_server = setting["internal_mcp"]
+        if mcp_server.get("bearer_token"):
+            mcp_server["headers"] = {
+                "Authorization": f"Bearer {mcp_server['bearer_token']}"
+            }
         cls.internal_mcp = {
             "name": "internal_mcp",
-            "setting": {
-                "base_url": mcp_server["base_url"],
-                "bearer_token": mcp_server.get("bearer_token"),
-                "headers": mcp_server.get("headers", {}),
-            },
+            "base_url": mcp_server["base_url"],
+            "headers": mcp_server["headers"],
         }
 
     @classmethod
@@ -452,22 +452,18 @@ class Config:
                 function_name,
                 setting=setting,
                 aws_lambda=Config.aws_lambda,
-                test_mode=setting.get("test_mode"),
+                execute_mode=setting.get("execute_mode"),
             )
         return Config.schemas[function_name]
 
     @classmethod
-    def get_internal_mcp(cls, endpoint_id: str) -> Dict[str, Any]:
+    def get_internal_mcp(cls, endpoint_id: str) -> Dict[str, Any] | None:
         """Get internal MCP server configuration."""
         if cls.internal_mcp is None:
             return cls.internal_mcp
 
         internal_mcp = cls.internal_mcp.copy()
-        if internal_mcp["setting"].get("bearer_token"):
-            internal_mcp["setting"]["headers"][
-                "Authorization"
-            ] = f"Bearer {internal_mcp['setting']['bearer_token']}"
-        internal_mcp["setting"]["base_url"] = internal_mcp["setting"][
-            "base_url"
-        ].format(endpoint_id=endpoint_id)
+        internal_mcp["base_url"] = internal_mcp["base_url"].format(
+            endpoint_id=endpoint_id
+        )
         return internal_mcp

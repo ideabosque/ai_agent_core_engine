@@ -108,7 +108,7 @@ def get_llm_type(info: ResolveInfo, llm: LlmModel) -> LlmType:
     return LlmType(**Utility.json_normalize(llm))
 
 
-def resolve_llm(info: ResolveInfo, **kwargs: Dict[str, Any]) -> LlmType:
+def resolve_llm(info: ResolveInfo, **kwargs: Dict[str, Any]) -> LlmType | None:
     count = get_llm_count(kwargs["llm_provider"], kwargs["llm_name"])
     if count == 0:
         return None
@@ -158,7 +158,7 @@ def resolve_llm_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     # data_attributes_except_for_data_diff=["created_at", "updated_at"],
     # activity_history_funct=None,
 )
-def insert_update_llm(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
+def insert_update_llm(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
 
     llm_provider = kwargs.get("llm_provider")
     llm_name = kwargs.get("llm_name")

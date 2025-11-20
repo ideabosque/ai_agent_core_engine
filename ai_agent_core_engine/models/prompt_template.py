@@ -32,8 +32,6 @@ from silvaengine_utility import Utility, method_cache
 
 from ..handlers.config import Config
 from ..types.prompt_template import PromptTemplateListType, PromptTemplateType
-from .mcp_server import resolve_mcp_server
-from .ui_component import resolve_ui_component
 from .utils import _get_mcp_servers, _get_ui_components
 
 
@@ -99,7 +97,7 @@ def purge_cache():
 
                 try:
                     prompt_template = resolve_prompt_template(args[0], **kwargs)
-                except Exception as e:
+                except Exception:
                     prompt_template = None
 
                 endpoint_id = args[0].context.get("endpoint_id") or kwargs.get(
@@ -166,7 +164,7 @@ def get_prompt_template(
 )
 def _get_active_prompt_template(
     endpoint_id: str, prompt_uuid: str
-) -> PromptTemplateModel:
+) -> PromptTemplateModel | None:
     try:
         results = PromptTemplateModel.prompt_uuid_index.query(
             endpoint_id,
@@ -206,7 +204,7 @@ def get_prompt_template_type(
 
 def resolve_prompt_template(
     info: ResolveInfo, **kwargs: Dict[str, Any]
-) -> PromptTemplateType:
+) -> PromptTemplateType | None:
     if "prompt_uuid" in kwargs:
         return get_prompt_template_type(
             info,
@@ -270,6 +268,7 @@ def _inactivate_prompt_templates(
     info: ResolveInfo, endpoint_id: str, prompt_uuid: str
 ) -> None:
     try:
+        endpoint_id = endpoint_id or info.context.get("endpoint_id")
         prompt_templates = PromptTemplateModel.prompt_uuid_index.query(
             endpoint_id,
             PromptTemplateModel.prompt_uuid == prompt_uuid,
@@ -295,10 +294,10 @@ def _inactivate_prompt_templates(
     count_funct=get_prompt_template_count,
     type_funct=get_prompt_template_type,
 )
-def insert_update_prompt_template(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
-
+def insert_update_prompt_template(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     endpoint_id = kwargs.get("endpoint_id")
     prompt_version_uuid = kwargs.get("prompt_version_uuid")
+    duplicate = kwargs.get("duplicate", False)
 
     if kwargs.get("entity") is None:
         cols = {
@@ -333,7 +332,13 @@ def insert_update_prompt_template(info: ResolveInfo, **kwargs: Dict[str, Any]) -
                     if k not in excluded_fields
                 }
             )
-            _inactivate_prompt_templates(info, endpoint_id, kwargs["prompt_uuid"])
+            if duplicate:
+                timestamp = pendulum.now("UTC").int_timestamp
+                cols["prompt_uuid"] = f"prompt-{timestamp}-{str(uuid.uuid4())[:8]}"
+                cols["prompt_name"] = f"{cols['prompt_name']} (Copy)"
+            else:
+                # Deactivate previous versions before creating new one
+                _inactivate_prompt_templates(info, endpoint_id, kwargs["prompt_uuid"])
         else:
             timestamp = pendulum.now("UTC").int_timestamp
             cols["prompt_uuid"] = f"prompt-{timestamp}-{str(uuid.uuid4())[:8]}"
@@ -397,7 +402,6 @@ def insert_update_prompt_template(info: ResolveInfo, **kwargs: Dict[str, Any]) -
     model_funct=get_prompt_template,
 )
 def delete_prompt_template(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
-
     if kwargs["entity"].status == "active":
         results = PromptTemplateModel.prompt_uuid_index.query(
             kwargs["entity"].endpoint_id,

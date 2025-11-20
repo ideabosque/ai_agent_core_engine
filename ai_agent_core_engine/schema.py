@@ -175,6 +175,8 @@ class Query(ObjectType):
         limit=Int(required=False),
         agent_uuid=String(required=False),
         user_id=String(required=False),
+        created_at_gt=DateTime(required=False),
+        created_at_lt=DateTime(required=False),
     )
 
     run = Field(
@@ -192,6 +194,8 @@ class Query(ObjectType):
         token_type=String(required=False),
         great_token=Int(required=False),
         less_token=Int(required=False),
+        updated_at_gt=DateTime(required=False),
+        updated_at_lt=DateTime(required=False),
     )
 
     tool_call = Field(
@@ -210,6 +214,8 @@ class Query(ObjectType):
         tool_type=Int(required=False),
         name=Int(required=False),
         statues=List(String, required=False),
+        updated_at_gt=DateTime(required=False),
+        updated_at_lt=DateTime(required=False),
     )
 
     message = Field(
@@ -226,6 +232,8 @@ class Query(ObjectType):
         run_uuid=String(required=False),
         message_id=String(required=False),
         roles=List(String, required=False),
+        updated_at_gt=DateTime(required=False),
+        updated_at_lt=DateTime(required=False),
     )
 
     async_task = Field(
@@ -264,9 +272,11 @@ class Query(ObjectType):
         AskModelType,
         agent_uuid=String(required=True),
         thread_uuid=String(required=False),
+        user_id=String(required=False),
         user_query=String(required=True),
         input_files=List(JSON, required=False),
         stream=Boolean(required=False),
+        thread_life_minutes=Int(required=False),
         updated_by=String(required=True),
     )
 

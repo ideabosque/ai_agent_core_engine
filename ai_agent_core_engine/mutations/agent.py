@@ -32,6 +32,7 @@ class InsertUpdateAgent(Mutation):
         tool_call_role = String(required=False)
         flow_snippet_version_uuid = String(required=False)
         status = String(required=False)
+        duplicate = Boolean(required=False)
         updated_by = String(required=True)
 
     @staticmethod

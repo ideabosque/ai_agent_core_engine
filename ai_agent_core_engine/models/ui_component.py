@@ -122,7 +122,7 @@ def get_ui_component_type(
 
 def resolve_ui_component(
     info: ResolveInfo, **kwargs: Dict[str, Any]
-) -> UIComponentType:
+) -> UIComponentType | None:
     count = get_ui_component_count(
         kwargs["ui_component_type"], kwargs["ui_component_uuid"]
     )
@@ -170,7 +170,7 @@ def resolve_ui_component_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> An
     count_funct=get_ui_component_count,
     type_funct=get_ui_component_type,
 )
-def insert_update_ui_component(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
+def insert_update_ui_component(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
 
     ui_component_type = kwargs.get("ui_component_type")
     ui_component_uuid = kwargs.get("ui_component_uuid")
