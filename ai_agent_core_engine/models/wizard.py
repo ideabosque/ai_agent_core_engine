@@ -12,8 +12,8 @@ from typing import Any, Dict
 import pendulum
 from graphene import ResolveInfo
 from pynamodb.attributes import (
-    BooleanAttribute,
     ListAttribute,
+    MapAttribute,
     NumberAttribute,
     UnicodeAttribute,
     UTCDateTimeAttribute,
@@ -144,6 +144,7 @@ def create_wizard_table(logger: logging.Logger) -> bool:
 )
 def get_wizard(endpoint_id: str, wizard_uuid: str) -> WizardModel:
     return WizardModel.get(endpoint_id, wizard_uuid)
+
 
 @retry(
     reraise=True,
