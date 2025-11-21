@@ -106,6 +106,11 @@ def purge_cache():
                     entity_keys=entity_keys if entity_keys else None,
                     cascade_depth=3,
                 )
+                
+                # Also purge active_agent cache
+                from silvaengine_utility.cache import HybridCacheEngine
+                active_cache = HybridCacheEngine(Config.get_cache_name("models", "active_agent"))
+                active_cache.clear()
 
                 ## Original functoin.
                 result = original_function(*args, **kwargs)
@@ -146,6 +151,10 @@ def get_agent(endpoint_id: str, agent_version_uuid: str) -> AgentModel:
     reraise=True,
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
+)
+@method_cache(
+    ttl=Config.get_cache_ttl(),
+    cache_name=Config.get_cache_name("models", "active_agent"),
 )
 def _get_active_agent(endpoint_id: str, agent_uuid: str) -> AgentModel | None:
     try:

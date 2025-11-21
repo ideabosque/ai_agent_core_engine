@@ -118,6 +118,11 @@ def purge_cache():
                     entity_keys=entity_keys if entity_keys else None,
                     cascade_depth=3,
                 )
+                
+                # Also purge active_prompt_template cache
+                from silvaengine_utility.cache import HybridCacheEngine
+                active_cache = HybridCacheEngine(Config.get_cache_name("models", "active_prompt_template"))
+                active_cache.clear()
 
                 ## Original function.
                 result = original_function(*args, **kwargs)
@@ -161,6 +166,10 @@ def get_prompt_template(
     reraise=True,
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
+)
+@method_cache(
+    ttl=Config.get_cache_ttl(),
+    cache_name=Config.get_cache_name("models", "active_prompt_template"),
 )
 def _get_active_prompt_template(
     endpoint_id: str, prompt_uuid: str

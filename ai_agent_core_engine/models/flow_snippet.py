@@ -103,6 +103,11 @@ def purge_cache():
                     entity_keys=entity_keys if entity_keys else None,
                     cascade_depth=3,
                 )
+                
+                # Also purge active_flow_snippet cache
+                from silvaengine_utility.cache import HybridCacheEngine
+                active_cache = HybridCacheEngine(Config.get_cache_name("models", "active_flow_snippet"))
+                active_cache.clear()
 
                 ## Original function.
                 result = original_function(*args, **kwargs)
@@ -147,9 +152,13 @@ def get_flow_snippet(
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
 )
+@method_cache(
+    ttl=Config.get_cache_ttl(),
+    cache_name=Config.get_cache_name("models", "active_flow_snippet"),
+)
 def _get_active_flow_snippet(
     endpoint_id: str, flow_snippet_uuid: str
-) -> FlowSnippetModel:
+) -> FlowSnippetModel | None:
     try:
         results = FlowSnippetModel.flow_snippet_uuid_index.query(
             endpoint_id,
