@@ -210,6 +210,8 @@ def get_flow_snippet_list_type(
         flow_snippet = flow_snippet.__dict__["attribute_values"]
         flow_snippet["prompt_template"] = {"prompt_uuid": flow_snippet["prompt_uuid"]}
         flow_snippet.pop("prompt_uuid")
+        flow_snippet.pop("flow_context")
+        flow_snippet.pop("flow_relationship")
         return FlowSnippetBaseType(**Utility.json_normalize(flow_snippet))
     except Exception as e:
         log = traceback.format_exc()
