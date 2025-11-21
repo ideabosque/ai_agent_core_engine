@@ -126,7 +126,7 @@ def _get_element(endpoint_id: str, element_uuid: str) -> Dict[str, Any]:
         "attribute_type": element.attribute_type,
         "option_values": element.option_values,
         "conditions": element.conditions,
-        "pattern": element.pattern
+        "pattern": element.pattern,
     }
 
 
@@ -245,6 +245,9 @@ def _get_wizard_schema(
     wizard_schema_type: str, wizard_schema_name: str
 ) -> Dict[str, Any]:
     from .wizard_schema import get_wizard_schema
+
+    if wizard_schema_type is None or wizard_schema_name is None:
+        return {}
 
     wizard_schema = get_wizard_schema(wizard_schema_type, wizard_schema_name)
 

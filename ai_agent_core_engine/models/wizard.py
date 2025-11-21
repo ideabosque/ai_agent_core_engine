@@ -166,18 +166,19 @@ def get_wizard_type(info: ResolveInfo, wizard: WizardModel) -> WizardType:
         )
 
         wizard_elements = []
-        for wizard_element in wizard.wizard_elements:
-            wizard_element = Utility.json_normalize(wizard_element)
-            element = _get_element(
-                wizard.endpoint_id, wizard_element.pop("element_uuid")
-            )
-            wizard_element["element"] = element
-            wizard_elements.append(wizard_element)
+        if wizard.wizard_elements:
+            for wizard_element in wizard.wizard_elements:
+                wizard_element = Utility.json_normalize(wizard_element)
+                element = _get_element(
+                    wizard.endpoint_id, wizard_element.pop("element_uuid")
+                )
+                wizard_element["element"] = element
+                wizard_elements.append(wizard_element)
 
         wizard = wizard.__dict__["attribute_values"]
         wizard["wizard_schema"] = wizard_schema
-        wizard.pop("wizard_schema_type")
-        wizard.pop("wizard_schema_name")
+        wizard.pop("wizard_schema_type", None)
+        wizard.pop("wizard_schema_name", None)
         wizard["wizard_elements"] = wizard_elements
         return WizardType(**Utility.json_normalize(wizard))
     except Exception as e:
