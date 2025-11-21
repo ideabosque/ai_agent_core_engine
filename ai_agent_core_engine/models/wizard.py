@@ -18,8 +18,6 @@ from pynamodb.attributes import (
     UnicodeAttribute,
     UTCDateTimeAttribute,
 )
-from tenacity import retry, stop_after_attempt, wait_exponential
-
 from silvaengine_dynamodb_base import (
     BaseModel,
     delete_decorator,
@@ -28,6 +26,7 @@ from silvaengine_dynamodb_base import (
     resolve_list_decorator,
 )
 from silvaengine_utility import Utility, method_cache
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
 from ..types.wizard import WizardListType, WizardType
@@ -166,6 +165,9 @@ def get_wizard_type(info: ResolveInfo, wizard: WizardModel) -> WizardType:
         )
 
         wizard_elements = []
+        # Check if wizard elements are provided.
+        # This is important to ensure that the elements are valid and can be used for further processing.
+        # If not, return an empty list to support legacy systems.
         if wizard.wizard_elements:
             for wizard_element in wizard.wizard_elements:
                 wizard_element = Utility.json_normalize(wizard_element)

@@ -246,6 +246,9 @@ def _get_wizard_schema(
 ) -> Dict[str, Any]:
     from .wizard_schema import get_wizard_schema
 
+    # Check if wizard schema type and name are provided.
+    # This is important to ensure that the schema is valid and can be used for further processing.
+    # If either is missing, return an empty dictionary to support legacy systems.
     if wizard_schema_type is None or wizard_schema_name is None:
         return {}
 
