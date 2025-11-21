@@ -27,7 +27,11 @@ from silvaengine_utility import Utility, convert_decimal_to_number, method_cache
 
 from ..handlers.ai_agent_utility import convert_flow_snippet_xml
 from ..handlers.config import Config
-from ..types.flow_snippet import FlowSnippetListType, FlowSnippetType
+from ..types.flow_snippet import (
+    FlowSnippetBaseType,
+    FlowSnippetListType,
+    FlowSnippetType,
+)
 from .utils import _get_prompt_template, _update_agents_by_flow_snippet
 
 
@@ -103,10 +107,13 @@ def purge_cache():
                     entity_keys=entity_keys if entity_keys else None,
                     cascade_depth=3,
                 )
-                
+
                 # Also purge active_flow_snippet cache
                 from silvaengine_utility.cache import HybridCacheEngine
-                active_cache = HybridCacheEngine(Config.get_cache_name("models", "active_flow_snippet"))
+
+                active_cache = HybridCacheEngine(
+                    Config.get_cache_name("models", "active_flow_snippet")
+                )
                 active_cache.clear()
 
                 ## Original function.
@@ -198,16 +205,17 @@ def get_flow_snippet_type(
 
 def get_flow_snippet_list_type(
     info: ResolveInfo, flow_snippet: FlowSnippetModel
-) -> FlowSnippetType:
+) -> FlowSnippetBaseType:
     try:
         flow_snippet = flow_snippet.__dict__["attribute_values"]
         flow_snippet["prompt_template"] = {"prompt_uuid": flow_snippet["prompt_uuid"]}
         flow_snippet.pop("prompt_uuid")
-        return FlowSnippetType(**Utility.json_normalize(flow_snippet))
+        return FlowSnippetBaseType(**Utility.json_normalize(flow_snippet))
     except Exception as e:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)
         raise e
+
 
 def resolve_flow_snippet(
     info: ResolveInfo, **kwargs: Dict[str, Any]
