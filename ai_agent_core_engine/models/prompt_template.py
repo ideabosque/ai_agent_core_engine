@@ -210,6 +210,16 @@ def get_prompt_template_type(
         info.context.get("logger").exception(log)
         raise e
 
+def get_prompt_template_list_type(
+    info: ResolveInfo, prompt_template: PromptTemplateModel
+) -> PromptTemplateType:
+    try:
+        prompt_template = prompt_template.__dict__["attribute_values"]
+        return PromptTemplateType(**Utility.json_normalize(prompt_template))
+    except Exception as e:
+        log = traceback.format_exc()
+        info.context.get("logger").exception(log)
+        raise e
 
 def resolve_prompt_template(
     info: ResolveInfo, **kwargs: Dict[str, Any]
@@ -238,7 +248,7 @@ def resolve_prompt_template(
 @resolve_list_decorator(
     attributes_to_get=["endpoint_id", "prompt_version_uuid", "prompt_uuid"],
     list_type_class=PromptTemplateListType,
-    type_funct=get_prompt_template_type,
+    type_funct=get_prompt_template_list_type,
 )
 def resolve_prompt_template_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     endpoint_id = info.context["endpoint_id"]

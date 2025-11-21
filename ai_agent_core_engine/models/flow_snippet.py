@@ -196,6 +196,19 @@ def get_flow_snippet_type(
         raise e
 
 
+def get_flow_snippet_list_type(
+    info: ResolveInfo, flow_snippet: FlowSnippetModel
+) -> FlowSnippetType:
+    try:
+        flow_snippet = flow_snippet.__dict__["attribute_values"]
+        flow_snippet["prompt_template"] = {"prompt_uuid": flow_snippet["prompt_uuid"]}
+        flow_snippet.pop("prompt_uuid")
+        return FlowSnippetType(**Utility.json_normalize(flow_snippet))
+    except Exception as e:
+        log = traceback.format_exc()
+        info.context.get("logger").exception(log)
+        raise e
+
 def resolve_flow_snippet(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> FlowSnippetType | None:
@@ -225,7 +238,7 @@ def resolve_flow_snippet(
 @resolve_list_decorator(
     attributes_to_get=["endpoint_id", "flow_snippet_version_uuid", "flow_snippet_uuid"],
     list_type_class=FlowSnippetListType,
-    type_funct=get_flow_snippet_type,
+    type_funct=get_flow_snippet_list_type,
 )
 def resolve_flow_snippet_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     endpoint_id = info.context["endpoint_id"]

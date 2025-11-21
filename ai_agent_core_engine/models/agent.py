@@ -220,6 +220,40 @@ def get_agent_type(info: ResolveInfo, agent: AgentModel) -> AgentType:
     agent.pop("flow_snippet_version_uuid", None)
     return AgentType(**Utility.json_normalize(agent))
 
+def get_agent_list_type(info: ResolveInfo, agent: AgentModel) -> AgentType:
+    try:
+        llm = {
+            "llm_provider": agent.llm_provider,
+            "llm_name": agent.llm_name,
+        }
+        mcp_servers = []
+        if agent.mcp_server_uuids:
+            mcp_servers = [
+                {"mcp_server_uuid": mcp_server_uuid}
+                for mcp_server_uuid in agent.mcp_server_uuids
+            ]
+        flow_snippet = None
+        if agent.flow_snippet_version_uuid:
+            flow_snippet = {"flow_snippet_version_uuid": agent.flow_snippet_version_uuid}
+    except Exception as e:
+        log = traceback.format_exc()
+        info.context.get("logger").exception(log)
+        raise e
+    agent = agent.__dict__["attribute_values"]
+    agent["llm"] = llm
+    agent["mcp_servers"] = [
+        {
+            "mcp_server_uuid": mcp_server["mcp_server_uuid"]
+        }
+        for mcp_server in mcp_servers
+    ]
+
+    agent["flow_snippet"] = flow_snippet
+    agent.pop("llm_provider", None)
+    agent.pop("llm_name", None)
+    agent.pop("mcp_server_uuids", None)
+    agent.pop("flow_snippet_version_uuid", None)
+    return AgentType(**Utility.json_normalize(agent))
 
 def resolve_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AgentType | None:
     if "agent_uuid" in kwargs:
@@ -241,7 +275,7 @@ def resolve_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AgentType | No
 @resolve_list_decorator(
     attributes_to_get=["endpoint_id", "agent_version_uuid", "agent_uuid"],
     list_type_class=AgentListType,
-    type_funct=get_agent_type,
+    type_funct=get_agent_list_type,
 )
 def resolve_agent_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     endpoint_id = info.context["endpoint_id"]

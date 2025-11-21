@@ -148,6 +148,23 @@ def get_wizard_group_type(
         info.context.get("logger").exception(log)
         raise e
 
+def get_wizard_group_list_type(
+    info: ResolveInfo, wizard_group: WizardGroupModel
+) -> WizardGroupType:
+    try:
+        wizards = [
+            {"wizard_uuid": wizard_uuid}
+            for wizard_uuid in wizard_group.wizard_uuids
+        ]
+
+        wizard_group = wizard_group.__dict__["attribute_values"]
+        wizard_group["wizards"] = wizards
+        wizard_group.pop("wizard_uuids")
+        return WizardGroupType(**Utility.json_normalize(wizard_group))
+    except Exception as e:
+        log = traceback.format_exc()
+        info.context.get("logger").exception(log)
+        raise e
 
 def resolve_wizard_group(
     info: ResolveInfo, **kwargs: Dict[str, Any]
@@ -167,7 +184,7 @@ def resolve_wizard_group(
 @resolve_list_decorator(
     attributes_to_get=["endpoint_id", "wizard_group_uuid"],
     list_type_class=WizardGroupListType,
-    type_funct=get_wizard_group_type,
+    type_funct=get_wizard_group_list_type,
 )
 def resolve_wizard_group_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     endpoint_id = info.context["endpoint_id"]
