@@ -145,6 +145,13 @@ class Config:
             "list_resolver": "ai_agent_core_engine.queries.ui_component.resolve_ui_component_list",
             "cache_keys": ["key:ui_component_type", "key:ui_component_uuid"],
         },
+        "wizard_schema": {
+            "module": "ai_agent_core_engine.models.wizard_schema",
+            "model_class": "WizardSchemaModel",
+            "getter": "get_wizard_schema",
+            "list_resolver": "ai_agent_core_engine.queries.wizard_schema.resolve_wizard_schema_list",
+            "cache_keys": ["key:wizard_schema_type", "key:wizard_schema_name"],
+        },
     }
 
     @classmethod

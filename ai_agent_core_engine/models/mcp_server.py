@@ -65,6 +65,11 @@ def purge_cache():
                     entity_keys=entity_keys if entity_keys else None,
                     cascade_depth=3,
                 )
+                
+                # Also purge mcp_server_tools cache
+                from silvaengine_utility.cache import HybridCacheEngine
+                tools_cache = HybridCacheEngine(Config.get_cache_name("models", "mcp_server_tools"))
+                tools_cache.clear()
 
                 ## Original function.
                 result = original_function(*args, **kwargs)
@@ -107,6 +112,9 @@ def get_mcp_server_count(endpoint_id: str, mcp_server_uuid: str) -> int:
     )
 
 
+@method_cache(
+    ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name("models", "mcp_server_tools")
+)
 async def _run_list_tools(
     info: ResolveInfo, mcp_server: MCPServerModel | Dict[str, Any]
 ):

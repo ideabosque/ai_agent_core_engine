@@ -164,7 +164,7 @@ def get_wizard_schema_type(
 
 def resolve_wizard_schema(
     info: ResolveInfo, **kwargs: Dict[str, Any]
-) -> WizardSchemaType:
+) -> WizardSchemaType | None:
     count = get_wizard_schema_count(
         kwargs["wizard_schema_type"], kwargs["wizard_schema_name"]
     )
