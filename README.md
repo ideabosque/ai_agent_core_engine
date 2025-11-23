@@ -319,6 +319,409 @@ This ER diagram structures the system into the following core **logical domains*
 
 ---
 
+## 📊 **Models Relationship & Architecture**
+
+This section provides a comprehensive overview of the domain models, their relationships, and architectural patterns used throughout the AI Agent Core Engine.
+
+---
+
+### 🗂️ **Model Inventory**
+
+The platform consists of **17 core models** organized into logical domains:
+
+#### **1. Core Conversation Flow Models**
+
+| Model | Table | Purpose | Key Relationships |
+|-------|-------|---------|-------------------|
+| **Agent** | `aace-agents` | Defines AI agent versions and configurations | → LLM, FlowSnippet, MCPServer |
+| **Thread** | `aace-threads` | Represents a conversation session | ← Agent, → Runs |
+| **Run** | `aace-runs` | Single execution/inference within a thread | ← Thread, → Messages, ToolCalls |
+| **Message** | `aace-messages` | Individual messages in a conversation | ← Thread, Run |
+| **ToolCall** | `aace-tool_calls` | Function/tool invocations by agents | ← Thread, Run |
+
+#### **2. Configuration & Template Models**
+
+| Model | Table | Purpose | Key Relationships |
+|-------|-------|---------|-------------------|
+| **LLM** | `aace-llms` | Language model provider definitions | ← Agents |
+| **PromptTemplate** | `aace-prompt_templates` | Versioned prompt templates | → FlowSnippets, MCPServers, UIComponents |
+| **FlowSnippet** | `aace-flow_snippets` | Versioned flow context snippets | ← PromptTemplate, ← Agents |
+| **MCPServer** | `aace-mcp_servers` | External MCP server configurations | ← Agents, PromptTemplates |
+| **UIComponent** | `aace-ui_components` | UI element definitions | ← PromptTemplates |
+
+#### **3. Wizard & Configuration Models**
+
+| Model | Table | Purpose | Key Relationships |
+|-------|-------|---------|-------------------|
+| **Wizard** | `aace-wizards` | Configuration wizards | → WizardSchema, Elements, WizardGroups |
+| **WizardSchema** | `aace-wizard_schemas` | Schema templates for wizards | ← Wizards |
+| **WizardGroup** | `aace-wizard_groups` | Groups of related wizards | → Wizards, ← WizardGroupFilters |
+| **WizardGroupFilter** | `aace-wizard_group_filters` | Filter logic for wizard groups | → WizardGroups |
+| **Element** | `aace-elements` | Configurable UI/form elements | ← Wizards |
+
+#### **4. Training & Async Models**
+
+| Model | Table | Purpose | Key Relationships |
+|-------|-------|---------|-------------------|
+| **FineTuningMessage** | `aace-fine_tuning_messages` | Messages for model fine-tuning | ← Agent, Thread |
+| **AsyncTask** | `aace-async_tasks` | Background task tracking | Independent |
+
+---
+
+### 🔗 **Relationship Patterns**
+
+#### **1. Hierarchical Conversation Flow** (Primary Workflow)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                   CONVERSATION HIERARCHY                     │
+└─────────────────────────────────────────────────────────────┘
+
+LLM (OpenAI/Gemini/Anthropic/Ollama)
+  │
+  └──> Agent (1:N) ──┐
+          │          │
+          │          └──> FlowSnippet (1:1) ──> PromptTemplate (1:1)
+          │
+          └──> Thread (1:N) ──> Run (1:N) ──┬──> Message (1:N)
+                                             └──> ToolCall (1:N)
+```
+
+**Cascade Delete Protection:**
+- Cannot delete Agent if Threads exist
+- Cannot delete Thread if Runs exist
+- Cannot delete Run if Messages or ToolCalls exist
+- Cannot delete LLM if Agents reference it
+
+**Key Fields:**
+- Agent references LLM via: `llm_provider` + `llm_name`
+- Thread references Agent via: `agent_uuid`
+- Run belongs to: `thread_uuid`
+- Message/ToolCall belong to: `thread_uuid` + `run_uuid`
+
+---
+
+#### **2. Configuration & Template System**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                  CONFIGURATION HIERARCHY                     │
+└─────────────────────────────────────────────────────────────┘
+
+PromptTemplate (versioned)
+  │
+  ├──> FlowSnippet (1:N, versioned)
+  │       └──> Agent (1:N, references via flow_snippet_version_uuid)
+  │
+  ├──> MCPServer (N:N, via mcp_servers list)
+  │       └──> Agent (N:N, via mcp_server_uuids list)
+  │
+  └──> UIComponent (N:N, via ui_components list)
+```
+
+**Reference Patterns:**
+- PromptTemplate stores: `mcp_servers[]`, `ui_components[]` as lists
+- FlowSnippet references: `prompt_uuid` (logical ID, not version)
+- Agent references: `flow_snippet_version_uuid` (specific version)
+- Agent stores: `mcp_server_uuids[]` for direct MCP access
+
+---
+
+#### **3. Wizard Configuration System**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      WIZARD SYSTEM                           │
+└─────────────────────────────────────────────────────────────┘
+
+WizardSchema (defines structure)
+  │
+  └──> Wizard (1:N) ──┬──> Element (N:N, via wizard_elements[])
+                      │
+                      └──> WizardGroup (N:N, via wizard_uuids[])
+                              │
+                              └──> WizardGroupFilter (1:N)
+```
+
+**Reference Fields:**
+- Wizard → WizardSchema: `wizard_schema_type` + `wizard_schema_name`
+- Wizard → Elements: `wizard_elements[{element_uuid, ...}]`
+- WizardGroup → Wizards: `wizard_uuids[]`
+- WizardGroupFilter → WizardGroup: `wizard_group_uuid`
+
+---
+
+### 🔄 **Versioning Pattern**
+
+Three models support **multi-version architecture**:
+
+| Model | Logical ID | Version ID | Status Field |
+|-------|------------|------------|--------------|
+| **Agent** | `agent_uuid` | `agent_version_uuid` | `status` |
+| **PromptTemplate** | `prompt_uuid` | `prompt_version_uuid` | `status` |
+| **FlowSnippet** | `flow_snippet_uuid` | `flow_snippet_version_uuid` | `status` |
+
+**Versioning Rules:**
+1. Multiple versions share the same logical ID
+2. Only ONE version can have `status="active"` at a time
+3. Creating a new version auto-inactivates the previous active version
+4. Deleting an active version promotes the most recent inactive version
+5. Agents automatically update when FlowSnippets are versioned
+
+**Example:**
+```
+agent_uuid: "abc-123"
+├─ agent_version_uuid: "v1-uuid" (status: "inactive")
+├─ agent_version_uuid: "v2-uuid" (status: "inactive")
+└─ agent_version_uuid: "v3-uuid" (status: "active")  ← Current version
+```
+
+---
+
+### 🗝️ **Primary Key Patterns**
+
+#### **Multi-Tenant Pattern** (Most Models)
+```
+Hash Key: endpoint_id (tenant isolation)
+Range Key: {entity}_uuid
+```
+**Models:** Agent, Thread, PromptTemplate, FlowSnippet, Wizard, WizardGroup, WizardGroupFilter, Element
+
+#### **Shared Resource Pattern**
+```
+Hash Key: {type}_field
+Range Key: {name}_field
+```
+**Models:**
+- LLM: `llm_provider` + `llm_name`
+- WizardSchema: `wizard_schema_type` + `wizard_schema_name`
+- UIComponent: `ui_component_type` + `ui_component_uuid`
+
+#### **Conversation Context Pattern**
+```
+Hash Key: thread_uuid (conversation scope)
+Range Key: {entity}_uuid
+```
+**Models:** Run, Message, ToolCall, FineTuningMessage
+
+#### **Function-Based Pattern**
+```
+Hash Key: function_name
+Range Key: async_task_uuid
+```
+**Models:** AsyncTask
+
+---
+
+### 📑 **Index Strategies**
+
+#### **Local Secondary Indexes (LSI)** - Query within partition
+
+| Model | Index Name | Purpose |
+|-------|------------|---------|
+| Agent | `agent_uuid-index` | Query all versions of an agent |
+| Thread | `agent_uuid-index` | Find all threads for an agent |
+| Thread | `updated_at-index` | Query threads by time |
+| Run | `updated_at-index` | Query runs by time |
+| Message | `run_uuid-index` | Find all messages in a run |
+| Message | `updated_at-index` | Query messages by time |
+| ToolCall | `run_uuid-index` | Find all tool calls in a run |
+| ToolCall | `updated_at-index` | Query tool calls by time |
+| PromptTemplate | `prompt_uuid-index` | Query all versions of a prompt |
+| PromptTemplate | `prompt_type-index` | Find prompts by type |
+| FlowSnippet | `flow_snippet_uuid-index` | Query all versions |
+| FlowSnippet | `prompt_uuid-index` | Find flows by prompt template |
+| Element | `data_type-index` | Find elements by type |
+| FineTuningMessage | `thread_uuid-index` | Find training messages by thread |
+| FineTuningMessage | `timestamp-index` | Query by time |
+
+#### **Global Secondary Index (GSI)** - Query across partitions
+
+| Model | Index Name | Purpose |
+|-------|------------|---------|
+| AsyncTask | `endpoint_id-updated_at-index` | Query tasks by tenant + time |
+
+---
+
+### 🧩 **Composite Attributes (Nested Structures)**
+
+Many models use **MapAttribute** and **ListAttribute** for flexible schemas:
+
+#### **Agent**
+```python
+configuration: MapAttribute  # LLM-specific settings
+variables: List[MapAttribute]  # [{name, value}, ...]
+```
+
+#### **PromptTemplate**
+```python
+variables: List[MapAttribute]  # Template variables
+mcp_servers: List[MapAttribute]  # Server references
+ui_components: List[MapAttribute]  # Component references
+```
+
+#### **Wizard**
+```python
+wizard_attributes: List[MapAttribute]  # [{name, value}, ...]
+wizard_elements: List[MapAttribute]  # [{element_uuid, required, ...}, ...]
+```
+
+#### **WizardSchema**
+```python
+attributes: List[MapAttribute]  # Full attribute definitions
+attribute_groups: List[MapAttribute]  # Grouping metadata
+```
+
+#### **Element**
+```python
+option_values: List[MapAttribute]  # Selectable options
+conditions: List[MapAttribute]  # Conditional rules
+```
+
+#### **AsyncTask**
+```python
+arguments: MapAttribute  # Function arguments
+output_files: List[MapAttribute]  # File metadata
+```
+
+---
+
+### 🎯 **Key Architectural Decisions**
+
+#### **1. Multi-Tenancy via `endpoint_id`**
+- Isolates data by tenant at the partition level
+- Ensures data security and access control
+- Exceptions: LLM, WizardSchema, UIComponent (shared resources)
+
+#### **2. Stateless with Context Persistence**
+- Conversation state stored in DynamoDB
+- Agents are stateless compute units
+- Context reconstructed from Thread → Run → Message/ToolCall chain
+
+#### **3. Denormalization for Performance**
+- Agent stores direct LLM references (`llm_provider`, `llm_name`)
+- Avoids joins; resolves at query time
+- Trade-off: Data duplication vs. read performance
+
+#### **4. Flexible Schemas with MapAttribute**
+- Configuration stored as JSON-like structures
+- Enables schema evolution without migrations
+- Used for: `configuration`, `variables`, `criteria`, `headers`, etc.
+
+#### **5. Cascading Cache Invalidation**
+- All models implement intelligent caching
+- Cache purge cascades through relationships (depth=3)
+- Example: Agent update → Thread cache → Run cache → Message cache
+
+#### **6. Soft Deletes via Status**
+- Versioned entities use `status="active"/"inactive"`
+- Preserves history and audit trail
+- Enables rollback capabilities
+
+#### **7. Dynamic Tool Resolution**
+- MCPServer doesn't store tools in DB
+- Tools fetched dynamically via HTTP at runtime
+- Ensures tools are always current
+
+---
+
+### 📈 **Data Flow Example**
+
+```
+User Query
+   │
+   ├──> 1. Lookup Agent (by agent_uuid)
+   │      ├──> Resolve LLM (via llm_provider + llm_name)
+   │      ├──> Resolve FlowSnippet (via flow_snippet_version_uuid)
+   │      │      └──> Resolve PromptTemplate (via prompt_uuid)
+   │      └──> Resolve MCPServers (via mcp_server_uuids[])
+   │
+   ├──> 2. Find/Create Thread (by endpoint_id + agent_uuid)
+   │
+   ├──> 3. Create Run (in thread_uuid)
+   │
+   ├──> 4. Store Messages (in thread_uuid + run_uuid)
+   │      └──> role: "user" | "assistant" | "system" | "tool"
+   │
+   ├──> 5. Execute ToolCalls (if LLM requests function calls)
+   │      └──> Store in thread_uuid + run_uuid
+   │      └──> Update status: "initial" → "completed"
+   │
+   └──> 6. Track Tokens & Time (in Run model)
+          └──> completion_tokens, prompt_tokens, time_spent
+```
+
+---
+
+### 🔍 **Query Patterns**
+
+#### **Get Active Agent Version**
+```python
+# Using agent_uuid-index LSI
+Agent.query(
+    endpoint_id,
+    Agent.agent_uuid == "abc-123",
+    Agent.status == "active"
+)
+```
+
+#### **Get All Threads for Agent**
+```python
+# Using agent_uuid-index LSI
+Thread.query(
+    endpoint_id,
+    Thread.agent_uuid == "abc-123"
+)
+```
+
+#### **Get All Messages in a Run**
+```python
+# Using run_uuid-index LSI
+Message.query(
+    thread_uuid,
+    Message.run_uuid == "run-456"
+)
+```
+
+#### **Get Recent Tool Calls**
+```python
+# Using updated_at-index LSI
+ToolCall.query(
+    thread_uuid,
+    scan_index_forward=False,  # Descending order
+    limit=10
+)
+```
+
+#### **Find Async Tasks by Tenant**
+```python
+# Using endpoint_id-updated_at-index GSI
+AsyncTask.endpoint_id_updated_at_index.query(
+    endpoint_id,
+    scan_index_forward=False
+)
+```
+
+---
+
+### 📚 **Audit & Compliance**
+
+All models include standard audit fields:
+
+```python
+updated_by: str  # User/system identifier
+created_at: datetime  # Creation timestamp (UTC)
+updated_at: datetime  # Last modification timestamp (UTC)
+```
+
+These enable:
+- Complete audit trails
+- Compliance reporting
+- Debugging and troubleshooting
+- Data lineage tracking
+
+---
+
 Certainly! Here's a rephrased and enhanced version:
 
 ---
