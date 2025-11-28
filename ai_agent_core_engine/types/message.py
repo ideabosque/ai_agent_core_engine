@@ -10,6 +10,12 @@ from silvaengine_dynamodb_base import ListObjectType
 from .thread import ThreadType
 
 
+def _get_run_type():
+    from .run import RunType
+
+    return RunType
+
+
 class MessageType(ObjectType):
     thread_uuid = String()
     message_uuid = String()
@@ -22,7 +28,7 @@ class MessageType(ObjectType):
     updated_at = DateTime()
 
     # Nested resolvers with DataLoader batch fetching for efficient database access
-    run = Field(lambda: RunType)
+    run = Field(_get_run_type)
     thread = Field(lambda: ThreadType)
 
     # ------- Nested resolvers -------
@@ -71,7 +77,3 @@ class MessageType(ObjectType):
 
 class MessageListType(ListObjectType):
     message_list = List(MessageType)
-
-
-# Import at end to avoid circular dependency
-from .run import RunType  # noqa: E402

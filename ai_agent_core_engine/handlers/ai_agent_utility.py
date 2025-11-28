@@ -10,10 +10,22 @@ import xml.dom.minidom
 import xml.etree.ElementTree as ET
 from typing import Any, Dict, List
 
-import anthropic
 import pendulum
-import tiktoken
-from google import genai
+
+try:
+    import tiktoken
+except ModuleNotFoundError:  # Optional dependency; only needed for GPT token counting
+    tiktoken = None
+
+try:
+    from google import genai
+except ModuleNotFoundError:  # Optional dependency; only needed for Gemini token counting
+    genai = None
+
+try:
+    import anthropic
+except ModuleNotFoundError:  # Optional dependency; only needed for Claude token counting
+    anthropic = None
 from graphene import ResolveInfo
 
 from silvaengine_utility import Utility
@@ -248,6 +260,10 @@ def calculate_num_tokens(agent: dict[str, Any], text: str) -> int:
     """
     try:
         if agent.llm["llm_name"] == "gpt":
+            if tiktoken is None:
+                raise ImportError(
+                    "tiktoken is required for GPT token calculation but is not installed."
+                )
             try:
                 encoding = tiktoken.encoding_for_model(agent.configuration["model"])
                 num_tokens = len(encoding.encode(text))
@@ -258,12 +274,20 @@ def calculate_num_tokens(agent: dict[str, Any], text: str) -> int:
             return num_tokens
 
         elif agent.llm["llm_name"] == "gemini":
+            if genai is None:
+                raise ImportError(
+                    "google-genai is required for Gemini token calculation but is not installed."
+                )
             client = genai.Client(api_key=agent.configuration["api_key"])
             num_tokens = client.models.count_tokens(
                 model=agent.configuration["model"], contents=text
             ).total_tokens
             return int(num_tokens)
         elif agent.llm["llm_name"] == "claude":
+            if anthropic is None:
+                raise ImportError(
+                    "anthropic is required for Claude token calculation but is not installed."
+                )
             client = anthropic.Anthropic(api_key=agent.configuration["api_key"])
             num_tokens = client.messages.count_tokens(
                 model=agent.configuration["model"],

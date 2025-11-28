@@ -336,6 +336,7 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "cache: Cache management tests")
     config.addinivalue_line("markers", "performance: Performance/benchmarking tests")
     config.addinivalue_line("markers", "graphql: GraphQL operation tests")
+    config.addinivalue_line("markers", "timeout: Test timeout configuration")
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:

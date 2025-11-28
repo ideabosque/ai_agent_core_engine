@@ -10,6 +10,18 @@ from silvaengine_dynamodb_base import ListObjectType
 from .thread import ThreadType
 
 
+def _get_message_type():
+    from .message import MessageType
+
+    return MessageType
+
+
+def _get_tool_call_type():
+    from .tool_call import ToolCallType
+
+    return ToolCallType
+
+
 class RunType(ObjectType):
     thread_uuid = String()
     endpoint_id = String()
@@ -25,8 +37,8 @@ class RunType(ObjectType):
 
     # Nested resolvers with DataLoader batch fetching for efficient database access
     thread = Field(lambda: ThreadType)
-    messages = List(lambda: MessageType)
-    tool_calls = List(lambda: ToolCallType)
+    messages = List(_get_message_type)
+    tool_calls = List(_get_tool_call_type)
 
     # ------- Nested resolvers -------
 
@@ -110,8 +122,3 @@ class RunType(ObjectType):
 
 class RunListType(ListObjectType):
     run_list = List(RunType)
-
-
-# Import at end to avoid circular dependency
-from .message import MessageType  # noqa: E402
-from .tool_call import ToolCallType  # noqa: E402

@@ -8,6 +8,18 @@ from graphene import DateTime, Field, List, ObjectType, String
 from silvaengine_dynamodb_base import ListObjectType
 
 
+def _get_message_type():
+    from .message import MessageType
+
+    return MessageType
+
+
+def _get_run_type():
+    from .run import RunType
+
+    return RunType
+
+
 class ThreadType(ObjectType):
     endpoint_id = String()
     thread_uuid = String()
@@ -17,8 +29,8 @@ class ThreadType(ObjectType):
 
     # Nested resolvers: strongly-typed nested relationships
     agent = Field(lambda: AgentType)
-    messages = List(lambda: MessageType)
-    runs = List(lambda: RunType)
+    messages = List(_get_message_type)
+    runs = List(_get_run_type)
 
     # ------- Nested resolvers -------
 
@@ -189,8 +201,5 @@ class ThreadType(ObjectType):
 class ThreadListType(ListObjectType):
     thread_list = List(ThreadType)
 
-
 # Import at end to avoid circular dependency
 from .agent import AgentType  # noqa: E402
-from .message import MessageType  # noqa: E402
-from .run import RunType  # noqa: E402

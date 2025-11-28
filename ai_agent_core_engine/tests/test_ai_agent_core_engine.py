@@ -89,7 +89,6 @@ def test_graphql_ping(ai_agent_core_engine: Any, schema: Any) -> None:
 @pytest.mark.graphql
 @pytest.mark.llm
 @pytest.mark.parametrize("test_data", LLM_TEST_DATA)
-@pytest.mark.timeout(30)  # 30 second timeout
 @log_test_result
 def test_llm_lifecycle_flow(
     ai_agent_core_engine: Any, schema: Any, test_data: Any

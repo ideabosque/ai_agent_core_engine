@@ -16,7 +16,10 @@ from pynamodb.attributes import MapAttribute, UnicodeAttribute, UTCDateTimeAttri
 from pynamodb.indexes import AllProjection, LocalSecondaryIndex
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from mcp_http_client import MCPHttpClient
+try:
+    from mcp_http_client import MCPHttpClient
+except (ModuleNotFoundError, ImportError):
+    MCPHttpClient = None
 from silvaengine_dynamodb_base import (
     BaseModel,
     delete_decorator,
@@ -135,6 +138,8 @@ def get_mcp_server_count(endpoint_id: str, mcp_server_uuid: str) -> int:
 async def _run_list_tools(
     info: ResolveInfo, mcp_server: MCPServerModel | Dict[str, Any]
 ):
+    if MCPHttpClient is None:
+        raise ImportError("mcp_http_client is required to list MCP server tools.")
     if isinstance(mcp_server, MCPServerModel):
         base_url = mcp_server.mcp_server_url
         headers = mcp_server.headers.__dict__["attribute_values"]
