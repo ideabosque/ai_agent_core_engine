@@ -332,7 +332,6 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
                 "updated_by": arguments["updated_by"],
             },
         )
-        # TODO: Implement MCP Prompt and update system prmompt by analyzing user query and assistant response.
         # Mark async task as completed with results
         async_task = insert_update_async_task(
             info,
@@ -347,6 +346,9 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
         )
 
         info.context.get("logger").info(f"Async Task: {async_task.__dict__}.")
+
+        # TODO: Implement MCP Prompt and update system prmompt by analyzing user query and assistant response.
+        # TODO: Invoke execute_ask_model with the updated system prompt by dispatching thread.
 
         return True
 
