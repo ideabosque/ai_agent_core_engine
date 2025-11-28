@@ -301,55 +301,6 @@ class RunLoader(_SafeDataLoader):
         return Promise.resolve([key_map.get(key) for key in keys])
 
 
-class MessageLoader(_SafeDataLoader):
-    """Batch loader for MessageModel keyed by (thread_uuid, message_uuid)."""
-
-    def __init__(self, logger=None, cache_enabled=True, **kwargs):
-        super(MessageLoader, self).__init__(
-            logger=logger, cache_enabled=cache_enabled, **kwargs
-        )
-        if self.cache_enabled:
-            self.cache = HybridCacheEngine(Config.get_cache_name("models", "message"))
-
-    def batch_load_fn(self, keys: List[Key]) -> Promise:
-        unique_keys = list(dict.fromkeys(keys))
-        key_map: Dict[Key, Dict[str, Any]] = {}
-        uncached_keys = []
-
-        # Check cache first if enabled
-        if self.cache_enabled:
-            for key in unique_keys:
-                cache_key = f"{key[0]}:{key[1]}"  # thread_uuid:message_uuid
-                cached_item = self.cache.get(cache_key)
-                if cached_item:
-                    key_map[key] = cached_item
-                else:
-                    uncached_keys.append(key)
-        else:
-            uncached_keys = unique_keys
-
-        # Batch fetch uncached items
-        if uncached_keys:
-            try:
-                for message in MessageModel.batch_get(uncached_keys):
-                    normalized = _normalize_model(message)
-                    key = (message.thread_uuid, message.message_uuid)
-                    key_map[key] = normalized
-
-                    # Cache the result if enabled
-                    if self.cache_enabled:
-                        cache_key = f"{key[0]}:{key[1]}"
-                        self.cache.set(
-                            cache_key, normalized, ttl=Config.get_cache_ttl()
-                        )
-
-            except Exception as exc:  # pragma: no cover - defensive
-                if self.logger:
-                    self.logger.exception(exc)
-
-        return Promise.resolve([key_map.get(key) for key in keys])
-
-
 class PromptTemplateLoader(_SafeDataLoader):
     """Batch loader for PromptTemplateModel keyed by (endpoint_id, prompt_version_uuid)."""
 
@@ -606,83 +557,6 @@ class WizardGroupLoader(_SafeDataLoader):
         return Promise.resolve([key_map.get(key) for key in keys])
 
 
-class ThreadsByAgentLoader(_SafeDataLoader):
-    """Batch loader for fetching threads by agent_uuid."""
-
-    def __init__(self, logger=None, cache_enabled=True, **kwargs):
-        super(ThreadsByAgentLoader, self).__init__(
-            logger=logger, cache_enabled=cache_enabled, **kwargs
-        )
-        if self.cache_enabled:
-            self.cache = HybridCacheEngine(
-                Config.get_cache_name("models", "threads_by_agent")
-            )
-
-    def batch_load_fn(self, keys: List[Key]) -> Promise:
-        """
-        Load threads for multiple agent_uuids.
-        Keys are tuples of (endpoint_id, agent_uuid).
-        """
-        unique_keys = list(dict.fromkeys(keys))
-        key_map: Dict[Key, List[Dict[str, Any]]] = {}
-        uncached_keys = []
-
-        # Check cache first if enabled
-        if self.cache_enabled:
-            for key in unique_keys:
-                cache_key = f"{key[0]}:{key[1]}"  # endpoint_id:agent_uuid
-                cached_item = self.cache.get(cache_key)
-                if cached_item:
-                    key_map[key] = cached_item
-                else:
-                    uncached_keys.append(key)
-        else:
-            uncached_keys = unique_keys
-
-        # Batch fetch uncached items
-        if uncached_keys:
-            try:
-                # Group by endpoint_id for efficient querying
-                from collections import defaultdict
-
-                endpoint_groups = defaultdict(list)
-                for endpoint_id, agent_uuid in uncached_keys:
-                    endpoint_groups[endpoint_id].append(agent_uuid)
-
-                # Query for each endpoint
-                for endpoint_id, agent_uuids in endpoint_groups.items():
-                    for agent_uuid in agent_uuids:
-                        # Query threads for this agent using the index
-                        threads = list(
-                            ThreadModel.agent_uuid_index.query(
-                                endpoint_id, ThreadModel.agent_uuid == agent_uuid
-                            )
-                        )
-
-                        # Normalize threads
-                        normalized_threads = [
-                            _normalize_model(thread) for thread in threads
-                        ]
-
-                        key = (endpoint_id, agent_uuid)
-                        key_map[key] = normalized_threads
-
-                        # Cache the result if enabled
-                        if self.cache_enabled:
-                            cache_key = f"{endpoint_id}:{agent_uuid}"
-                            self.cache.set(
-                                cache_key,
-                                normalized_threads,
-                                ttl=Config.get_cache_ttl(),
-                            )
-
-            except Exception as exc:  # pragma: no cover - defensive
-                if self.logger:
-                    self.logger.exception(exc)
-
-        return Promise.resolve([key_map.get(key, []) for key in keys])
-
-
 class RunsByThreadLoader(_SafeDataLoader):
     """Batch loader for fetching runs by thread_uuid."""
 
@@ -732,68 +606,6 @@ class RunsByThreadLoader(_SafeDataLoader):
                     if self.cache_enabled:
                         self.cache.set(
                             thread_uuid, normalized_runs, ttl=Config.get_cache_ttl()
-                        )
-
-            except Exception as exc:  # pragma: no cover - defensive
-                if self.logger:
-                    self.logger.exception(exc)
-
-        return Promise.resolve([key_map.get(key, []) for key in keys])
-
-
-class MessagesByRunLoader(_SafeDataLoader):
-    """Batch loader for fetching messages by run_uuid."""
-
-    def __init__(self, logger=None, cache_enabled=True, **kwargs):
-        super(MessagesByRunLoader, self).__init__(
-            logger=logger, cache_enabled=cache_enabled, **kwargs
-        )
-        if self.cache_enabled:
-            self.cache = HybridCacheEngine(
-                Config.get_cache_name("models", "messages_by_run")
-            )
-
-    def batch_load_fn(self, keys: List[str]) -> Promise:
-        """
-        Load messages for multiple run_uuids.
-        Keys are run_uuids (string).
-        """
-        unique_keys = list(dict.fromkeys(keys))
-        key_map: Dict[str, List[Dict[str, Any]]] = {}
-        uncached_keys = []
-
-        # Check cache first if enabled
-        if self.cache_enabled:
-            for key in unique_keys:
-                cache_key = key  # run_uuid
-                cached_item = self.cache.get(cache_key)
-                if cached_item:
-                    key_map[key] = cached_item
-                else:
-                    uncached_keys.append(key)
-        else:
-            uncached_keys = unique_keys
-
-        # Batch fetch uncached items
-        if uncached_keys:
-            try:
-                for run_uuid in uncached_keys:
-                    # Query messages for this run
-                    messages = list(
-                        MessageModel.run_uuid_index.query(
-                            MessageModel.run_uuid == run_uuid
-                        )
-                    )
-
-                    # Normalize messages
-                    normalized_messages = [_normalize_model(msg) for msg in messages]
-
-                    key_map[run_uuid] = normalized_messages
-
-                    # Cache the result if enabled
-                    if self.cache_enabled:
-                        self.cache.set(
-                            run_uuid, normalized_messages, ttl=Config.get_cache_ttl()
                         )
 
             except Exception as exc:  # pragma: no cover - defensive
@@ -1007,146 +819,6 @@ class ToolCallsByThreadLoader(_SafeDataLoader):
         return Promise.resolve([key_map.get(key, []) for key in keys])
 
 
-class AgentsByFlowSnippetLoader(_SafeDataLoader):
-    """Batch loader for fetching agents by flow_snippet_version_uuid."""
-
-    def __init__(self, logger=None, cache_enabled=True, **kwargs):
-        super(AgentsByFlowSnippetLoader, self).__init__(
-            logger=logger, cache_enabled=cache_enabled, **kwargs
-        )
-        if self.cache_enabled:
-            self.cache = HybridCacheEngine(
-                Config.get_cache_name("models", "agents_by_flow_snippet")
-            )
-
-    def batch_load_fn(self, keys: List[Key]) -> Promise:
-        """
-        Load agents for multiple flow_snippet_version_uuids.
-        Keys are tuples of (endpoint_id, flow_snippet_version_uuid).
-        """
-        unique_keys = list(dict.fromkeys(keys))
-        key_map: Dict[Key, List[Dict[str, Any]]] = {}
-        uncached_keys = []
-
-        # Check cache first if enabled
-        if self.cache_enabled:
-            for key in unique_keys:
-                cache_key = (
-                    f"{key[0]}:{key[1]}"  # endpoint_id:flow_snippet_version_uuid
-                )
-                cached_item = self.cache.get(cache_key)
-                if cached_item:
-                    key_map[key] = cached_item
-                else:
-                    uncached_keys.append(key)
-        else:
-            uncached_keys = unique_keys
-
-        # Batch fetch uncached items
-        if uncached_keys:
-            try:
-                for endpoint_id, flow_snippet_version_uuid in uncached_keys:
-                    # Query agents for this endpoint with filter condition
-                    agents = list(
-                        AgentModel.query(
-                            endpoint_id,
-                            filter_condition=(
-                                AgentModel.flow_snippet_version_uuid
-                                == flow_snippet_version_uuid
-                            ),
-                        )
-                    )
-
-                    # Normalize agents
-                    normalized_agents = [_normalize_model(agent) for agent in agents]
-
-                    key = (endpoint_id, flow_snippet_version_uuid)
-                    key_map[key] = normalized_agents
-
-                    # Cache the result if enabled
-                    if self.cache_enabled:
-                        cache_key = f"{endpoint_id}:{flow_snippet_version_uuid}"
-                        self.cache.set(
-                            cache_key, normalized_agents, ttl=Config.get_cache_ttl()
-                        )
-
-            except Exception as exc:  # pragma: no cover - defensive
-                if self.logger:
-                    self.logger.exception(exc)
-
-        return Promise.resolve([key_map.get(key, []) for key in keys])
-
-
-class AgentsByLlmLoader(_SafeDataLoader):
-    """Batch loader for fetching agents by LLM (llm_provider, llm_name)."""
-
-    def __init__(self, logger=None, cache_enabled=True, **kwargs):
-        super(AgentsByLlmLoader, self).__init__(
-            logger=logger, cache_enabled=cache_enabled, **kwargs
-        )
-        if self.cache_enabled:
-            self.cache = HybridCacheEngine(
-                Config.get_cache_name("models", "agents_by_llm")
-            )
-
-    def batch_load_fn(self, keys: List[Tuple[str, str, str]]) -> Promise:
-        """
-        Load agents for multiple LLMs.
-        Keys are tuples of (endpoint_id, llm_provider, llm_name).
-        """
-        unique_keys = list(dict.fromkeys(keys))
-        key_map: Dict[Tuple[str, str, str], List[Dict[str, Any]]] = {}
-        uncached_keys = []
-
-        # Check cache first if enabled
-        if self.cache_enabled:
-            for key in unique_keys:
-                cache_key = (
-                    f"{key[0]}:{key[1]}:{key[2]}"  # endpoint_id:llm_provider:llm_name
-                )
-                cached_item = self.cache.get(cache_key)
-                if cached_item:
-                    key_map[key] = cached_item
-                else:
-                    uncached_keys.append(key)
-        else:
-            uncached_keys = unique_keys
-
-        # Batch fetch uncached items
-        if uncached_keys:
-            try:
-                for endpoint_id, llm_provider, llm_name in uncached_keys:
-                    # Query agents for this endpoint with filter condition
-                    agents = list(
-                        AgentModel.query(
-                            endpoint_id,
-                            filter_condition=(
-                                (AgentModel.llm_provider == llm_provider)
-                                & (AgentModel.llm_name == llm_name)
-                            ),
-                        )
-                    )
-
-                    # Normalize agents
-                    normalized_agents = [_normalize_model(agent) for agent in agents]
-
-                    key = (endpoint_id, llm_provider, llm_name)
-                    key_map[key] = normalized_agents
-
-                    # Cache the result if enabled
-                    if self.cache_enabled:
-                        cache_key = f"{endpoint_id}:{llm_provider}:{llm_name}"
-                        self.cache.set(
-                            cache_key, normalized_agents, ttl=Config.get_cache_ttl()
-                        )
-
-            except Exception as exc:  # pragma: no cover - defensive
-                if self.logger:
-                    self.logger.exception(exc)
-
-        return Promise.resolve([key_map.get(key, []) for key in keys])
-
-
 class UIComponentLoader(_SafeDataLoader):
     """Batch loader for UIComponentModel keyed by (ui_component_type, ui_component_uuid)."""
 
@@ -1215,7 +887,6 @@ class RequestLoaders:
         self.agent_loader = AgentLoader(logger=logger, cache_enabled=cache_enabled)
         self.thread_loader = ThreadLoader(logger=logger, cache_enabled=cache_enabled)
         self.run_loader = RunLoader(logger=logger, cache_enabled=cache_enabled)
-        self.message_loader = MessageLoader(logger=logger, cache_enabled=cache_enabled)
         self.prompt_template_loader = PromptTemplateLoader(
             logger=logger, cache_enabled=cache_enabled
         )
@@ -1232,13 +903,7 @@ class RequestLoaders:
         )
 
         # One-to-many relationship loaders
-        self.threads_by_agent_loader = ThreadsByAgentLoader(
-            logger=logger, cache_enabled=cache_enabled
-        )
         self.runs_by_thread_loader = RunsByThreadLoader(
-            logger=logger, cache_enabled=cache_enabled
-        )
-        self.messages_by_run_loader = MessagesByRunLoader(
             logger=logger, cache_enabled=cache_enabled
         )
         self.messages_by_thread_loader = MessagesByThreadLoader(
@@ -1248,12 +913,6 @@ class RequestLoaders:
             logger=logger, cache_enabled=cache_enabled
         )
         self.tool_calls_by_thread_loader = ToolCallsByThreadLoader(
-            logger=logger, cache_enabled=cache_enabled
-        )
-        self.agents_by_flow_snippet_loader = AgentsByFlowSnippetLoader(
-            logger=logger, cache_enabled=cache_enabled
-        )
-        self.agents_by_llm_loader = AgentsByLlmLoader(
             logger=logger, cache_enabled=cache_enabled
         )
 
@@ -1286,12 +945,6 @@ class RequestLoaders:
             cache_key = f"{entity_keys.get('thread_uuid')}:{entity_keys['run_uuid']}"
             if hasattr(self.run_loader, "cache"):
                 self.run_loader.cache.delete(cache_key)
-        elif entity_type == "message" and "message_uuid" in entity_keys:
-            cache_key = (
-                f"{entity_keys.get('thread_uuid')}:{entity_keys['message_uuid']}"
-            )
-            if hasattr(self.message_loader, "cache"):
-                self.message_loader.cache.delete(cache_key)
         elif entity_type == "prompt_template" and "prompt_version_uuid" in entity_keys:
             cache_key = (
                 f"{entity_keys.get('endpoint_id')}:{entity_keys['prompt_version_uuid']}"

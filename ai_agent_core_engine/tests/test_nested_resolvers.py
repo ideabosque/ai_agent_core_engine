@@ -58,7 +58,6 @@ def mock_loaders(mock_context):
     loaders = RequestLoaders(mock_context, cache_enabled=False)
     
     # Mock all loaders to return Promises
-    loaders.wizard_schema_loader.load = MagicMock()
     loaders.element_loader.load = MagicMock()
     loaders.wizard_loader.load = MagicMock()
     loaders.llm_loader.load = MagicMock()
@@ -66,8 +65,6 @@ def mock_loaders(mock_context):
     loaders.mcp_server_loader.load = MagicMock()
     loaders.thread_loader.load = MagicMock()
     loaders.prompt_template_loader.load = MagicMock()
-    loaders.message_loader.load = MagicMock()
-    loaders.tool_call_loader.load = MagicMock()
     
     # Store in context for get_loaders()
     mock_context["batch_loaders"] = loaders
@@ -120,34 +117,6 @@ class TestWizardResolvers:
         
         # Assert
         assert result is schema_obj
-
-    @pytest.mark.unit
-    @pytest.mark.nested_resolver
-    @pytest.mark.wizard
-    def test_resolve_wizard_schema_from_loader(self, mock_info, mock_loaders):
-        """Test wizard_schema resolver with lazy loading via DataLoader."""
-        # Arrange
-        parent = MagicMock()
-        parent.wizard_schema = None
-        parent.wizard_schema_type = "test_type"
-        parent.wizard_schema_name = "test_name"
-        
-        mock_loaders.wizard_schema_loader.load.return_value = Promise.resolve({
-            "wizard_schema_type": "test_type",
-            "wizard_schema_name": "test_name",
-            "wizard_schema_description": "Loaded Schema"
-        })
-        
-        # Act
-        result_promise = WizardType.resolve_wizard_schema(parent, mock_info)
-        result = result_promise.get()
-        
-        # Assert
-        mock_loaders.wizard_schema_loader.load.assert_called_once_with(
-            ("test_type", "test_name")
-        )
-        assert isinstance(result, WizardSchemaType)
-        assert result.wizard_schema_name == "test_name"
 
     @pytest.mark.unit
     @pytest.mark.nested_resolver
