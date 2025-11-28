@@ -7,9 +7,7 @@ __author__ = "bibow"
 from graphene import DateTime, Field, Int, List, ObjectType, String
 from silvaengine_dynamodb_base import ListObjectType
 
-from .message import MessageType
 from .thread import ThreadType
-from .tool_call import ToolCallType
 
 
 class RunType(ObjectType):
@@ -61,6 +59,7 @@ class RunType(ObjectType):
         relationships with caching support.
         """
         from ..models.batch_loaders import get_loaders
+        from .message import MessageType
 
         # Check if already embedded
         existing = getattr(parent, "messages", None)
@@ -89,6 +88,7 @@ class RunType(ObjectType):
         relationships with caching support.
         """
         from ..models.batch_loaders import get_loaders
+        from .tool_call import ToolCallType
 
         # Check if already embedded
         existing = getattr(parent, "tool_calls", None)
@@ -110,3 +110,8 @@ class RunType(ObjectType):
 
 class RunListType(ListObjectType):
     run_list = List(RunType)
+
+
+# Import at end to avoid circular dependency
+from .message import MessageType  # noqa: E402
+from .tool_call import ToolCallType  # noqa: E402

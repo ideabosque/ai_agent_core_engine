@@ -7,7 +7,6 @@ __author__ = "bibow"
 from graphene import DateTime, Field, List, ObjectType, String
 from silvaengine_dynamodb_base import ListObjectType
 
-from .run import RunType
 from .thread import ThreadType
 
 
@@ -31,6 +30,7 @@ class MessageType(ObjectType):
     def resolve_run(parent, info):
         """Resolve nested Run for this message using DataLoader."""
         from ..models.batch_loaders import get_loaders
+        from .run import RunType
 
         # Case 2: already embedded
         existing = getattr(parent, "run", None)
@@ -71,3 +71,7 @@ class MessageType(ObjectType):
 
 class MessageListType(ListObjectType):
     message_list = List(MessageType)
+
+
+# Import at end to avoid circular dependency
+from .run import RunType  # noqa: E402

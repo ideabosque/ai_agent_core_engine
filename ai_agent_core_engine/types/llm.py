@@ -8,8 +8,6 @@ from graphene import DateTime, List, ObjectType, String
 from silvaengine_dynamodb_base import ListObjectType
 from silvaengine_utility import JSON
 
-from .agent import AgentType
-
 
 class LlmType(ObjectType):
     llm_provider = String()
@@ -33,6 +31,7 @@ class LlmType(ObjectType):
         relationships with caching support.
         """
         from ..models.batch_loaders import get_loaders
+        from .agent import AgentType
 
         # Check if already embedded
         existing = getattr(parent, "agents", None)
@@ -63,3 +62,7 @@ class LlmType(ObjectType):
 
 class LlmListType(ListObjectType):
     llm_list = List(LlmType)
+
+
+# Import at end to avoid circular dependency
+from .agent import AgentType  # noqa: E402

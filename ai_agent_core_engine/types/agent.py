@@ -9,10 +9,7 @@ from promise import Promise
 from silvaengine_dynamodb_base import ListObjectType
 from silvaengine_utility import JSON
 
-from .flow_snippet import FlowSnippetType
-from .llm import LlmType
 from .mcp_server import MCPServerType
-from .thread import ThreadType
 
 
 class AgentType(ObjectType):
@@ -49,6 +46,7 @@ class AgentType(ObjectType):
     def resolve_llm(parent, info):
         """Resolve nested LLM for this agent using DataLoader."""
         from ..models.batch_loaders import get_loaders
+        from .llm import LlmType
 
         # Case 2: already embedded
         existing = getattr(parent, "llm", None)
@@ -103,6 +101,7 @@ class AgentType(ObjectType):
     def resolve_flow_snippet(parent, info):
         """Resolve nested FlowSnippet for this agent using DataLoader."""
         from ..models.batch_loaders import get_loaders
+        from .flow_snippet import FlowSnippetType
 
         # Check if already embedded
         existing = getattr(parent, "flow_snippet", None)
@@ -158,3 +157,9 @@ class AgentType(ObjectType):
 
 class AgentListType(ListObjectType):
     agent_list = List(AgentType)
+
+
+# Import at end to avoid circular dependency
+from .flow_snippet import FlowSnippetType  # noqa: E402
+from .llm import LlmType  # noqa: E402
+from .thread import ThreadType  # noqa: E402

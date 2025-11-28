@@ -7,7 +7,6 @@ __author__ = "bibow"
 from graphene import DateTime, Field, List, ObjectType, String
 from silvaengine_dynamodb_base import ListObjectType
 
-from .agent import AgentType
 from .prompt_template import PromptTemplateType
 
 
@@ -59,6 +58,7 @@ class FlowSnippetBaseType(ObjectType):
         relationships with caching support.
         """
         from ..models.batch_loaders import get_loaders
+        from .agent import AgentType
 
         # Check if already embedded
         existing = getattr(parent, "agents", None)
@@ -90,3 +90,7 @@ class FlowSnippetType(FlowSnippetBaseType):
 
 class FlowSnippetListType(ListObjectType):
     flow_snippet_list = List(FlowSnippetBaseType)
+
+
+# Import at end to avoid circular dependency
+from .agent import AgentType  # noqa: E402

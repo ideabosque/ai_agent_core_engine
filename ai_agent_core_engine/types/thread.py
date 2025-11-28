@@ -7,10 +7,6 @@ __author__ = "bibow"
 from graphene import DateTime, Field, List, ObjectType, String
 from silvaengine_dynamodb_base import ListObjectType
 
-from .agent import AgentType
-from .message import MessageType
-from .run import RunType
-
 
 class ThreadType(ObjectType):
     endpoint_id = String()
@@ -29,12 +25,11 @@ class ThreadType(ObjectType):
     def resolve_agent(parent, info):
         """Resolve nested Agent for this thread using DataLoader."""
         from ..models.batch_loaders import get_loaders
+        from .agent import AgentType
 
         # Case 2: already embedded
         existing = getattr(parent, "agent", None)
         if isinstance(existing, dict):
-            from .agent import AgentType
-
             return AgentType(**existing)
 
         # Case 1: need to fetch using DataLoader
@@ -44,8 +39,6 @@ class ThreadType(ObjectType):
         agent_uuid = getattr(parent, "agent_uuid", None)
         if not endpoint_id or not agent_uuid:
             return None
-
-        from .agent import AgentType
 
         loaders = get_loaders(info.context)
         return loaders.agent_loader.load((endpoint_id, agent_uuid)).then(
@@ -173,6 +166,7 @@ class ThreadType(ObjectType):
         relationships with caching support.
         """
         from ..models.batch_loaders import get_loaders
+        from .run import RunType
 
         # Check if already embedded
         existing = getattr(parent, "runs", None)
@@ -194,3 +188,9 @@ class ThreadType(ObjectType):
 
 class ThreadListType(ListObjectType):
     thread_list = List(ThreadType)
+
+
+# Import at end to avoid circular dependency
+from .agent import AgentType  # noqa: E402
+from .message import MessageType  # noqa: E402
+from .run import RunType  # noqa: E402

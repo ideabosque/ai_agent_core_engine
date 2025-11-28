@@ -7,7 +7,6 @@ import logging
 from typing import Any, Dict, List
 
 import boto3
-
 from silvaengine_utility import Utility
 
 from ..models import utils
@@ -334,7 +333,7 @@ class Config:
         Args:
             setting (Dict[str, Any]): Configuration dictionary containing task queue settings.
         """
-        if "task_queue_name" in setting:
+        if "task_queue_name" in setting and setting["task_queue_name"]:
             cls.task_queue = cls.aws_sqs.get_queue_by_name(
                 QueueName=setting["task_queue_name"]
             )
