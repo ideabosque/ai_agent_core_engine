@@ -5,6 +5,7 @@ from __future__ import print_function
 __author__ = "bibow"
 
 from graphene import DateTime, Field, List, ObjectType, String
+
 from silvaengine_dynamodb_base import ListObjectType
 
 from .prompt_template import PromptTemplateType
@@ -23,7 +24,6 @@ class FlowSnippetBaseType(ObjectType):
 
     # Nested resolvers with DataLoader batch fetching for efficient database access
     prompt_template = Field(lambda: PromptTemplateType)
-    agents = List(lambda: AgentType)
 
     # ------- Nested resolvers -------
 
@@ -49,37 +49,6 @@ class FlowSnippetBaseType(ObjectType):
             lambda prompt_dict: (
                 PromptTemplateType(**prompt_dict) if prompt_dict else None
             )
-        )
-
-    def resolve_agents(parent, info):
-        """Resolve nested Agents that use this flow snippet using DataLoader.
-
-        Note: Uses AgentsByFlowSnippetLoader for efficient batch loading of one-to-many
-        relationships with caching support.
-        """
-        from ..models.batch_loaders import get_loaders
-        from .agent import AgentType
-
-        # Check if already embedded
-        existing = getattr(parent, "agents", None)
-        if isinstance(existing, list) and existing:
-
-            return [
-                AgentType(**agent) if isinstance(agent, dict) else agent
-                for agent in existing
-            ]
-
-        # Fetch agents that use this flow snippet
-        endpoint_id = info.context.get("endpoint_id")
-        flow_snippet_version_uuid = getattr(parent, "flow_snippet_version_uuid", None)
-        if not endpoint_id or not flow_snippet_version_uuid:
-            return []
-
-        loaders = get_loaders(info.context)
-        return loaders.agents_by_flow_snippet_loader.load(
-            (endpoint_id, flow_snippet_version_uuid)
-        ).then(
-            lambda agent_dicts: [AgentType(**agent_dict) for agent_dict in agent_dicts]
         )
 
 

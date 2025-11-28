@@ -33,8 +33,18 @@ logger = logging.getLogger("test_ai_agent_core_engine")
 # Make package importable
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../..")))
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../silvaengine_dynamodb_base")))
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../silvaengine_utility")))
+sys.path.insert(
+    0,
+    os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "../../../silvaengine_dynamodb_base")
+    ),
+)
+sys.path.insert(
+    0,
+    os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "../../../silvaengine_utility")
+    ),
+)
 
 from ai_agent_core_engine import AIAgentCoreEngine
 from silvaengine_utility import Utility
@@ -129,6 +139,7 @@ def schema(ai_agent_core_engine):
     endpoint_id = SETTING.get("endpoint_id")
 
     try:
+        logger.info("Fetching GraphQL schema...")
         schema = Utility.fetch_graphql_schema(
             logger,
             endpoint_id,
@@ -233,7 +244,9 @@ def sample_run_uuid():
 
 # Message fixtures
 @pytest.fixture(scope="function")
-def sample_message_data(test_data, sample_thread_uuid, sample_run_uuid, current_timestamp):
+def sample_message_data(
+    test_data, sample_thread_uuid, sample_run_uuid, current_timestamp
+):
     """Return sample message data."""
     data = test_data["messages"][0].copy()
     data["thread_uuid"] = sample_thread_uuid
@@ -251,7 +264,9 @@ def sample_message_uuid():
 
 # ToolCall fixtures
 @pytest.fixture(scope="function")
-def sample_tool_call_data(test_data, sample_thread_uuid, sample_run_uuid, current_timestamp):
+def sample_tool_call_data(
+    test_data, sample_thread_uuid, sample_run_uuid, current_timestamp
+):
     """Return sample tool call data."""
     data = test_data["tool_calls"][0].copy()
     data["thread_uuid"] = sample_thread_uuid
@@ -384,9 +399,7 @@ def _raise_no_matches(filters_desc: str, items: Sequence[pytest.Item]) -> None:
     """Raise informative error when no tests matched filter."""
     sample = ", ".join(sorted(item.name for item in items)[:5])
     hint = f" Available sample: {sample}" if sample else ""
-    raise pytest.UsageError(
-        f"{filters_desc} did not match any collected tests.{hint}"
-    )
+    raise pytest.UsageError(f"{filters_desc} did not match any collected tests.{hint}")
 
 
 def pytest_collection_modifyitems(
@@ -419,9 +432,7 @@ def pytest_collection_modifyitems(
         name_match = not target_lower or test_func_name == target_lower
 
         # Check if any requested marker is present
-        marker_match = not markers or any(
-            item.get_closest_marker(m) for m in markers
-        )
+        marker_match = not markers or any(item.get_closest_marker(m) for m in markers)
 
         if name_match and marker_match:
             selected.append(item)
@@ -429,9 +440,7 @@ def pytest_collection_modifyitems(
             deselected.append(item)
 
     if not selected:
-        _raise_no_matches(
-            _format_filter_description(target, marker_filter_raw), items
-        )
+        _raise_no_matches(_format_filter_description(target, marker_filter_raw), items)
 
     items[:] = selected
     config.hook.pytest_deselected(items=deselected)

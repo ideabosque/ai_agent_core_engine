@@ -94,21 +94,16 @@ def test_llm_lifecycle_flow(
     ai_agent_core_engine: Any, schema: Any, test_data: Any
 ) -> None:
     """Test LLM lifecycle: Insert -> Get -> Update -> Delete."""
-    logger.info(f"Starting LLM lifecycle test with data: {test_data}")
-    
     # 1. Insert
-    logger.info("Step 1: Inserting LLM...")
     insert_query = Utility.generate_graphql_operation(
         "insertUpdateLlm", "Mutation", schema
     )
-    logger.info(f"Generated insert query: {insert_query[:200]}...")
     result, error = call_method(
         ai_agent_core_engine,
         "ai_agent_core_graphql",
         {"query": insert_query, "variables": test_data},
         "insert_llm",
     )
-    logger.info(f"Insert result: {result}, error: {error}")
     assert error is None, f"Insert LLM failed: {error}"
     assert (
         result.get("data", {}).get("insertUpdateLlm", {}).get("llm")

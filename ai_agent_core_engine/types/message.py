@@ -5,6 +5,7 @@ from __future__ import print_function
 __author__ = "bibow"
 
 from graphene import DateTime, Field, List, ObjectType, String
+
 from silvaengine_dynamodb_base import ListObjectType
 
 from .thread import ThreadType
@@ -29,7 +30,6 @@ class MessageType(ObjectType):
 
     # Nested resolvers with DataLoader batch fetching for efficient database access
     run = Field(_get_run_type)
-    thread = Field(lambda: ThreadType)
 
     # ------- Nested resolvers -------
 
@@ -52,26 +52,6 @@ class MessageType(ObjectType):
         loaders = get_loaders(info.context)
         return loaders.run_loader.load((thread_uuid, run_uuid)).then(
             lambda run_dict: RunType(**run_dict) if run_dict else None
-        )
-
-    def resolve_thread(parent, info):
-        """Resolve nested Thread for this message using DataLoader."""
-        from ..models.batch_loaders import get_loaders
-
-        # Case 2: already embedded
-        existing = getattr(parent, "thread", None)
-        if isinstance(existing, dict):
-            return ThreadType(**existing)
-
-        # Case 1: need to fetch using DataLoader
-        endpoint_id = info.context.get("endpoint_id")
-        thread_uuid = getattr(parent, "thread_uuid", None)
-        if not endpoint_id or not thread_uuid:
-            return None
-
-        loaders = get_loaders(info.context)
-        return loaders.thread_loader.load((endpoint_id, thread_uuid)).then(
-            lambda thread_dict: ThreadType(**thread_dict) if thread_dict else None
         )
 
 

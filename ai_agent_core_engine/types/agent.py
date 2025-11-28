@@ -6,6 +6,7 @@ __author__ = "bibow"
 
 from graphene import DateTime, Field, Int, List, ObjectType, String
 from promise import Promise
+
 from silvaengine_dynamodb_base import ListObjectType
 from silvaengine_utility import JSON
 
@@ -39,7 +40,6 @@ class AgentType(ObjectType):
     llm = Field(lambda: LlmType)
     mcp_servers = List(lambda: MCPServerType)
     flow_snippet = Field(lambda: FlowSnippetType)
-    threads = List(lambda: ThreadType)
 
     # ------- Nested resolvers -------
 
@@ -122,36 +122,6 @@ class AgentType(ObjectType):
             lambda flow_snippet_dict: (
                 FlowSnippetType(**flow_snippet_dict) if flow_snippet_dict else None
             )
-        )
-
-    def resolve_threads(parent, info):
-        """Resolve nested Threads for this agent using DataLoader.
-
-        Note: Uses ThreadsByAgentLoader for efficient batch loading of one-to-many
-        relationships with caching support.
-        """
-        from ..models.batch_loaders import get_loaders
-
-        # Check if already embedded
-        existing = getattr(parent, "threads", None)
-        if isinstance(existing, list) and existing:
-
-            return [
-                ThreadType(**thread) if isinstance(thread, dict) else thread
-                for thread in existing
-            ]
-
-        # Fetch threads for this agent
-        endpoint_id = info.context.get("endpoint_id")
-        agent_uuid = getattr(parent, "agent_uuid", None)
-        if not endpoint_id or not agent_uuid:
-            return []
-
-        loaders = get_loaders(info.context)
-        return loaders.threads_by_agent_loader.load((endpoint_id, agent_uuid)).then(
-            lambda thread_dicts: [
-                ThreadType(**thread_dict) for thread_dict in thread_dicts
-            ]
         )
 
 
