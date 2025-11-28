@@ -52,6 +52,21 @@ class AgentUuidIndex(LocalSecondaryIndex):
     agent_uuid = UnicodeAttribute(range_key=True)
 
 
+class UpdatedAtIndex(LocalSecondaryIndex):
+    """
+    This class represents a local secondary index
+    """
+
+    class Meta:
+        billing_mode = "PAY_PER_REQUEST"
+        # All attributes are projected
+        projection = AllProjection()
+        index_name = "updated_at-index"
+
+    endpoint_id = UnicodeAttribute(hash_key=True)
+    updated_at = UnicodeAttribute(range_key=True)
+
+
 class AgentModel(BaseModel):
     class Meta(BaseModel.Meta):
         table_name = "aace-agents"
@@ -75,6 +90,7 @@ class AgentModel(BaseModel):
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()
     agent_uuid_index = AgentUuidIndex()
+    updated_at_index = UpdatedAtIndex()
 
 
 def purge_cache():
@@ -277,9 +293,10 @@ def resolve_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AgentType | No
 
 @monitor_decorator
 @resolve_list_decorator(
-    attributes_to_get=["endpoint_id", "agent_version_uuid", "agent_uuid"],
+    attributes_to_get=["endpoint_id", "agent_version_uuid", "agent_uuid", "updated_at"],
     list_type_class=AgentListType,
     type_funct=get_agent_list_type,
+    scan_index_forward=False,
 )
 def resolve_agent_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     endpoint_id = info.context["endpoint_id"]
@@ -290,19 +307,36 @@ def resolve_agent_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     model = kwargs.get("model")
     statuses = kwargs.get("statuses")
     flow_snippet_version_uuid = kwargs.get("flow_snippet_version_uuid")
+    updated_at_gt = kwargs.get("updated_at_gt")
+    updated_at_lt = kwargs.get("updated_at_lt")
 
     args = []
     inquiry_funct = AgentModel.scan
     count_funct = AgentModel.count
+    range_key_condition = None
     if endpoint_id:
-        args = [endpoint_id, None]
-        inquiry_funct = AgentModel.query
-        if agent_uuid:
+        # Build range key condition for updated_at when using updated_at_index
+        if updated_at_gt is not None and updated_at_lt is not None:
+            range_key_condition = AgentModel.updated_at.between(
+                updated_at_gt, updated_at_lt
+            )
+        elif updated_at_gt is not None:
+            range_key_condition = AgentModel.updated_at > updated_at_gt
+        elif updated_at_lt is not None:
+            range_key_condition = AgentModel.updated_at < updated_at_lt
+
+        args = [endpoint_id, range_key_condition]
+        inquiry_funct = AgentModel.updated_at_index.query
+        count_funct = AgentModel.updated_at_index.count
+
+        if agent_uuid and args[1] is None:
             inquiry_funct = AgentModel.agent_uuid_index.query
             args[1] = AgentModel.agent_uuid == agent_uuid
             count_funct = AgentModel.agent_uuid_index.count
 
     the_filters = None  # We can add filters for the query.
+    if agent_uuid and range_key_condition is not None:
+        the_filters &= AgentModel.agent_uuid == agent_uuid
     if agent_name:
         the_filters &= AgentModel.agent_name.contains(agent_name)
     if llm_provider:

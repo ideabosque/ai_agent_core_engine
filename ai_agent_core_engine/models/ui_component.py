@@ -18,6 +18,7 @@ from pynamodb.attributes import (
     UnicodeAttribute,
     UTCDateTimeAttribute,
 )
+from pynamodb.indexes import AllProjection, LocalSecondaryIndex
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from silvaengine_dynamodb_base import (
@@ -33,6 +34,21 @@ from ..handlers.config import Config
 from ..types.ui_component import UIComponentListType, UIComponentType
 
 
+class UpdatedAtIndex(LocalSecondaryIndex):
+    """
+    This class represents a local secondary index
+    """
+
+    class Meta:
+        billing_mode = "PAY_PER_REQUEST"
+        # All attributes are projected
+        projection = AllProjection()
+        index_name = "updated_at-index"
+
+    ui_component_type = UnicodeAttribute(hash_key=True)
+    updated_at = UnicodeAttribute(range_key=True)
+
+
 class UIComponentModel(BaseModel):
     class Meta(BaseModel.Meta):
         table_name = "aace-ui_components"
@@ -45,6 +61,7 @@ class UIComponentModel(BaseModel):
     updated_by = UnicodeAttribute()
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()
+    updated_at_index = UpdatedAtIndex()
 
 
 def purge_cache():
@@ -143,13 +160,27 @@ def resolve_ui_component(
 def resolve_ui_component_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     ui_component_type = kwargs.get("ui_component_type")
     tag_name = kwargs.get("tag_name")
+    updated_at_gt = kwargs.get("updated_at_gt")
+    updated_at_lt = kwargs.get("updated_at_lt")
 
     args = []
     inquiry_funct = UIComponentModel.scan
     count_funct = UIComponentModel.count
+    range_key_condition = None
     if ui_component_type:
-        args = [ui_component_type, None]
-        inquiry_funct = UIComponentModel.query
+        # Build range key condition for updated_at when using updated_at_index
+        if updated_at_gt is not None and updated_at_lt is not None:
+            range_key_condition = UIComponentModel.updated_at.between(
+                updated_at_gt, updated_at_lt
+            )
+        elif updated_at_gt is not None:
+            range_key_condition = UIComponentModel.updated_at > updated_at_gt
+        elif updated_at_lt is not None:
+            range_key_condition = UIComponentModel.updated_at < updated_at_lt
+
+        args = [ui_component_type, range_key_condition]
+        inquiry_funct = UIComponentModel.updated_at_index.query
+        count_funct = UIComponentModel.updated_at_index.count
 
     the_filters = None
     if tag_name:

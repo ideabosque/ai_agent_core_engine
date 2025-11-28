@@ -49,6 +49,21 @@ class DataTypeIndex(LocalSecondaryIndex):
     data_type = UnicodeAttribute(range_key=True)
 
 
+class UpdatedAtIndex(LocalSecondaryIndex):
+    """
+    This class represents a local secondary index
+    """
+
+    class Meta:
+        billing_mode = "PAY_PER_REQUEST"
+        # All attributes are projected
+        projection = AllProjection()
+        index_name = "updated_at-index"
+
+    endpoint_id = UnicodeAttribute(hash_key=True)
+    updated_at = UnicodeAttribute(range_key=True)
+
+
 class ElementModel(BaseModel):
     class Meta(BaseModel.Meta):
         table_name = "aace-elements"
@@ -67,6 +82,7 @@ class ElementModel(BaseModel):
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()
     data_type_index = DataTypeIndex()
+    updated_at_index = UpdatedAtIndex()
 
 
 def purge_cache():
@@ -155,28 +171,44 @@ def resolve_element(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ElementType 
 
 @monitor_decorator
 @resolve_list_decorator(
-    attributes_to_get=["endpoint_id", "element_uuid"],
+    attributes_to_get=["endpoint_id", "element_uuid", "updated_at"],
     list_type_class=ElementListType,
     type_funct=get_element_type,
+    scan_index_forward=False,
 )
 def resolve_element_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     endpoint_id = info.context["endpoint_id"]
     data_type = kwargs.get("data_type")
     attribute_name = kwargs.get("attribute_name")
+    updated_at_gt = kwargs.get("updated_at_gt")
+    updated_at_lt = kwargs.get("updated_at_lt")
 
     args = []
     inquiry_funct = ElementModel.scan
     count_funct = ElementModel.count
+    range_key_condition = None
     if endpoint_id:
-        args = [endpoint_id, None]
-        inquiry_funct = ElementModel.query
-        if data_type:
+        # Build range key condition for updated_at when using updated_at_index
+        if updated_at_gt is not None and updated_at_lt is not None:
+            range_key_condition = ElementModel.updated_at.between(
+                updated_at_gt, updated_at_lt
+            )
+        elif updated_at_gt is not None:
+            range_key_condition = ElementModel.updated_at > updated_at_gt
+        elif updated_at_lt is not None:
+            range_key_condition = ElementModel.updated_at < updated_at_lt
+
+        args = [endpoint_id, range_key_condition]
+        inquiry_funct = ElementModel.updated_at_index.query
+        count_funct = ElementModel.updated_at_index.count
+
+        if data_type and args[1] is None:
             inquiry_funct = ElementModel.data_type_index.query
             args[1] = ElementModel.data_type == data_type
             count_funct = ElementModel.data_type_index.count
 
     the_filters = None
-    if data_type:
+    if data_type and range_key_condition is not None:
         the_filters &= ElementModel.data_type == data_type
     if attribute_name:
         the_filters &= ElementModel.attribute_name == attribute_name

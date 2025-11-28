@@ -18,6 +18,7 @@ from pynamodb.attributes import (
     UnicodeAttribute,
     UTCDateTimeAttribute,
 )
+from pynamodb.indexes import AllProjection, LocalSecondaryIndex
 from silvaengine_dynamodb_base import (
     BaseModel,
     delete_decorator,
@@ -50,6 +51,21 @@ wizard_elements_fn = lambda wizard_elements: [
 ]
 
 
+class UpdatedAtIndex(LocalSecondaryIndex):
+    """
+    This class represents a local secondary index
+    """
+
+    class Meta:
+        billing_mode = "PAY_PER_REQUEST"
+        # All attributes are projected
+        projection = AllProjection()
+        index_name = "updated_at-index"
+
+    endpoint_id = UnicodeAttribute(hash_key=True)
+    updated_at = UnicodeAttribute(range_key=True)
+
+
 class WizardModel(BaseModel):
     class Meta(BaseModel.Meta):
         table_name = "aace-wizards"
@@ -67,6 +83,7 @@ class WizardModel(BaseModel):
     updated_by = UnicodeAttribute()
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()
+    updated_at_index = UpdatedAtIndex()
 
 
 def purge_cache():
@@ -201,21 +218,36 @@ def resolve_wizard(info: ResolveInfo, **kwargs: Dict[str, Any]) -> WizardType:
 
 @monitor_decorator
 @resolve_list_decorator(
-    attributes_to_get=["endpoint_id", "wizard_uuid"],
+    attributes_to_get=["endpoint_id", "wizard_uuid", "updated_at"],
     list_type_class=WizardListType,
     type_funct=get_wizard_type,
+    scan_index_forward=False,
 )
 def resolve_wizard_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     endpoint_id = info.context["endpoint_id"]
     wizard_type = kwargs.get("wizard_type")
     wizard_title = kwargs.get("wizard_title")
+    updated_at_gt = kwargs.get("updated_at_gt")
+    updated_at_lt = kwargs.get("updated_at_lt")
 
     args = []
     inquiry_funct = WizardModel.scan
     count_funct = WizardModel.count
+    range_key_condition = None
     if endpoint_id:
-        args = [endpoint_id, None]
-        inquiry_funct = WizardModel.query
+        # Build range key condition for updated_at when using updated_at_index
+        if updated_at_gt is not None and updated_at_lt is not None:
+            range_key_condition = WizardModel.updated_at.between(
+                updated_at_gt, updated_at_lt
+            )
+        elif updated_at_gt is not None:
+            range_key_condition = WizardModel.updated_at > updated_at_gt
+        elif updated_at_lt is not None:
+            range_key_condition = WizardModel.updated_at < updated_at_lt
+
+        args = [endpoint_id, range_key_condition]
+        inquiry_funct = WizardModel.updated_at_index.query
+        count_funct = WizardModel.updated_at_index.count
 
     the_filters = None
     if wizard_type:

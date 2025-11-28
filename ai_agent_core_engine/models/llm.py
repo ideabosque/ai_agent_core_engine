@@ -12,6 +12,7 @@ from typing import Any, Dict
 import pendulum
 from graphene import ResolveInfo
 from pynamodb.attributes import MapAttribute, UnicodeAttribute, UTCDateTimeAttribute
+from pynamodb.indexes import AllProjection, LocalSecondaryIndex
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from silvaengine_dynamodb_base import (
@@ -28,6 +29,21 @@ from ..types.llm import LlmListType, LlmType
 from .agent import resolve_agent_list
 
 
+class UpdatedAtIndex(LocalSecondaryIndex):
+    """
+    This class represents a local secondary index
+    """
+
+    class Meta:
+        billing_mode = "PAY_PER_REQUEST"
+        # All attributes are projected
+        projection = AllProjection()
+        index_name = "updated_at-index"
+
+    llm_provider = UnicodeAttribute(hash_key=True)
+    updated_at = UnicodeAttribute(range_key=True)
+
+
 class LlmModel(BaseModel):
     class Meta(BaseModel.Meta):
         table_name = "aace-llms"
@@ -40,6 +56,7 @@ class LlmModel(BaseModel):
     updated_by = UnicodeAttribute()
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()
+    updated_at_index = UpdatedAtIndex()
 
 
 def purge_cache():
@@ -126,13 +143,27 @@ def resolve_llm_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     llm_provider = kwargs.get("llm_provider")
     module_name = kwargs.get("module_name")
     class_name = kwargs.get("class_name")
+    updated_at_gt = kwargs.get("updated_at_gt")
+    updated_at_lt = kwargs.get("updated_at_lt")
 
     args = []
     inquiry_funct = LlmModel.scan
     count_funct = LlmModel.count
+    range_key_condition = None
     if llm_provider:
-        args = [llm_provider, None]
-        inquiry_funct = LlmModel.query
+        # Build range key condition for updated_at when using updated_at_index
+        if updated_at_gt is not None and updated_at_lt is not None:
+            range_key_condition = LlmModel.updated_at.between(
+                updated_at_gt, updated_at_lt
+            )
+        elif updated_at_gt is not None:
+            range_key_condition = LlmModel.updated_at > updated_at_gt
+        elif updated_at_lt is not None:
+            range_key_condition = LlmModel.updated_at < updated_at_lt
+
+        args = [llm_provider, range_key_condition]
+        inquiry_funct = LlmModel.updated_at_index.query
+        count_funct = LlmModel.updated_at_index.count
 
     the_filters = None  # We can add filters for the query.
     if module_name:

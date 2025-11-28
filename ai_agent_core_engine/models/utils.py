@@ -25,6 +25,7 @@ def _initialize_tables(logger: logging.Logger) -> None:
     from .ui_component import create_ui_component_table
     from .wizard import create_wizard_table
     from .wizard_group import create_wizard_group_table
+    from .wizard_group_filter import create_wizard_group_filter_table
     from .wizard_schema import create_wizard_schema_table
 
     create_llm_table(logger)
@@ -39,6 +40,7 @@ def _initialize_tables(logger: logging.Logger) -> None:
     create_wizard_table(logger)
     create_wizard_schema_table(logger)
     create_wizard_group_table(logger)
+    create_wizard_group_filter_table(logger)
     create_mcp_server_table(logger)
     create_ui_component_table(logger)
     create_flow_snippet_table(logger)
@@ -159,6 +161,25 @@ def _get_wizard(endpoint_id: str, wizard_uuid: str) -> Dict[str, Any]:
         ],
         "wizard_elements": wizard_elements,
         "priority": wizard.priority,
+    }
+
+
+def _get_wizard_group(endpoint_id: str, wizard_group_uuid: str) -> Dict[str, Any]:
+    from .wizard_group import get_wizard_group
+
+    wizard_group = get_wizard_group(endpoint_id, wizard_group_uuid)
+
+    wizards = [
+        _get_wizard(wizard_group.endpoint_id, wizard_uuid)
+        for wizard_uuid in wizard_group.wizard_uuids
+    ]
+
+    return {
+        "wizard_group_uuid": wizard_group.wizard_group_uuid,
+        "wizard_group_name": wizard_group.wizard_group_name,
+        "wizard_group_description": wizard_group.wizard_group_description,
+        "weight": wizard_group.weight,
+        "wizards": wizards,
     }
 
 

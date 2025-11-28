@@ -40,6 +40,10 @@ from .mutations.ui_component import DeleteUIComponent, InsertUpdateUIComponent
 from .mutations.wizard import DeleteWizard, InsertUpdateWizard
 from .mutations.wizard_schema import DeleteWizardSchema, InsertUpdateWizardSchema
 from .mutations.wizard_group import DeleteWizardGroup, InsertUpdateWizardGroup
+from .mutations.wizard_group_filter import (
+    DeleteWizardGroupFilter,
+    InsertUpdateWizardGroupFilter,
+)
 from .mutations.wizard_group_wizards import InsertUpdateWizardGroupWithWizards, DeleteWizardFromWizardGroup
 from .queries.agent import resolve_agent, resolve_agent_list
 from .queries.ai_agent import (
@@ -69,6 +73,10 @@ from .queries.ui_component import resolve_ui_component, resolve_ui_component_lis
 from .queries.wizard import resolve_wizard, resolve_wizard_list
 from .queries.wizard_schema import resolve_wizard_schema, resolve_wizard_schema_list
 from .queries.wizard_group import resolve_wizard_group, resolve_wizard_group_list
+from .queries.wizard_group_filter import (
+    resolve_wizard_group_filter,
+    resolve_wizard_group_filter_list,
+)
 from .types.agent import AgentListType, AgentType
 from .types.ai_agent import AskModelType, FileType, PresignedAWSS3UrlType
 from .types.async_task import AsyncTaskListType, AsyncTaskType
@@ -86,6 +94,7 @@ from .types.ui_component import UIComponentListType, UIComponentType
 from .types.wizard import WizardListType, WizardType
 from .types.wizard_schema import WizardSchemaListType, WizardSchemaType
 from .types.wizard_group import WizardGroupListType, WizardGroupType
+from .types.wizard_group_filter import WizardGroupFilterListType, WizardGroupFilterType
 
 
 def type_class():
@@ -114,6 +123,8 @@ def type_class():
         WizardSchemaListType,
         WizardGroupType,
         WizardGroupListType,
+        WizardGroupFilterType,
+        WizardGroupFilterListType,
         MCPServerType,
         MCPServerListType,
         UIComponentType,
@@ -143,6 +154,8 @@ class Query(ObjectType):
         llm_provider=String(required=False),
         module_name=String(required=False),
         class_name=String(required=False),
+        updated_at_gt=DateTime(required=False),
+        updated_at_lt=DateTime(required=False),
     )
 
     agent = Field(
@@ -162,6 +175,8 @@ class Query(ObjectType):
         model=String(required=False),
         statuses=List(String, required=False),
         flow_snippet_version_uuid=String(required=False),
+        updated_at_gt=DateTime(required=False),
+        updated_at_lt=DateTime(required=False),
     )
 
     thread = Field(
@@ -303,6 +318,8 @@ class Query(ObjectType):
         limit=Int(required=False),
         data_type=String(required=False),
         attribute_name=String(required=False),
+        updated_at_gt=DateTime(required=False),
+        updated_at_lt=DateTime(required=False),
     )
 
     wizard = Field(
@@ -316,6 +333,8 @@ class Query(ObjectType):
         limit=Int(required=False),
         wizard_type=String(required=False),
         wizard_title=String(required=False),
+        updated_at_gt=DateTime(required=False),
+        updated_at_lt=DateTime(required=False),
     )
 
     wizard_schema = Field(
@@ -330,6 +349,8 @@ class Query(ObjectType):
         limit=Int(required=False),
         wizard_schema_type=String(required=False),
         wizard_schema_name=String(required=False),
+        updated_at_gt=DateTime(required=False),
+        updated_at_lt=DateTime(required=False),
     )
 
     wizard_group = Field(
@@ -342,6 +363,24 @@ class Query(ObjectType):
         page_number=Int(required=False),
         limit=Int(required=False),
         wizard_group_name=String(required=False),
+        updated_at_gt=DateTime(required=False),
+        updated_at_lt=DateTime(required=False),
+    )
+
+    wizard_group_filter = Field(
+        WizardGroupFilterType,
+        wizard_group_filter_uuid=String(required=True),
+    )
+
+    wizard_group_filter_list = Field(
+        WizardGroupFilterListType,
+        page_number=Int(required=False),
+        limit=Int(required=False),
+        wizard_group_filter_name=String(required=False),
+        region=String(required=False),
+        wizard_group_uuid=String(required=False),
+        updated_at_gt=DateTime(required=False),
+        updated_at_lt=DateTime(required=False),
     )
 
     mcp_server = Field(
@@ -354,6 +393,8 @@ class Query(ObjectType):
         page_number=Int(required=False),
         limit=Int(required=False),
         mcp_label=String(required=False),
+        updated_at_gt=DateTime(required=False),
+        updated_at_lt=DateTime(required=False),
     )
 
     ui_component = Field(
@@ -368,6 +409,8 @@ class Query(ObjectType):
         limit=Int(required=False),
         ui_component_type=String(required=False),
         tag_name=String(required=False),
+        updated_at_gt=DateTime(required=False),
+        updated_at_lt=DateTime(required=False),
     )
 
     flow_snippet = Field(
@@ -384,6 +427,8 @@ class Query(ObjectType):
         prompt_uuid=String(required=False),
         flow_name=String(required=False),
         statuses=List(String, required=False),
+        updated_at_gt=DateTime(required=False),
+        updated_at_lt=DateTime(required=False),
     )
 
     prompt_template = Field(
@@ -400,6 +445,8 @@ class Query(ObjectType):
         prompt_type=String(required=False),
         prompt_name=String(required=False),
         statuses=List(String, required=False),
+        updated_at_gt=DateTime(required=False),
+        updated_at_lt=DateTime(required=False),
     )
 
     presigned_aws_s3_url = Field(
@@ -537,6 +584,16 @@ class Query(ObjectType):
     ) -> WizardGroupListType:
         return resolve_wizard_group_list(info, **kwargs)
 
+    def resolve_wizard_group_filter(
+        self, info: ResolveInfo, **kwargs: Dict[str, Any]
+    ) -> WizardGroupFilterType:
+        return resolve_wizard_group_filter(info, **kwargs)
+
+    def resolve_wizard_group_filter_list(
+        self, info: ResolveInfo, **kwargs: Dict[str, Any]
+    ) -> WizardGroupFilterListType:
+        return resolve_wizard_group_filter_list(info, **kwargs)
+
     def resolve_mcp_server(
         self, info: ResolveInfo, **kwargs: Dict[str, Any]
     ) -> MCPServerType:
@@ -610,6 +667,8 @@ class Mutations(ObjectType):
     delete_wizard_schema = DeleteWizardSchema.Field()
     insert_update_wizard_group = InsertUpdateWizardGroup.Field()
     delete_wizard_group = DeleteWizardGroup.Field()
+    insert_update_wizard_group_filter = InsertUpdateWizardGroupFilter.Field()
+    delete_wizard_group_filter = DeleteWizardGroupFilter.Field()
     insert_update_mcp_server = InsertUpdateMCPServer.Field()
     delete_mcp_server = DeleteMCPServer.Field()
     insert_update_ui_component = InsertUpdateUIComponent.Field()

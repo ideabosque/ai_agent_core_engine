@@ -65,6 +65,21 @@ class PromptTypeIndex(LocalSecondaryIndex):
     prompt_type = UnicodeAttribute(range_key=True)
 
 
+class UpdatedAtIndex(LocalSecondaryIndex):
+    """
+    This class represents a local secondary index
+    """
+
+    class Meta:
+        billing_mode = "PAY_PER_REQUEST"
+        # All attributes are projected
+        projection = AllProjection()
+        index_name = "updated_at-index"
+
+    endpoint_id = UnicodeAttribute(hash_key=True)
+    updated_at = UnicodeAttribute(range_key=True)
+
+
 class PromptTemplateModel(BaseModel):
     class Meta(BaseModel.Meta):
         table_name = "aace-prompt_templates"
@@ -85,6 +100,7 @@ class PromptTemplateModel(BaseModel):
     updated_at = UTCDateTimeAttribute()
     prompt_uuid_index = PromptUuidIndex()
     prompt_type_index = PromptTypeIndex()
+    updated_at_index = UpdatedAtIndex()
 
 
 def purge_cache():
@@ -256,23 +272,42 @@ def resolve_prompt_template_list(info: ResolveInfo, **kwargs: Dict[str, Any]) ->
     prompt_type = kwargs.get("prompt_type")
     prompt_name = kwargs.get("prompt_name")
     statuses = kwargs.get("statuses")
+    updated_at_gt = kwargs.get("updated_at_gt")
+    updated_at_lt = kwargs.get("updated_at_lt")
 
     args = []
     inquiry_funct = PromptTemplateModel.scan
     count_funct = PromptTemplateModel.count
+    range_key_condition = None
     if endpoint_id:
-        args = [endpoint_id, None]
-        inquiry_funct = PromptTemplateModel.query
-        if prompt_uuid:
+        # Build range key condition for updated_at when using updated_at_index
+        if updated_at_gt is not None and updated_at_lt is not None:
+            range_key_condition = PromptTemplateModel.updated_at.between(
+                updated_at_gt, updated_at_lt
+            )
+        elif updated_at_gt is not None:
+            range_key_condition = PromptTemplateModel.updated_at > updated_at_gt
+        elif updated_at_lt is not None:
+            range_key_condition = PromptTemplateModel.updated_at < updated_at_lt
+
+        args = [endpoint_id, range_key_condition]
+        inquiry_funct = PromptTemplateModel.updated_at_index.query
+        count_funct = PromptTemplateModel.updated_at_index.count
+
+        if prompt_uuid and args[1] is None:
             inquiry_funct = PromptTemplateModel.prompt_uuid_index.query
             args[1] = PromptTemplateModel.prompt_uuid == prompt_uuid
             count_funct = PromptTemplateModel.prompt_uuid_index.count
-        elif prompt_type:
+        elif prompt_type and args[1] is None:
             inquiry_funct = PromptTemplateModel.prompt_type_index.query
             args[1] = PromptTemplateModel.prompt_type == prompt_type
             count_funct = PromptTemplateModel.prompt_type_index.count
 
     the_filters = None
+    if prompt_uuid and range_key_condition is not None:
+        the_filters &= PromptTemplateModel.prompt_uuid == prompt_uuid
+    if prompt_type and range_key_condition is not None:
+        the_filters &= PromptTemplateModel.prompt_type == prompt_type
     if prompt_name:
         the_filters &= PromptTemplateModel.prompt_name.contains(prompt_name)
     if statuses:

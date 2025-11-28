@@ -13,6 +13,7 @@ from typing import Any, Dict
 import pendulum
 from graphene import ResolveInfo
 from pynamodb.attributes import MapAttribute, UnicodeAttribute, UTCDateTimeAttribute
+from pynamodb.indexes import AllProjection, LocalSecondaryIndex
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from mcp_http_client import MCPHttpClient
@@ -29,6 +30,21 @@ from ..handlers.config import Config
 from ..types.mcp_server import MCPServerListType, MCPServerType
 
 
+class UpdatedAtIndex(LocalSecondaryIndex):
+    """
+    This class represents a local secondary index
+    """
+
+    class Meta:
+        billing_mode = "PAY_PER_REQUEST"
+        # All attributes are projected
+        projection = AllProjection()
+        index_name = "updated_at-index"
+
+    endpoint_id = UnicodeAttribute(hash_key=True)
+    updated_at = UnicodeAttribute(range_key=True)
+
+
 class MCPServerModel(BaseModel):
     class Meta(BaseModel.Meta):
         table_name = "aace-mcp_servers"
@@ -41,6 +57,7 @@ class MCPServerModel(BaseModel):
     updated_by = UnicodeAttribute()
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()
+    updated_at_index = UpdatedAtIndex()
 
 
 def purge_cache():
@@ -173,13 +190,27 @@ def resolve_mcp_server(
 def resolve_mcp_server_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     endpoint_id = info.context["endpoint_id"]
     mcp_label = kwargs.get("mcp_label")
+    updated_at_gt = kwargs.get("updated_at_gt")
+    updated_at_lt = kwargs.get("updated_at_lt")
 
     args = []
     inquiry_funct = MCPServerModel.scan
     count_funct = MCPServerModel.count
+    range_key_condition = None
     if endpoint_id:
-        args = [endpoint_id, None]
-        inquiry_funct = MCPServerModel.query
+        # Build range key condition for updated_at when using updated_at_index
+        if updated_at_gt is not None and updated_at_lt is not None:
+            range_key_condition = MCPServerModel.updated_at.between(
+                updated_at_gt, updated_at_lt
+            )
+        elif updated_at_gt is not None:
+            range_key_condition = MCPServerModel.updated_at > updated_at_gt
+        elif updated_at_lt is not None:
+            range_key_condition = MCPServerModel.updated_at < updated_at_lt
+
+        args = [endpoint_id, range_key_condition]
+        inquiry_funct = MCPServerModel.updated_at_index.query
+        count_funct = MCPServerModel.updated_at_index.count
 
     the_filters = None
     if mcp_label:

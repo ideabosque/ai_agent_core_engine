@@ -19,6 +19,7 @@ from pynamodb.attributes import (
     UnicodeAttribute,
     UTCDateTimeAttribute,
 )
+from pynamodb.indexes import AllProjection, LocalSecondaryIndex
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from silvaengine_dynamodb_base import (
@@ -56,6 +57,21 @@ attribute_groups_fn = lambda attribute_groups: [
 ]
 
 
+class UpdatedAtIndex(LocalSecondaryIndex):
+    """
+    This class represents a local secondary index
+    """
+
+    class Meta:
+        billing_mode = "PAY_PER_REQUEST"
+        # All attributes are projected
+        projection = AllProjection()
+        index_name = "updated_at-index"
+
+    wizard_schema_type = UnicodeAttribute(hash_key=True)
+    updated_at = UnicodeAttribute(range_key=True)
+
+
 class WizardSchemaModel(BaseModel):
     class Meta(BaseModel.Meta):
         table_name = "aace-wizard_schemas"
@@ -68,6 +84,7 @@ class WizardSchemaModel(BaseModel):
     updated_by = UnicodeAttribute()
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()
+    updated_at_index = UpdatedAtIndex()
 
 
 def purge_cache():
@@ -186,13 +203,27 @@ def resolve_wizard_schema(
 def resolve_wizard_schema_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     wizard_schema_type = kwargs.get("wizard_schema_type")
     wizard_schema_name = kwargs.get("wizard_schema_name")
+    updated_at_gt = kwargs.get("updated_at_gt")
+    updated_at_lt = kwargs.get("updated_at_lt")
 
     args = []
     inquiry_funct = WizardSchemaModel.scan
     count_funct = WizardSchemaModel.count
+    range_key_condition = None
     if wizard_schema_type:
-        args = [wizard_schema_type, None]
-        inquiry_funct = WizardSchemaModel.query
+        # Build range key condition for updated_at when using updated_at_index
+        if updated_at_gt is not None and updated_at_lt is not None:
+            range_key_condition = WizardSchemaModel.updated_at.between(
+                updated_at_gt, updated_at_lt
+            )
+        elif updated_at_gt is not None:
+            range_key_condition = WizardSchemaModel.updated_at > updated_at_gt
+        elif updated_at_lt is not None:
+            range_key_condition = WizardSchemaModel.updated_at < updated_at_lt
+
+        args = [wizard_schema_type, range_key_condition]
+        inquiry_funct = WizardSchemaModel.updated_at_index.query
+        count_funct = WizardSchemaModel.updated_at_index.count
 
     the_filters = None
     if wizard_schema_name:
