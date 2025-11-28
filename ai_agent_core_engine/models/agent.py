@@ -20,8 +20,6 @@ from pynamodb.attributes import (
     UTCDateTimeAttribute,
 )
 from pynamodb.indexes import AllProjection, LocalSecondaryIndex
-from tenacity import retry, stop_after_attempt, wait_exponential
-
 from silvaengine_dynamodb_base import (
     BaseModel,
     delete_decorator,
@@ -30,11 +28,12 @@ from silvaengine_dynamodb_base import (
     resolve_list_decorator,
 )
 from silvaengine_utility import Utility, convert_decimal_to_number, method_cache
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
 from ..types.agent import AgentListType, AgentType
 from .thread import resolve_thread_list
-from .utils import _get_flow_snippet, _get_llm, _get_mcp_servers, _get_prompt_template
+from .utils import _get_flow_snippet, _get_prompt_template
 
 
 class AgentUuidIndex(LocalSecondaryIndex):
@@ -198,81 +197,20 @@ def get_agent_count(endpoint_id: str, agent_version_uuid: str) -> int:
 
 
 def get_agent_type(info: ResolveInfo, agent: AgentModel) -> AgentType:
+    """
+    Nested resolver approach: return minimal agent data.
+    - Do NOT embed 'llm', 'mcp_servers', 'flow_snippet'.
+    These are resolved lazily by AgentType.resolve_llm, resolve_mcp_servers, resolve_flow_snippet.
+    """
     try:
-        llm = _get_llm(agent.llm_provider, agent.llm_name)
-        mcp_servers = []
-
-        mcp_servers = _get_mcp_servers(
-            info,
-            [
-                {"mcp_server_uuid": mcp_server_uuid}
-                for mcp_server_uuid in agent.mcp_server_uuids
-            ],
-        )
-        flow_snippet = None
-        if agent.flow_snippet_version_uuid:
-            flow_snippet = _get_flow_snippet(
-                agent.endpoint_id, agent.flow_snippet_version_uuid
-            )
+        agent_dict: Dict = agent.__dict__["attribute_values"]
+        # Keep foreign keys for nested resolvers
+        # No need to fetch llm, mcp_servers, or flow_snippet here
     except Exception as e:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)
         raise e
-    agent = agent.__dict__["attribute_values"]
-    agent["llm"] = llm
-    agent["mcp_servers"] = [
-        {
-            "name": mcp_server["mcp_label"],
-            "mcp_server_uuid": mcp_server["mcp_server_uuid"],
-            "setting": {
-                "base_url": mcp_server["mcp_server_url"],
-                "headers": mcp_server["headers"],
-            },
-        }
-        for mcp_server in mcp_servers
-    ]
-
-    agent["flow_snippet"] = flow_snippet
-    agent.pop("llm_provider", None)
-    agent.pop("llm_name", None)
-    agent.pop("mcp_server_uuids", None)
-    agent.pop("flow_snippet_version_uuid", None)
-    return AgentType(**Utility.json_normalize(agent))
-
-
-def get_agent_list_type(info: ResolveInfo, agent: AgentModel) -> AgentType:
-    try:
-        llm = {
-            "llm_provider": agent.llm_provider,
-            "llm_name": agent.llm_name,
-        }
-        mcp_servers = []
-        if agent.mcp_server_uuids:
-            mcp_servers = [
-                {"mcp_server_uuid": mcp_server_uuid}
-                for mcp_server_uuid in agent.mcp_server_uuids
-            ]
-        flow_snippet = None
-        if agent.flow_snippet_version_uuid:
-            flow_snippet = {
-                "flow_snippet_version_uuid": agent.flow_snippet_version_uuid
-            }
-    except Exception as e:
-        log = traceback.format_exc()
-        info.context.get("logger").exception(log)
-        raise e
-    agent = agent.__dict__["attribute_values"]
-    agent["llm"] = llm
-    agent["mcp_servers"] = [
-        {"mcp_server_uuid": mcp_server["mcp_server_uuid"]} for mcp_server in mcp_servers
-    ]
-
-    agent["flow_snippet"] = flow_snippet
-    agent.pop("llm_provider", None)
-    agent.pop("llm_name", None)
-    agent.pop("mcp_server_uuids", None)
-    agent.pop("flow_snippet_version_uuid", None)
-    return AgentType(**Utility.json_normalize(agent))
+    return AgentType(**Utility.json_normalize(agent_dict))
 
 
 def resolve_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AgentType | None:
@@ -295,7 +233,7 @@ def resolve_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AgentType | No
 @resolve_list_decorator(
     attributes_to_get=["endpoint_id", "agent_version_uuid", "agent_uuid", "updated_at"],
     list_type_class=AgentListType,
-    type_funct=get_agent_list_type,
+    type_funct=get_agent_type,
     scan_index_forward=False,
 )
 def resolve_agent_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:

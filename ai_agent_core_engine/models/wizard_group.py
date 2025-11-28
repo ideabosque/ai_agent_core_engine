@@ -31,7 +31,6 @@ from silvaengine_utility import Utility, method_cache
 
 from ..handlers.config import Config
 from ..types.wizard_group import WizardGroupListType, WizardGroupType
-from .utils import _get_wizard
 
 
 class UpdatedAtIndex(LocalSecondaryIndex):
@@ -150,16 +149,15 @@ def get_wizard_group_count(endpoint_id: str, wizard_group_uuid: str) -> int:
 def get_wizard_group_type(
     info: ResolveInfo, wizard_group: WizardGroupModel
 ) -> WizardGroupType:
+    """
+    Nested resolver approach: return minimal wizard group data.
+    - Do NOT embed 'wizards'.
+    - Keep 'wizard_uuids' as foreign keys.
+    - This is resolved lazily by WizardGroupType.resolve_wizards.
+    """
     try:
-        wizards = [
-            _get_wizard(wizard_group.endpoint_id, wizard_uuid)
-            for wizard_uuid in wizard_group.wizard_uuids
-        ]
-
-        wizard_group = wizard_group.__dict__["attribute_values"]
-        wizard_group["wizards"] = wizards
-        wizard_group.pop("wizard_uuids")
-        return WizardGroupType(**Utility.json_normalize(wizard_group))
+        wizard_group_dict: Dict = wizard_group.__dict__["attribute_values"]
+        return WizardGroupType(**Utility.json_normalize(wizard_group_dict))
     except Exception as e:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)
@@ -168,16 +166,14 @@ def get_wizard_group_type(
 def get_wizard_group_list_type(
     info: ResolveInfo, wizard_group: WizardGroupModel
 ) -> WizardGroupType:
+    """
+    Nested resolver approach: return minimal wizard group data.
+    - Do NOT embed 'wizards'.
+    - Keep 'wizard_uuids' as foreign keys.
+    """
     try:
-        wizards = [
-            {"wizard_uuid": wizard_uuid}
-            for wizard_uuid in wizard_group.wizard_uuids
-        ]
-
-        wizard_group = wizard_group.__dict__["attribute_values"]
-        wizard_group["wizards"] = wizards
-        wizard_group.pop("wizard_uuids")
-        return WizardGroupType(**Utility.json_normalize(wizard_group))
+        wizard_group_dict: Dict = wizard_group.__dict__["attribute_values"]
+        return WizardGroupType(**Utility.json_normalize(wizard_group_dict))
     except Exception as e:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)

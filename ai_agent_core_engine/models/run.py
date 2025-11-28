@@ -13,8 +13,6 @@ import pendulum
 from graphene import ResolveInfo
 from pynamodb.attributes import NumberAttribute, UnicodeAttribute, UTCDateTimeAttribute
 from pynamodb.indexes import AllProjection, LocalSecondaryIndex
-from tenacity import retry, stop_after_attempt, wait_exponential
-
 from silvaengine_dynamodb_base import (
     BaseModel,
     delete_decorator,
@@ -23,12 +21,12 @@ from silvaengine_dynamodb_base import (
     resolve_list_decorator,
 )
 from silvaengine_utility import Utility, method_cache
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
 from ..types.run import RunListType, RunType
 from .message import resolve_message_list
 from .tool_call import resolve_tool_call_list
-from .utils import _get_thread
 
 
 class UpdatedAtIndex(LocalSecondaryIndex):
@@ -126,18 +124,20 @@ def get_run_count(thread_uuid: str, run_uuid: str) -> int:
 
 
 def get_run_type(info: ResolveInfo, run: RunModel) -> RunType:
+    """
+    Nested resolver approach: return minimal run data.
+    - Do NOT embed 'thread', 'messages', 'tool_calls'.
+    These are resolved lazily by RunType.resolve_thread, resolve_messages, resolve_tool_calls.
+    """
     try:
-        thread = _get_thread(run.endpoint_id, run.thread_uuid)
-
-        run = run.__dict__["attribute_values"]
-        run["thread"] = thread
-        run.pop("thread_uuid")
-        run.pop("endpoint_id")
-        return RunType(**Utility.json_normalize(run))
+        run_dict: Dict = run.__dict__["attribute_values"]
+        # Keep foreign keys for nested resolvers
+        # No need to fetch thread, messages, or tool_calls here
     except Exception as e:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)
         raise e
+    return RunType(**Utility.json_normalize(run_dict))
 
 
 def resolve_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> RunType | None:
@@ -247,7 +247,7 @@ def insert_update_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
         return
 
     run = kwargs.get("entity")
-    if "completion_tokens" in kwargs and kwargs["completion_tokens"] > 0:
+    if "completion_tokens" in kwargs and float(kwargs["completion_tokens"]) > 0:
         kwargs["total_tokens"] = kwargs["completion_tokens"] + run.prompt_tokens
         kwargs["time_spent"] = int(
             pendulum.now("UTC").diff(run.created_at).in_seconds() * 1000

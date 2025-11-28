@@ -34,7 +34,6 @@ from ..types.wizard_group_filter import (
     WizardGroupFilterListType,
     WizardGroupFilterType,
 )
-from .utils import _get_wizard_group
 
 
 class UpdatedAtIndex(LocalSecondaryIndex):
@@ -165,17 +164,15 @@ def get_wizard_group_filter_count(
 def get_wizard_group_filter_type(
     info: ResolveInfo, wizard_group_filter: WizardGroupFilterModel
 ) -> WizardGroupFilterType:
+    """
+    Nested resolver approach: return minimal wizard group filter data.
+    - Do NOT embed 'wizard_group'.
+    - Keep 'wizard_group_uuid' as foreign key.
+    - This is resolved lazily by WizardGroupFilterType.resolve_wizard_group.
+    """
     try:
-        wizard_group = None
-        if wizard_group_filter.wizard_group_uuid:
-            wizard_group = _get_wizard_group(
-                wizard_group_filter.endpoint_id, wizard_group_filter.wizard_group_uuid
-            )
-
-        wizard_group_filter = wizard_group_filter.__dict__["attribute_values"]
-        wizard_group_filter["wizard_group"] = wizard_group
-        wizard_group_filter.pop("wizard_group_uuid", None)
-        return WizardGroupFilterType(**Utility.json_normalize(wizard_group_filter))
+        wizard_group_filter_dict: Dict = wizard_group_filter.__dict__["attribute_values"]
+        return WizardGroupFilterType(**Utility.json_normalize(wizard_group_filter_dict))
     except Exception as e:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)

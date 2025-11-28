@@ -26,7 +26,6 @@ from silvaengine_utility import Utility, method_cache
 
 from ..handlers.config import Config
 from ..types.tool_call import ToolCallListType, ToolCallType
-from .utils import _get_run
 
 
 class RunIdIndex(LocalSecondaryIndex):
@@ -145,18 +144,20 @@ def get_tool_call_count(thread_uuid: str, tool_call_uuid: str) -> int:
 
 
 def get_tool_call_type(info: ResolveInfo, tool_call: ToolCallModel) -> ToolCallType:
+    """
+    Nested resolver approach: return minimal tool_call data.
+    - Do NOT embed 'run'.
+    This is resolved lazily by ToolCallType.resolve_run.
+    """
     try:
-        run = _get_run(tool_call.thread_uuid, tool_call.run_uuid)
-
-        tool_call = tool_call.__dict__["attribute_values"]
-        tool_call["run"] = run
-        tool_call.pop("thread_uuid")
-        tool_call.pop("run_uuid")
-        return ToolCallType(**Utility.json_normalize(tool_call))
+        tool_call_dict: Dict = tool_call.__dict__["attribute_values"]
+        # Keep foreign keys for nested resolvers
+        # No need to fetch run here
     except Exception as e:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)
         raise e
+    return ToolCallType(**Utility.json_normalize(tool_call_dict))
 
 
 def resolve_tool_call(

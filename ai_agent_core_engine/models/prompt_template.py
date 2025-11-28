@@ -19,8 +19,6 @@ from pynamodb.attributes import (
     UTCDateTimeAttribute,
 )
 from pynamodb.indexes import AllProjection, LocalSecondaryIndex
-from tenacity import retry, stop_after_attempt, wait_exponential
-
 from silvaengine_dynamodb_base import (
     BaseModel,
     delete_decorator,
@@ -29,10 +27,10 @@ from silvaengine_dynamodb_base import (
     resolve_list_decorator,
 )
 from silvaengine_utility import Utility, method_cache
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
 from ..types.prompt_template import PromptTemplateListType, PromptTemplateType
-from .utils import _get_mcp_servers, _get_ui_components
 
 
 class PromptUuidIndex(LocalSecondaryIndex):
@@ -134,10 +132,13 @@ def purge_cache():
                     entity_keys=entity_keys if entity_keys else None,
                     cascade_depth=3,
                 )
-                
+
                 # Also purge active_prompt_template cache
                 from silvaengine_utility.cache import HybridCacheEngine
-                active_cache = HybridCacheEngine(Config.get_cache_name("models", "active_prompt_template"))
+
+                active_cache = HybridCacheEngine(
+                    Config.get_cache_name("models", "active_prompt_template")
+                )
                 active_cache.clear()
 
                 ## Original function.
@@ -213,29 +214,25 @@ def get_prompt_template_count(endpoint_id: str, prompt_version_uuid: str) -> int
 def get_prompt_template_type(
     info: ResolveInfo, prompt_template: PromptTemplateModel
 ) -> PromptTemplateType:
+    """
+    Nested resolver approach: return minimal prompt template data.
+    - Do NOT embed 'mcp_servers', 'ui_components'.
+    - Store the raw references as 'mcp_server_refs' and 'ui_component_refs'.
+    - These are resolved lazily by PromptTemplateType.resolve_mcp_servers, resolve_ui_components.
+    """
     try:
-        mcp_servers = _get_mcp_servers(info, prompt_template.mcp_servers)
-        ui_components = _get_ui_components(info, prompt_template.ui_components)
+        prompt_dict: Dict = prompt_template.__dict__["attribute_values"]
 
-        prompt_template = prompt_template.__dict__["attribute_values"]
-        prompt_template["mcp_servers"] = mcp_servers
-        prompt_template["ui_components"] = ui_components
-        return PromptTemplateType(**Utility.json_normalize(prompt_template))
+        # Keep the raw references for nested resolvers
+        prompt_dict["mcp_server_refs"] = prompt_template.mcp_servers
+        prompt_dict["ui_component_refs"] = prompt_template.ui_components
+
+        return PromptTemplateType(**Utility.json_normalize(prompt_dict))
     except Exception as e:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)
         raise e
 
-def get_prompt_template_list_type(
-    info: ResolveInfo, prompt_template: PromptTemplateModel
-) -> PromptTemplateType:
-    try:
-        prompt_template = prompt_template.__dict__["attribute_values"]
-        return PromptTemplateType(**Utility.json_normalize(prompt_template))
-    except Exception as e:
-        log = traceback.format_exc()
-        info.context.get("logger").exception(log)
-        raise e
 
 def resolve_prompt_template(
     info: ResolveInfo, **kwargs: Dict[str, Any]
@@ -264,7 +261,7 @@ def resolve_prompt_template(
 @resolve_list_decorator(
     attributes_to_get=["endpoint_id", "prompt_version_uuid", "prompt_uuid"],
     list_type_class=PromptTemplateListType,
-    type_funct=get_prompt_template_list_type,
+    type_funct=get_prompt_template_type,
 )
 def resolve_prompt_template_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     endpoint_id = info.context["endpoint_id"]

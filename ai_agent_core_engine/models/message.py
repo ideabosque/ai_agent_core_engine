@@ -26,7 +26,6 @@ from silvaengine_utility import Utility, method_cache
 
 from ..handlers.config import Config
 from ..types.message import MessageListType, MessageType
-from .utils import _get_run
 
 
 class RunIdIndex(LocalSecondaryIndex):
@@ -145,18 +144,20 @@ def get_message_count(thread_uuid: str, message_uuid: str) -> int:
 
 
 def get_message_type(info: ResolveInfo, message: MessageModel) -> MessageType:
+    """
+    Nested resolver approach: return minimal message data.
+    - Do NOT embed 'run' or 'thread'.
+    These are resolved lazily by MessageType.resolve_run, resolve_thread.
+    """
     try:
-        run = _get_run(message.thread_uuid, message.run_uuid)
-    
-        message = message.__dict__["attribute_values"]
-        message["run"] = run
-        message.pop("thread_uuid")
-        message.pop("run_uuid")
-        return MessageType(**Utility.json_normalize(message))
+        message_dict: Dict = message.__dict__["attribute_values"]
+        # Keep foreign keys for nested resolvers
+        # No need to fetch run or thread here
     except Exception as e:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)
         raise e
+    return MessageType(**Utility.json_normalize(message_dict))
 
 
 def resolve_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> MessageType | None:

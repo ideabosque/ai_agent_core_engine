@@ -13,8 +13,6 @@ import pendulum
 from graphene import ResolveInfo
 from pynamodb.attributes import UnicodeAttribute, UTCDateTimeAttribute
 from pynamodb.indexes import AllProjection, LocalSecondaryIndex
-from tenacity import retry, stop_after_attempt, wait_exponential
-
 from silvaengine_dynamodb_base import (
     BaseModel,
     delete_decorator,
@@ -23,13 +21,11 @@ from silvaengine_dynamodb_base import (
     resolve_list_decorator,
 )
 from silvaengine_utility import Utility, method_cache
+from tenacity import retry, stop_after_attempt, wait_exponential
 
-from ..handlers.ai_agent_utility import combine_thread_messages
 from ..handlers.config import Config
 from ..types.thread import ThreadListType, ThreadType
 from .run import resolve_run_list
-from .tool_call import resolve_tool_call_list
-from .utils import _get_agent
 
 
 class AgentUuidIndex(LocalSecondaryIndex):
@@ -138,64 +134,20 @@ def get_thread_count(endpoint_id: str, thread_uuid: str) -> int:
 
 
 def get_thread_type(info: ResolveInfo, thread: ThreadModel) -> ThreadType:
+    """
+    Nested resolver approach: return minimal thread data.
+    - Do NOT embed 'agent', 'messages', 'runs'.
+    These are resolved lazily by ThreadType.resolve_agent, resolve_messages, resolve_runs.
+    """
     try:
-        agent = _get_agent(thread.endpoint_id, thread.agent_uuid)
-        messages = [
-            message
-            for message in sorted(
-                combine_thread_messages(
-                    info, thread.thread_uuid, agent["tool_call_role"]
-                ),
-                key=lambda x: x["created_at"],
-                reverse=False,
-            )
-        ]
-        tool_call_list = resolve_tool_call_list(
-            info,
-            **{
-                "thread_uuid": thread.thread_uuid,
-                "pageNumber": 1,
-                "limit": 100,
-            },
-        )
-        tool_calls = [
-            {
-                "run": {
-                    "run_uuid": tool_call.run["run_uuid"],
-                    "prompt_tokens": tool_call.run["prompt_tokens"],
-                    "completion_tokens": tool_call.run["completion_tokens"],
-                    "total_tokens": tool_call.run["total_tokens"],
-                },
-                "tool_call_uuid": tool_call.tool_call_uuid,
-                "tool_call_id": tool_call.tool_call_id,
-                "tool_type": tool_call.tool_type,
-                "name": tool_call.name,
-                "arguments": tool_call.arguments,
-                "content": tool_call.content,
-                "status": tool_call.status,
-                "notes": tool_call.notes,
-                "time_spent": tool_call.time_spent,
-            }
-            for tool_call in sorted(
-                tool_call_list.tool_call_list, key=lambda x: x.created_at
-            )
-        ]
-
-        thread = thread.__dict__["attribute_values"]
-        thread["agent"] = {
-            "agent_uuid": agent["agent_uuid"],
-            "agent_name": agent["agent_name"],
-            "agent_description": agent["agent_description"],
-        }
-        thread["messages"] = messages
-        thread["tool_calls"] = tool_calls
-        thread.pop("endpoint_id")
-        thread.pop("agent_uuid")
-        return ThreadType(**Utility.json_normalize(thread))
+        thread_dict: Dict = thread.__dict__["attribute_values"]
+        # Keep foreign keys for nested resolvers
+        # No need to fetch agent, messages, or runs here
     except Exception as e:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)
         raise e
+    return ThreadType(**Utility.json_normalize(thread_dict))
 
 
 def resolve_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType | None:

@@ -31,7 +31,6 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
 from ..types.wizard import WizardListType, WizardType
-from .utils import _get_element, _get_wizard_schema
 
 wizard_attributes_fn = lambda wizard_attributes: [
     {
@@ -176,37 +175,27 @@ def get_wizard_count(endpoint_id: str, wizard_uuid: str) -> int:
 
 
 def get_wizard_type(info: ResolveInfo, wizard: WizardModel) -> WizardType:
+    """
+    Nested resolver approach: return minimal wizard data.
+    - Do NOT embed 'wizard_schema', 'wizard_elements'.
+    - Keep foreign keys 'wizard_schema_type', 'wizard_schema_name'.
+    - Store raw element references as 'wizard_element_refs'.
+    - These are resolved lazily by WizardType.resolve_wizard_schema, resolve_wizard_elements.
+    """
     try:
-        wizard_schema = _get_wizard_schema(
-            wizard.wizard_schema_type, wizard.wizard_schema_name
-        )
+        wizard_dict: Dict = wizard.__dict__["attribute_values"]
 
-        wizard_elements = []
-        # Check if wizard elements are provided.
-        # This is important to ensure that the elements are valid and can be used for further processing.
-        # If not, return an empty list to support legacy systems.
-        if wizard.wizard_elements:
-            for wizard_element in wizard.wizard_elements:
-                wizard_element = Utility.json_normalize(wizard_element)
-                element = _get_element(
-                    wizard.endpoint_id, wizard_element.pop("element_uuid")
-                )
-                wizard_element["element"] = element
-                wizard_elements.append(wizard_element)
+        # Keep the raw element references for nested resolvers
+        wizard_dict["wizard_element_refs"] = wizard.wizard_elements
 
-        wizard = wizard.__dict__["attribute_values"]
-        wizard["wizard_schema"] = wizard_schema
-        wizard.pop("wizard_schema_type", None)
-        wizard.pop("wizard_schema_name", None)
-        wizard["wizard_elements"] = wizard_elements
-        return WizardType(**Utility.json_normalize(wizard))
+        return WizardType(**Utility.json_normalize(wizard_dict))
     except Exception as e:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)
         raise e
 
 
-def resolve_wizard(info: ResolveInfo, **kwargs: Dict[str, Any]) -> WizardType:
+def resolve_wizard(info: ResolveInfo, **kwargs: Dict[str, Any]) -> WizardType | None:
     count = get_wizard_count(info.context["endpoint_id"], kwargs["wizard_uuid"])
     if count == 0:
         return None
