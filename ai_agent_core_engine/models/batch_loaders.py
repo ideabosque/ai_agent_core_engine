@@ -1046,12 +1046,14 @@ class AgentsByFlowSnippetLoader(_SafeDataLoader):
         if uncached_keys:
             try:
                 for endpoint_id, flow_snippet_version_uuid in uncached_keys:
-                    # Query agents for this flow snippet using the index
+                    # Query agents for this endpoint with filter condition
                     agents = list(
-                        AgentModel.flow_snippet_version_uuid_index.query(
+                        AgentModel.query(
                             endpoint_id,
-                            AgentModel.flow_snippet_version_uuid
-                            == flow_snippet_version_uuid,
+                            filter_condition=(
+                                AgentModel.flow_snippet_version_uuid
+                                == flow_snippet_version_uuid
+                            ),
                         )
                     )
 
@@ -1114,12 +1116,14 @@ class AgentsByLlmLoader(_SafeDataLoader):
         if uncached_keys:
             try:
                 for endpoint_id, llm_provider, llm_name in uncached_keys:
-                    # Query agents for this LLM using the index
+                    # Query agents for this endpoint with filter condition
                     agents = list(
-                        AgentModel.llm_provider_index.query(
+                        AgentModel.query(
                             endpoint_id,
-                            AgentModel.llm_provider == llm_provider,
-                            AgentModel.llm_name == llm_name,
+                            filter_condition=(
+                                (AgentModel.llm_provider == llm_provider)
+                                & (AgentModel.llm_name == llm_name)
+                            ),
                         )
                     )
 
