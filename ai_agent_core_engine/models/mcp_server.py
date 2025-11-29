@@ -85,10 +85,13 @@ def purge_cache():
                     entity_keys=entity_keys if entity_keys else None,
                     cascade_depth=3,
                 )
-                
+
                 # Also purge mcp_server_tools cache
                 from silvaengine_utility.cache import HybridCacheEngine
-                tools_cache = HybridCacheEngine(Config.get_cache_name("models", "mcp_server_tools"))
+
+                tools_cache = HybridCacheEngine(
+                    Config.get_cache_name("models", "mcp_server_tools")
+                )
                 tools_cache.clear()
 
                 ## Original function.
@@ -133,7 +136,8 @@ def get_mcp_server_count(endpoint_id: str, mcp_server_uuid: str) -> int:
 
 
 @method_cache(
-    ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name("models", "mcp_server_tools")
+    ttl=Config.get_cache_ttl(),
+    cache_name=Config.get_cache_name("models", "mcp_server_tools"),
 )
 async def _run_list_tools(
     info: ResolveInfo, mcp_server: MCPServerModel | Dict[str, Any]
@@ -160,7 +164,13 @@ async def _run_list_tools(
 def get_mcp_server_type(
     info: ResolveInfo, mcp_server: MCPServerModel | Dict[str, Any]
 ) -> MCPServerType:
-    tools = asyncio.run(_run_list_tools(info, mcp_server))
+    try:
+        tools = asyncio.run(_run_list_tools(info, mcp_server))
+    except Exception as e:
+        info.context["logger"].error(
+            f"Failed to list tools from MCP server {mcp_server.mcp_server_uuid if isinstance(mcp_server, MCPServerModel) else mcp_server['mcp_server_uuid']}: {str(e)}"
+        )
+        tools = []
     if isinstance(mcp_server, MCPServerModel):
         mcp_server = mcp_server.__dict__["attribute_values"]
     mcp_server["tools"] = [

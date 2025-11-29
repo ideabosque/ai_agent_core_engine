@@ -6,18 +6,7 @@ __author__ = "bibow"
 
 from graphene import DateTime, Field, List, ObjectType, String
 from silvaengine_dynamodb_base import ListObjectType
-
-
-def _get_message_type():
-    from .message import MessageType
-
-    return MessageType
-
-
-def _get_run_type():
-    from .run import RunType
-
-    return RunType
+from silvaengine_utility import JSON
 
 
 class ThreadType(ObjectType):
@@ -29,8 +18,8 @@ class ThreadType(ObjectType):
 
     # Nested resolvers: strongly-typed nested relationships
     agent = Field(lambda: AgentType)
-    messages = List(_get_message_type)
-    runs = List(_get_run_type)
+    messages = List(JSON)
+    tool_calls = List(JSON)
 
     # ------- Nested resolvers -------
 
@@ -58,14 +47,10 @@ class ThreadType(ObjectType):
         )
 
     def resolve_messages(parent, info):
-        """Resolve nested Messages for this thread using DataLoader.
-
-        Note: Uses MessagesByThreadLoader and ToolCallsByThreadLoader for efficient
-        batch loading with caching support. Combines messages and tool calls similar
-        to combine_thread_messages but with batch loading.
-        """
-        from ..models.batch_loaders import get_loaders
+        """Resolve nested Messages for this thread as JSON-friendly list."""
         from silvaengine_utility import Utility
+
+        from ..models.batch_loaders import get_loaders
 
         # Check if already embedded
         existing = getattr(parent, "messages", None)
@@ -93,7 +78,8 @@ class ThreadType(ObjectType):
 
             tool_call_role = (
                 agent_dict.get("tool_call_role", "developer")
-                if agent_dict else "developer"
+                if agent_dict
+                else "developer"
             )
 
             # Return empty list if no messages or no tool_call found
@@ -146,7 +132,9 @@ class ThreadType(ObjectType):
                             "content": Utility.json_dumps(
                                 {
                                     "tool": {
-                                        "tool_call_id": tool_call_dict.get("tool_call_id"),
+                                        "tool_call_id": tool_call_dict.get(
+                                            "tool_call_id"
+                                        ),
                                         "tool_type": tool_call_dict.get("tool_type"),
                                         "name": tool_call_dict.get("name"),
                                         "arguments": tool_call_dict.get("arguments"),
@@ -165,41 +153,37 @@ class ThreadType(ObjectType):
         # Load agent, messages, and tool calls in parallel using batch loaders
         from promise import Promise
 
-        return Promise.all([
-            loaders.agent_loader.load((endpoint_id, agent_uuid)),
-            loaders.messages_by_thread_loader.load(thread_uuid),
-            loaders.tool_calls_by_thread_loader.load(thread_uuid),
-        ]).then(process_messages_and_tool_calls)
+        return Promise.all(
+            [
+                loaders.agent_loader.load((endpoint_id, agent_uuid)),
+                loaders.messages_by_thread_loader.load(thread_uuid),
+                loaders.tool_calls_by_thread_loader.load(thread_uuid),
+            ]
+        ).then(process_messages_and_tool_calls)
 
-    def resolve_runs(parent, info):
-        """Resolve nested Runs for this thread using DataLoader.
-
-        Note: Uses RunsByThreadLoader for efficient batch loading of one-to-many
-        relationships with caching support.
-        """
+    def resolve_tool_calls(parent, info):
+        """Resolve nested Tool Calls for this thread as JSON-friendly list."""
         from ..models.batch_loaders import get_loaders
-        from .run import RunType
 
         # Check if already embedded
-        existing = getattr(parent, "runs", None)
+        existing = getattr(parent, "tool_calls", None)
         if isinstance(existing, list) and existing:
-            return [
-                RunType(**run) if isinstance(run, dict) else run for run in existing
-            ]
+            return existing
 
-        # Fetch runs for this thread
+        # Fetch tool calls for this thread
         thread_uuid = getattr(parent, "thread_uuid", None)
         if not thread_uuid:
             return []
 
         loaders = get_loaders(info.context)
-        return loaders.runs_by_thread_loader.load(thread_uuid).then(
-            lambda run_dicts: [RunType(**run_dict) for run_dict in run_dicts]
+        return loaders.tool_calls_by_thread_loader.load(thread_uuid).then(
+            lambda tool_call_dicts: tool_call_dicts if tool_call_dicts else []
         )
 
 
 class ThreadListType(ListObjectType):
     thread_list = List(ThreadType)
+
 
 # Import at end to avoid circular dependency
 from .agent import AgentType  # noqa: E402

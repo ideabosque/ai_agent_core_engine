@@ -6,11 +6,8 @@ __author__ = "bibow"
 
 from graphene import DateTime, Field, Int, List, ObjectType, String
 from promise import Promise
-
 from silvaengine_dynamodb_base import ListObjectType
 from silvaengine_utility import JSON
-
-from .mcp_server import MCPServerType
 
 
 class AgentType(ObjectType):
@@ -38,7 +35,7 @@ class AgentType(ObjectType):
 
     # Nested resolvers with DataLoader batch fetching for efficient database access
     llm = Field(lambda: LlmType)
-    mcp_servers = List(lambda: MCPServerType)
+    mcp_servers = List(JSON)
     flow_snippet = Field(lambda: FlowSnippetType)
 
     # ------- Nested resolvers -------
@@ -65,17 +62,14 @@ class AgentType(ObjectType):
         )
 
     def resolve_mcp_servers(parent, info):
-        """Resolve nested MCP Servers for this agent using DataLoader."""
+        """Resolve nested MCP Servers for this agent, returning JSON-friendly data."""
         from ..models.batch_loaders import get_loaders
 
         # Check if already embedded
         existing = getattr(parent, "mcp_servers", None)
         if isinstance(existing, list) and existing:
 
-            return [
-                MCPServerType(**mcp) if isinstance(mcp, dict) else mcp
-                for mcp in existing
-            ]
+            return existing
 
         # Fetch MCP servers for this agent
         endpoint_id = info.context.get("endpoint_id")
@@ -90,13 +84,11 @@ class AgentType(ObjectType):
             for mcp_uuid in mcp_server_uuids
         ]
 
-        def convert_to_types(mcp_dicts):
-            return [
-                MCPServerType(**mcp_dict) if mcp_dict else None
-                for mcp_dict in mcp_dicts
-            ]
+        def filter_results(mcp_dicts):
+            # Keep payload JSON-ready; filter out missing lookups.
+            return [mcp_dict for mcp_dict in mcp_dicts if mcp_dict]
 
-        return Promise.all(promises).then(convert_to_types)
+        return Promise.all(promises).then(filter_results)
 
     def resolve_flow_snippet(parent, info):
         """Resolve nested FlowSnippet for this agent using DataLoader."""

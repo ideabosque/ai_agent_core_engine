@@ -107,16 +107,12 @@ def purge_cache():
                 if wizard:
                     if wizard.wizard_elements:
                         entity_keys["element_uuids"] = [
-                            wizard_element["element"]["element_uuid"]
+                            wizard_element["element_uuid"]
                             for wizard_element in wizard.wizard_elements
                         ]
                     # Include wizard_schema to ensure schema cache is purged on update
-                    entity_keys["wizard_schema_type"] = wizard.wizard_schema[
-                        "wizard_schema_type"
-                    ]
-                    entity_keys["wizard_schema_name"] = wizard.wizard_schema[
-                        "wizard_schema_name"
-                    ]
+                    entity_keys["wizard_schema_type"] = wizard.wizard_schema_type
+                    entity_keys["wizard_schema_name"] = wizard.wizard_schema_name
 
                 result = purge_entity_cascading_cache(
                     args[0].context.get("logger"),

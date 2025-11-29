@@ -5,7 +5,6 @@ from __future__ import print_function
 __author__ = "bibow"
 
 from graphene import DateTime, Field, Int, List, ObjectType, String
-
 from silvaengine_dynamodb_base import ListObjectType
 
 from .thread import ThreadType
@@ -32,7 +31,6 @@ class RunType(ObjectType):
 
     # Nested resolvers with DataLoader batch fetching for efficient database access
     thread = Field(lambda: ThreadType)
-    tool_calls = List(_get_tool_call_type)
 
     # ------- Nested resolvers -------
 
@@ -56,32 +54,6 @@ class RunType(ObjectType):
         loaders = get_loaders(info.context)
         return loaders.thread_loader.load((endpoint_id, thread_uuid)).then(
             lambda thread_dict: ThreadType(**thread_dict) if thread_dict else None
-        )
-
-    def resolve_tool_calls(parent, info):
-        """Resolve nested ToolCalls for this run using DataLoader.
-
-        Note: Uses ToolCallsByRunLoader for efficient batch loading of one-to-many
-        relationships with caching support.
-        """
-        from ..models.batch_loaders import get_loaders
-        from .tool_call import ToolCallType
-
-        # Check if already embedded
-        existing = getattr(parent, "tool_calls", None)
-        if isinstance(existing, list) and existing:
-            return [
-                ToolCallType(**tc) if isinstance(tc, dict) else tc for tc in existing
-            ]
-
-        # Fetch tool calls for this run
-        run_uuid = getattr(parent, "run_uuid", None)
-        if not run_uuid:
-            return []
-
-        loaders = get_loaders(info.context)
-        return loaders.tool_calls_by_run_loader.load(run_uuid).then(
-            lambda tc_dicts: [ToolCallType(**tc_dict) for tc_dict in tc_dicts]
         )
 
 
