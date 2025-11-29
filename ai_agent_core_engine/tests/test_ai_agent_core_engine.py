@@ -124,7 +124,20 @@ def test_llm_lifecycle_flow(
     assert error is None, f"Get LLM failed: {error}"
     assert result.get("data", {}).get("llm"), "LLM not found after insertion"
 
-    # 3. Update (if applicable, here we just re-insert with same data which acts as update)
+    # 3. Get List (Verify)
+    list_query = Utility.generate_graphql_operation("llmList", "Query", schema)
+    list_variables = {"llmProvider": test_data["llmProvider"]}
+    result, error = call_method(
+        ai_agent_core_engine,
+        "ai_agent_core_graphql",
+        {"query": list_query, "variables": list_variables},
+        "list_llms",
+    )
+    assert error is None, f"List LLMs failed: {error}"
+    llm_list = result.get("data", {}).get("llmList", {}).get("llmList")
+    assert llm_list and len(llm_list) > 0, "LLM list empty or missing"
+
+    # 4. Update (if applicable, here we just re-insert with same data which acts as update)
     # For demonstration, we might change something if the API supports it, but here we just re-run insert
     result, error = call_method(
         ai_agent_core_engine,
@@ -134,7 +147,7 @@ def test_llm_lifecycle_flow(
     )
     assert error is None, f"Update LLM failed: {error}"
 
-    # 4. Delete
+    # 5. Delete
     # delete_query = Utility.generate_graphql_operation("deleteLlm", "Mutation", schema)
     # delete_variables = {
     #     "llmProvider": test_data["llmProvider"],
@@ -194,7 +207,20 @@ def test_agent_lifecycle_flow(
     assert error is None, f"Get Agent failed: {error}"
     assert result.get("data", {}).get("agent"), "Agent not found after insertion"
 
-    # 3. Delete
+    # 3. Get List (Verify)
+    list_query = Utility.generate_graphql_operation("agentList", "Query", schema)
+    list_variables = {"agentName": test_data["agentName"]}
+    result, error = call_method(
+        ai_agent_core_engine,
+        "ai_agent_core_graphql",
+        {"query": list_query, "variables": list_variables},
+        "list_agents",
+    )
+    assert error is None, f"List Agents failed: {error}"
+    agent_list = result.get("data", {}).get("agentList", {}).get("agentList")
+    assert agent_list and len(agent_list) > 0, "Agent list empty or missing"
+
+    # 4. Delete
     # delete_query = Utility.generate_graphql_operation("deleteAgent", "Mutation", schema)
     # delete_variables = {
     #     "agentVersionUuid": agent_version_uuid,
@@ -249,7 +275,20 @@ def test_thread_lifecycle_flow(
     assert error is None, f"Get Thread failed: {error}"
     assert result.get("data", {}).get("thread"), "Thread not found after insertion"
 
-    # 3. Delete
+    # 3. Get List (Verify)
+    list_query = Utility.generate_graphql_operation("threadList", "Query", schema)
+    list_variables = {"agentUuid": test_data.get("agentUuid")}
+    result, error = call_method(
+        ai_agent_core_engine,
+        "ai_agent_core_graphql",
+        {"query": list_query, "variables": list_variables},
+        "list_threads",
+    )
+    assert error is None, f"List Threads failed: {error}"
+    thread_list = result.get("data", {}).get("threadList", {}).get("threadList")
+    assert thread_list and len(thread_list) > 0, "Thread list empty or missing"
+
+    # 4. Delete
     # delete_query = Utility.generate_graphql_operation(
     #     "deleteThread", "Mutation", schema
     # )
@@ -307,9 +346,28 @@ def test_run_lifecycle_flow(
     assert error is None, f"Get Run failed: {error}"
     assert result.get("data", {}).get("run"), "Run not found after insertion"
 
-    # 3. Delete
-    # delete_query = Utility.generate_graphql_operation("deleteRun", "Mutation", schema)
-    # delete_variables = {"threadUuid": thread_uuid, "runUuid": run_uuid}
+    # 3. Get List (Verify)
+    list_query = Utility.generate_graphql_operation("runList", "Query", schema)
+    list_variables = {"threadUuid": thread_uuid}
+    result, error = call_method(
+        ai_agent_core_engine,
+        "ai_agent_core_graphql",
+        {"query": list_query, "variables": list_variables},
+        "list_runs",
+    )
+    assert error is None, f"List Runs failed: {error}"
+    run_list = result.get("data", {}).get("runList", {}).get("runList")
+    assert run_list and len(run_list) > 0, "Run list empty or missing"
+
+    # 4. Delete
+    # delete_query = Utility.generate_graphql_operation(
+    #     "deleteRun", "Mutation", schema
+    # )
+    # delete_variables = {
+    #     "threadUuid": thread_uuid,
+    #     "runUuid": run_uuid,
+    #     "updatedBy": test_data.get("updatedBy", "test-user"),
+    # }
     # result, error = call_method(
     #     ai_agent_core_engine,
     #     "ai_agent_core_graphql",
@@ -1073,6 +1131,7 @@ def test_flow_snippet_lifecycle_flow(
     flow_version_uuid = flow_data.get("flowSnippetVersionUuid") or test_data.get(
         "flowSnippetVersionUuid"
     )
+    prompt_uuid = test_data.get("promptUuid")
 
     # 2. Get (Verify)
     get_query = Utility.generate_graphql_operation("flowSnippet", "Query", schema)
@@ -1090,6 +1149,19 @@ def test_flow_snippet_lifecycle_flow(
     assert result.get("data", {}).get(
         "flowSnippet"
     ), "Flow Snippet not found after insertion"
+
+    # 3. Get List (Verify)
+    list_query = Utility.generate_graphql_operation("flowSnippetList", "Query", schema)
+    list_variables = {"promptUuid": prompt_uuid}
+    result, error = call_method(
+        ai_agent_core_engine,
+        "ai_agent_core_graphql",
+        {"query": list_query, "variables": list_variables},
+        "list_flow_snippets",
+    )
+    assert error is None, f"List Flow Snippets failed: {error}"
+    flow_list = result.get("data", {}).get("flowSnippetList", {}).get("flowSnippetList")
+    assert flow_list and len(flow_list) > 0, "Flow Snippet list empty or missing"
 
     # 3. Delete
     # delete_query = Utility.generate_graphql_operation(

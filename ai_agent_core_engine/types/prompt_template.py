@@ -7,23 +7,11 @@ __author__ = "bibow"
 from graphene import DateTime, List, ObjectType, String
 from promise import Promise
 from silvaengine_dynamodb_base import ListObjectType
-from silvaengine_utility import JSON, Utility
+from silvaengine_utility import JSON
 
 from ..types.mcp_server import MCPServerType
 from ..types.ui_component import UIComponentType
-
-
-def _normalize_to_json(item):
-    """Convert various object shapes to a JSON-serializable dict/primitive."""
-    if isinstance(item, dict):
-        return Utility.json_normalize(item)
-    if hasattr(item, "attribute_values"):
-        return Utility.json_normalize(item.attribute_values)
-    if hasattr(item, "__dict__"):
-        return Utility.json_normalize(
-            {k: v for k, v in vars(item).items() if not k.startswith("_")}
-        )
-    return item
+from ..utils.normalization import normalize_to_json
 
 
 class PromptTemplateBaseType(ObjectType):
@@ -63,7 +51,7 @@ class PromptTemplateType(PromptTemplateBaseType):
         # Case 1: Already embedded (backward compatibility)
         existing = getattr(parent, "mcp_servers", None)
         if isinstance(existing, list):
-            return [_normalize_to_json(server) for server in existing]
+            return [normalize_to_json(server) for server in existing]
 
         # Case 2: Load via DataLoader using mcp_server_refs
         mcp_server_refs = getattr(parent, "mcp_server_refs", None)
@@ -83,7 +71,7 @@ class PromptTemplateType(PromptTemplateBaseType):
 
         return Promise.all(promises).then(
             lambda mcp_server_dicts: [
-                _normalize_to_json(mcp_dict)
+                normalize_to_json(mcp_dict)
                 for mcp_dict in mcp_server_dicts
                 if mcp_dict is not None
             ]
@@ -99,7 +87,7 @@ class PromptTemplateType(PromptTemplateBaseType):
         # Case 1: Already embedded (backward compatibility)
         existing = getattr(parent, "ui_components", None)
         if isinstance(existing, list):
-            return [_normalize_to_json(ui_comp) for ui_comp in existing]
+            return [normalize_to_json(ui_comp) for ui_comp in existing]
 
         # Case 2: Load via DataLoader using ui_component_refs
         ui_component_refs = getattr(parent, "ui_component_refs", None)

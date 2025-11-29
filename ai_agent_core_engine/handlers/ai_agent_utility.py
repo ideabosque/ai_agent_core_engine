@@ -41,34 +41,6 @@ from ..types.agent import AgentType
 from .config import Config
 
 
-def create_listener_info(
-    logger: logging.Logger,
-    field_name: str,
-    setting: Dict[str, Any],
-    **kwargs: Dict[str, Any],
-) -> ResolveInfo:
-    # Minimal example: some parameters can be None if you're only testing
-    info = ResolveInfo(
-        field_name=field_name,
-        field_asts=[],  # or [some_field_node]
-        return_type=None,  # e.g., GraphQLString
-        parent_type=None,  # e.g., schema.get_type("Query")
-        schema=None,  # your GraphQLSchema
-        fragments={},
-        root_value=None,
-        operation=None,
-        variable_values={},
-        context={
-            "setting": setting,
-            "endpoint_id": kwargs.get("endpoint_id"),
-            "logger": logger,
-            "connectionId": kwargs.get("connection_id"),
-        },
-        path=None,
-    )
-    return info
-
-
 def _load_runs_by_keys(
     run_keys: set[tuple[str, str]], logger: logging.Logger
 ) -> Dict[tuple[str, str], Dict[str, Any]]:

@@ -7,20 +7,9 @@ __author__ = "bibow"
 from graphene import DateTime, Int, List, ObjectType, String
 from promise import Promise
 from silvaengine_dynamodb_base import ListObjectType
-from silvaengine_utility import JSON, Utility
+from silvaengine_utility import JSON
 
-
-def _normalize_to_json(item):
-    """Convert various object shapes to a JSON-serializable dict/primitive."""
-    if isinstance(item, dict):
-        return Utility.json_normalize(item)
-    if hasattr(item, "attribute_values"):
-        return Utility.json_normalize(item.attribute_values)
-    if hasattr(item, "__dict__"):
-        return Utility.json_normalize(
-            {k: v for k, v in vars(item).items() if not k.startswith("_")}
-        )
-    return item
+from ..utils.normalization import normalize_to_json
 
 
 class WizardGroupType(ObjectType):
@@ -51,7 +40,7 @@ class WizardGroupType(ObjectType):
         # Case 1: Already embedded (backward compatibility)
         existing = getattr(parent, "wizards", None)
         if isinstance(existing, list):
-            return [_normalize_to_json(wizard_dict) for wizard_dict in existing]
+            return [normalize_to_json(wizard_dict) for wizard_dict in existing]
 
         # Case 2: Load via DataLoader using wizard_uuids
         wizard_uuids = getattr(parent, "wizard_uuids", None)
@@ -68,7 +57,7 @@ class WizardGroupType(ObjectType):
 
         return Promise.all(promises).then(
             lambda wizard_dicts: (
-                [_normalize_to_json(wizard_dict) for wizard_dict in wizard_dicts]
+                [normalize_to_json(wizard_dict) for wizard_dict in wizard_dicts]
                 if wizard_dicts
                 else []
             )

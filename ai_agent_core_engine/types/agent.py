@@ -7,20 +7,9 @@ __author__ = "bibow"
 from graphene import DateTime, Field, Int, List, ObjectType, String
 from promise import Promise
 from silvaengine_dynamodb_base import ListObjectType
-from silvaengine_utility import JSON, Utility
+from silvaengine_utility import JSON
 
-
-def _normalize_to_json(item):
-    """Convert various object shapes to a JSON-serializable dict/primitive."""
-    if isinstance(item, dict):
-        return Utility.json_normalize(item)
-    if hasattr(item, "attribute_values"):
-        return Utility.json_normalize(item.attribute_values)
-    if hasattr(item, "__dict__"):
-        return Utility.json_normalize(
-            {k: v for k, v in vars(item).items() if not k.startswith("_")}
-        )
-    return item
+from ..utils.normalization import normalize_to_json
 
 
 class AgentTypeBase(ObjectType):
@@ -85,7 +74,7 @@ class AgentType(AgentTypeBase):
         # Check if already embedded
         existing = getattr(parent, "mcp_servers", None)
         if isinstance(existing, list):
-            return [_normalize_to_json(mcp_dict) for mcp_dict in existing]
+            return [normalize_to_json(mcp_dict) for mcp_dict in existing]
 
         # Fetch MCP servers for this agent
         endpoint_id = info.context.get("endpoint_id")
@@ -102,7 +91,7 @@ class AgentType(AgentTypeBase):
 
         def filter_results(mcp_dicts):
             # Keep payload JSON-ready; filter out missing lookups.
-            return [_normalize_to_json(mcp_dict) for mcp_dict in mcp_dicts if mcp_dict]
+            return [normalize_to_json(mcp_dict) for mcp_dict in mcp_dicts if mcp_dict]
 
         return Promise.all(promises).then(filter_results)
 
@@ -114,7 +103,7 @@ class AgentType(AgentTypeBase):
         existing = getattr(parent, "flow_snippet", None)
         if isinstance(existing, dict):
             return [
-                _normalize_to_json(flow_snippet_dict) for flow_snippet_dict in existing
+                normalize_to_json(flow_snippet_dict) for flow_snippet_dict in existing
             ]
 
         # Fetch flow snippet if version UUID exists
@@ -128,7 +117,7 @@ class AgentType(AgentTypeBase):
             (endpoint_id, flow_snippet_version_uuid)
         ).then(
             lambda flow_snippet_dict: (
-                _normalize_to_json(flow_snippet_dict) if flow_snippet_dict else None
+                normalize_to_json(flow_snippet_dict) if flow_snippet_dict else None
             )
         )
 

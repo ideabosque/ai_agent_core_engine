@@ -7,20 +7,9 @@ __author__ = "bibow"
 from graphene import DateTime, Field, List, ObjectType, String
 from promise import Promise
 from silvaengine_dynamodb_base import ListObjectType
-from silvaengine_utility import JSON, Utility
+from silvaengine_utility import JSON
 
-
-def _normalize_to_json(item):
-    """Convert various object shapes to a JSON-serializable dict/primitive."""
-    if isinstance(item, dict):
-        return Utility.json_normalize(item)
-    if hasattr(item, "attribute_values"):
-        return Utility.json_normalize(item.attribute_values)
-    if hasattr(item, "__dict__"):
-        return Utility.json_normalize(
-            {k: v for k, v in vars(item).items() if not k.startswith("_")}
-        )
-    return item
+from ..utils.normalization import normalize_to_json
 
 
 class ThreadType(ObjectType):
@@ -71,7 +60,7 @@ class ThreadType(ObjectType):
         # Check if already embedded
         existing = getattr(parent, "messages", None)
         if isinstance(existing, list) and existing:
-            return [_normalize_to_json(messages) for messages in existing]
+            return [normalize_to_json(messages) for messages in existing]
 
         # Fetch messages for this thread
         thread_uuid = getattr(parent, "thread_uuid", None)
@@ -164,7 +153,7 @@ class ThreadType(ObjectType):
                 )
 
             # Sort by created_at
-            return _normalize_to_json(
+            return normalize_to_json(
                 sorted(messages, key=lambda x: x["created_at"], reverse=False)
             )
 
@@ -195,7 +184,7 @@ class ThreadType(ObjectType):
         return loaders.tool_calls_by_thread_loader.load(thread_uuid).then(
             lambda tool_call_dicts: (
                 [
-                    _normalize_to_json(tool_call_dict)
+                    normalize_to_json(tool_call_dict)
                     for tool_call_dict in tool_call_dicts
                 ]
                 if tool_call_dicts

@@ -10,8 +10,8 @@ from typing import Any, Dict
 from silvaengine_utility import Utility
 
 from ..models.tool_call import insert_update_tool_call, resolve_tool_call_list
+from ..utils.listener import create_listener_info
 from .ai_agent import execute_ask_model
-from .ai_agent_utility import create_listener_info
 from .config import Config
 
 

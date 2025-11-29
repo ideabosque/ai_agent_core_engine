@@ -4,15 +4,16 @@ Test helpers and utilities for AI Agent Core Engine tests.
 """
 from __future__ import print_function
 
+import json
 import logging
 import time
 import uuid
 from functools import wraps
-import json
 from typing import Any, Dict, List, Optional, Tuple
 from unittest.mock import MagicMock
 
 import pendulum
+from silvaengine_utility import Utility
 
 logger = logging.getLogger("test_ai_agent_core_engine")
 
@@ -22,11 +23,11 @@ def create_mock_model(model_class, **kwargs):
     mock = MagicMock(spec=model_class)
     mock.attribute_values = kwargs
     mock.__dict__["attribute_values"] = kwargs
-    
+
     # Set attributes directly on mock
     for key, value in kwargs.items():
         setattr(mock, key, value)
-    
+
     return mock
 
 
@@ -34,21 +35,25 @@ def assert_graphql_type_fields(graphql_type, expected_fields: List[str]):
     """Assert that a GraphQL type has all expected fields."""
     type_fields = graphql_type._meta.fields.keys()
     for field in expected_fields:
-        assert field in type_fields, f"Field '{field}' not found in {graphql_type.__name__}"
+        assert (
+            field in type_fields
+        ), f"Field '{field}' not found in {graphql_type.__name__}"
 
 
-def assert_model_data_matches(model, expected_data: Dict[str, Any], exclude_fields: List[str] = None):
+def assert_model_data_matches(
+    model, expected_data: Dict[str, Any], exclude_fields: List[str] = None
+):
     """Assert that model data matches expected data."""
     exclude_fields = exclude_fields or []
-    
+
     for key, expected_value in expected_data.items():
         if key in exclude_fields:
             continue
-        
+
         actual_value = getattr(model, key, None)
-        assert actual_value == expected_value, (
-            f"Field '{key}' mismatch: expected {expected_value}, got {actual_value}"
-        )
+        assert (
+            actual_value == expected_value
+        ), f"Field '{key}' mismatch: expected {expected_value}, got {actual_value}"
 
 
 def create_timestamp(days_ago: int = 0):
@@ -56,7 +61,9 @@ def create_timestamp(days_ago: int = 0):
     return pendulum.now("UTC").subtract(days=days_ago)
 
 
-def create_test_context(endpoint_id: str = "test-endpoint-001", user_id: str = "test-user-001"):
+def create_test_context(
+    endpoint_id: str = "test-endpoint-001", user_id: str = "test-user-001"
+):
     """Create a test GraphQL context."""
     return {
         "endpoint_id": endpoint_id,
@@ -67,17 +74,17 @@ def create_test_context(endpoint_id: str = "test-endpoint-001", user_id: str = "
 
 class TestDataBuilder:
     """Builder class for creating test data with relationships."""
-    
+
     def __init__(self, test_data: Dict[str, Any]):
         self.test_data = test_data
         self.created_entities = {}
-    
+
     def build_agent(self, **overrides):
         """Build agent data with optional overrides."""
         data = self.test_data["agents"][0].copy()
         data.update(overrides)
         return data
-    
+
     def build_thread(self, agent_uuid: str = None, **overrides):
         """Build thread data with optional agent relationship."""
         data = self.test_data["threads"][0].copy()
@@ -85,7 +92,7 @@ class TestDataBuilder:
             data["agent_uuid"] = agent_uuid
         data.update(overrides)
         return data
-    
+
     def build_run(self, thread_uuid: str = None, **overrides):
         """Build run data with optional thread relationship."""
         data = self.test_data["runs"][0].copy()
@@ -93,7 +100,7 @@ class TestDataBuilder:
             data["thread_uuid"] = thread_uuid
         data.update(overrides)
         return data
-    
+
     def build_message(self, thread_uuid: str = None, run_uuid: str = None, **overrides):
         """Build message data with optional relationships."""
         data = self.test_data["messages"][0].copy()
@@ -103,8 +110,10 @@ class TestDataBuilder:
             data["run_uuid"] = run_uuid
         data.update(overrides)
         return data
-    
-    def build_tool_call(self, thread_uuid: str = None, run_uuid: str = None, **overrides):
+
+    def build_tool_call(
+        self, thread_uuid: str = None, run_uuid: str = None, **overrides
+    ):
         """Build tool call data with optional relationships."""
         data = self.test_data["tool_calls"][0].copy()
         if thread_uuid:
@@ -113,24 +122,21 @@ class TestDataBuilder:
             data["run_uuid"] = run_uuid
         data.update(overrides)
         return data
-    
+
     def build_conversation_chain(self, endpoint_id: str = "test-endpoint-001"):
         """Build a complete conversation chain with agent, thread, run, messages, and tool calls."""
         agent_data = self.build_agent(endpoint_id=endpoint_id)
         thread_data = self.build_thread(
-            endpoint_id=endpoint_id,
-            agent_uuid=agent_data["agent_uuid"]
+            endpoint_id=endpoint_id, agent_uuid=agent_data["agent_uuid"]
         )
         run_data = self.build_run(thread_uuid=thread_data["thread_uuid"])
         message_data = self.build_message(
-            thread_uuid=thread_data["thread_uuid"],
-            run_uuid=run_data["run_uuid"]
+            thread_uuid=thread_data["thread_uuid"], run_uuid=run_data["run_uuid"]
         )
         tool_call_data = self.build_tool_call(
-            thread_uuid=thread_data["thread_uuid"],
-            run_uuid=run_data["run_uuid"]
+            thread_uuid=thread_data["thread_uuid"], run_uuid=run_data["run_uuid"]
         )
-        
+
         return {
             "agent": agent_data,
             "thread": thread_data,
@@ -167,7 +173,9 @@ def call_method(
     op = label or method_name
     cid = uuid.uuid4().hex[:8]  # Correlation ID for tracking
 
-    logger.info(f"Method call: cid={cid} op={op} arguments={arguments}")
+    logger.info(
+        f"Method call: cid={cid} op={op} arguments={Utility.json_dumps(arguments)}"
+    )
     t0 = time.perf_counter()
 
     try:
@@ -188,9 +196,10 @@ def call_method(
             except ValueError:
                 pass
         elapsed_ms = round((time.perf_counter() - t0) * 1000, 2)
+
         logger.info(
             f"Method response: cid={cid} op={op} elapsed_ms={elapsed_ms} "
-            f"success=True result={result}"
+            f"success=True result={Utility.json_dumps(result)}"
         )
         return result, None
     except Exception as exc:
