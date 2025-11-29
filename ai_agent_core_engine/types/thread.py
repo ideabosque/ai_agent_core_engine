@@ -5,8 +5,22 @@ from __future__ import print_function
 __author__ = "bibow"
 
 from graphene import DateTime, Field, List, ObjectType, String
+from promise import Promise
 from silvaengine_dynamodb_base import ListObjectType
-from silvaengine_utility import JSON
+from silvaengine_utility import JSON, Utility
+
+
+def _normalize_to_json(item):
+    """Convert various object shapes to a JSON-serializable dict/primitive."""
+    if isinstance(item, dict):
+        return Utility.json_normalize(item)
+    if hasattr(item, "attribute_values"):
+        return Utility.json_normalize(item.attribute_values)
+    if hasattr(item, "__dict__"):
+        return Utility.json_normalize(
+            {k: v for k, v in vars(item).items() if not k.startswith("_")}
+        )
+    return item
 
 
 class ThreadType(ObjectType):
@@ -32,6 +46,8 @@ class ThreadType(ObjectType):
         existing = getattr(parent, "agent", None)
         if isinstance(existing, dict):
             return AgentType(**existing)
+        if isinstance(existing, AgentType):
+            return existing
 
         # Case 1: need to fetch using DataLoader
         endpoint_id = getattr(parent, "endpoint_id", None) or info.context.get(
@@ -55,7 +71,7 @@ class ThreadType(ObjectType):
         # Check if already embedded
         existing = getattr(parent, "messages", None)
         if isinstance(existing, list) and existing:
-            return existing
+            return [_normalize_to_json(messages) for messages in existing]
 
         # Fetch messages for this thread
         thread_uuid = getattr(parent, "thread_uuid", None)
@@ -148,11 +164,11 @@ class ThreadType(ObjectType):
                 )
 
             # Sort by created_at
-            return sorted(messages, key=lambda x: x["created_at"], reverse=False)
+            return _normalize_to_json(
+                sorted(messages, key=lambda x: x["created_at"], reverse=False)
+            )
 
         # Load agent, messages, and tool calls in parallel using batch loaders
-        from promise import Promise
-
         return Promise.all(
             [
                 loaders.agent_loader.load((endpoint_id, agent_uuid)),
@@ -177,7 +193,14 @@ class ThreadType(ObjectType):
 
         loaders = get_loaders(info.context)
         return loaders.tool_calls_by_thread_loader.load(thread_uuid).then(
-            lambda tool_call_dicts: tool_call_dicts if tool_call_dicts else []
+            lambda tool_call_dicts: (
+                [
+                    _normalize_to_json(tool_call_dict)
+                    for tool_call_dict in tool_call_dicts
+                ]
+                if tool_call_dicts
+                else []
+            )
         )
 
 

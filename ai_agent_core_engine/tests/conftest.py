@@ -46,8 +46,9 @@ sys.path.insert(
     ),
 )
 
-from ai_agent_core_engine import AIAgentCoreEngine
 from silvaengine_utility import Utility
+
+from ai_agent_core_engine import AIAgentCoreEngine
 
 # Test data file path
 TEST_DATA_FILE = os.path.join(os.path.dirname(__file__), "test_data.json")
@@ -145,7 +146,7 @@ def schema(ai_agent_core_engine):
             endpoint_id,
             "ai_agent_core_graphql",
             setting=SETTING,
-            test_mode="local_for_all",
+            execute_mode=SETTING["execute_mode"],
         )
         logger.info("GraphQL schema fetched successfully")
         return schema

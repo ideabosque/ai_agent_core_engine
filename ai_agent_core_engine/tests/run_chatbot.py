@@ -26,7 +26,25 @@ load_dotenv()
 
 # Add parent directory to path to allow imports when running directly
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
-
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../..")))
+sys.path.insert(
+    0,
+    os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "../../../openai_agent_handler")
+    ),
+)
+sys.path.insert(
+    0,
+    os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "../../../ai_agent_handler")
+    ),
+)
+sys.path.insert(
+    0,
+    os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "../../../mcp_http_client")
+    ),
+)
 
 # Setup logging
 logging.basicConfig(
@@ -37,9 +55,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger()
 
-from silvaengine_utility import Utility
-
 from ai_agent_core_engine import AIAgentCoreEngine
+from silvaengine_utility import Utility
 
 
 class ChatbotRunner:
@@ -102,8 +119,10 @@ class ChatbotRunner:
         endpoint_id = self.setting.get("endpoint_id")
         self.schema = Utility.fetch_graphql_schema(
             logger,
-            f"https://{self.setting['api_id']}.execute-api.{self.setting['region_name']}.amazonaws.com/{self.setting['api_stage']}",
             endpoint_id,
+            "ai_agent_core_graphql",
+            setting=self.setting,
+            execute_mode=self.setting["execute_mode"],
         )
 
         # Set default parameters or use provided ones
@@ -256,19 +275,22 @@ Examples:
     parser.add_argument(
         "--mode",
         choices=["local", "request"],
-        required=True,
+        default=os.getenv("RUN_CHATBOT_MODE", "local"),
         help="Test mode: 'local' for local execution or 'request' for API requests",
     )
     parser.add_argument(
         "--agent-uuid",
+        default=os.getenv("DEFAULT_AGENT_UUID"),
         help="Agent UUID to use for testing (overrides default)",
     )
     parser.add_argument(
         "--user-id",
+        default=os.getenv("DEFAULT_USER_ID"),
         help="User ID for the chatbot session (overrides default)",
     )
     parser.add_argument(
         "--updated-by",
+        default=os.getenv("DEFAULT_UPDATED_BY"),
         help="Updated by field for tracking changes (overrides default)",
     )
 

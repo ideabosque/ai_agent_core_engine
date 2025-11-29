@@ -19,20 +19,25 @@ except ModuleNotFoundError:  # Optional dependency; only needed for GPT token co
 
 try:
     from google import genai
-except ModuleNotFoundError:  # Optional dependency; only needed for Gemini token counting
+except (
+    ModuleNotFoundError
+):  # Optional dependency; only needed for Gemini token counting
     genai = None
 
 try:
     import anthropic
-except ModuleNotFoundError:  # Optional dependency; only needed for Claude token counting
+except (
+    ModuleNotFoundError
+):  # Optional dependency; only needed for Claude token counting
     anthropic = None
 from graphene import ResolveInfo
-
 from silvaengine_utility import Utility
 
 from ..models.async_task import insert_update_async_task
 from ..models.message import resolve_message_list
+from ..models.run import RunModel
 from ..models.tool_call import resolve_tool_call_list
+from ..types.agent import AgentType
 from .config import Config
 
 
@@ -62,6 +67,27 @@ def create_listener_info(
         path=None,
     )
     return info
+
+
+def _load_runs_by_keys(
+    run_keys: set[tuple[str, str]], logger: logging.Logger
+) -> Dict[tuple[str, str], Dict[str, Any]]:
+    """Fetch runs in one batch keyed by (thread_uuid, run_uuid)."""
+    if not run_keys:
+        return {}
+    try:
+        return {
+            (run.thread_uuid, run.run_uuid): {
+                "run_uuid": run.run_uuid,
+                "prompt_tokens": int(getattr(run, "prompt_tokens", 0) or 0),
+                "completion_tokens": int(getattr(run, "completion_tokens", 0) or 0),
+                "total_tokens": int(getattr(run, "total_tokens", 0) or 0),
+            }
+            for run in RunModel.batch_get(run_keys)
+        }
+    except Exception:
+        logger.error(traceback.format_exc())
+        return {}
 
 
 def start_async_task(
@@ -189,6 +215,13 @@ def combine_thread_messages(
     if message_list.total == 0 and tool_call_list.total == 0:
         return []
 
+    run_keys = {
+        (message.thread_uuid, message.run_uuid)
+        for message in message_list.message_list
+        if getattr(message, "run_uuid", None)
+    }
+    run_map = _load_runs_by_keys(run_keys, info.context["logger"])
+
     # Combine messages from both message_list and tool_call_list
     seen_contents = set()
     messages = []
@@ -199,15 +232,20 @@ def combine_thread_messages(
             continue
 
         seen_contents.add(message.message)
+        run_key = (message.thread_uuid, message.run_uuid)
+        run = run_map.get(run_key) if run_key[1] else None
+        if run is None:
+            run = {
+                "run_uuid": run_key[1],
+                "prompt_tokens": 0,
+                "completion_tokens": 0,
+                "total_tokens": 0,
+            }
+
         messages.append(
             {
                 "message": {
-                    "run": {
-                        "run_uuid": message.run["run_uuid"],
-                        "prompt_tokens": message.run["prompt_tokens"],
-                        "completion_tokens": message.run["completion_tokens"],
-                        "total_tokens": message.run["total_tokens"],
-                    },
+                    "run": run,
                     "role": message.role,
                     "content": message.message,
                 },
@@ -244,7 +282,7 @@ def combine_thread_messages(
     return messages
 
 
-def calculate_num_tokens(agent: dict[str, Any], text: str) -> int:
+def calculate_num_tokens(agent: AgentType, text: str) -> int:
     """
     Calculates the number of tokens for a given model.
 
@@ -259,7 +297,7 @@ def calculate_num_tokens(agent: dict[str, Any], text: str) -> int:
         Exception: If there is an error getting the encoding or calculating tokens
     """
     try:
-        if agent.llm["llm_name"] == "gpt":
+        if agent.llm_name == "gpt":
             if tiktoken is None:
                 raise ImportError(
                     "tiktoken is required for GPT token calculation but is not installed."
@@ -273,7 +311,7 @@ def calculate_num_tokens(agent: dict[str, Any], text: str) -> int:
 
             return num_tokens
 
-        elif agent.llm["llm_name"] == "gemini":
+        elif agent.llm_name == "gemini":
             if genai is None:
                 raise ImportError(
                     "google-genai is required for Gemini token calculation but is not installed."
@@ -283,7 +321,7 @@ def calculate_num_tokens(agent: dict[str, Any], text: str) -> int:
                 model=agent.configuration["model"], contents=text
             ).total_tokens
             return int(num_tokens)
-        elif agent.llm["llm_name"] == "claude":
+        elif agent.llm_name == "claude":
             if anthropic is None:
                 raise ImportError(
                     "anthropic is required for Claude token calculation but is not installed."

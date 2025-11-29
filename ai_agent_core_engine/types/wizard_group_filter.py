@@ -40,8 +40,11 @@ class WizardGroupFilterType(ObjectType):
         from ..models.batch_loaders import get_loaders
 
         # Case 1: Already embedded (backward compatibility)
-        if hasattr(parent, "wizard_group") and parent.wizard_group:
+        existing = getattr(parent, "wizard_group", None)
+        if isinstance(existing, dict):
             return WizardGroupType(**parent.wizard_group)
+        if isinstance(existing, WizardGroupType):
+            return existing
 
         # Case 2: Load via DataLoader using wizard_group_uuid
         wizard_group_uuid = getattr(parent, "wizard_group_uuid", None)

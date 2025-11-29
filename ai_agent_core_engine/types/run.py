@@ -42,6 +42,8 @@ class RunType(ObjectType):
         existing = getattr(parent, "thread", None)
         if isinstance(existing, dict):
             return ThreadType(**existing)
+        if isinstance(existing, ThreadType):
+            return existing
 
         # Case 1: need to fetch using DataLoader
         endpoint_id = getattr(parent, "endpoint_id", None) or info.context.get(

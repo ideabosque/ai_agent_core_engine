@@ -5,10 +5,7 @@ from __future__ import print_function
 __author__ = "bibow"
 
 from graphene import DateTime, Field, List, ObjectType, String
-
 from silvaengine_dynamodb_base import ListObjectType
-
-from .thread import ThreadType
 
 
 def _get_run_type():
@@ -42,6 +39,8 @@ class MessageType(ObjectType):
         existing = getattr(parent, "run", None)
         if isinstance(existing, dict):
             return RunType(**existing)
+        if isinstance(existing, RunType):
+            return existing
 
         # Case 1: need to fetch using DataLoader
         thread_uuid = getattr(parent, "thread_uuid", None)

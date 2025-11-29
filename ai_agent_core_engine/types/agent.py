@@ -7,10 +7,23 @@ __author__ = "bibow"
 from graphene import DateTime, Field, Int, List, ObjectType, String
 from promise import Promise
 from silvaengine_dynamodb_base import ListObjectType
-from silvaengine_utility import JSON
+from silvaengine_utility import JSON, Utility
 
 
-class AgentType(ObjectType):
+def _normalize_to_json(item):
+    """Convert various object shapes to a JSON-serializable dict/primitive."""
+    if isinstance(item, dict):
+        return Utility.json_normalize(item)
+    if hasattr(item, "attribute_values"):
+        return Utility.json_normalize(item.attribute_values)
+    if hasattr(item, "__dict__"):
+        return Utility.json_normalize(
+            {k: v for k, v in vars(item).items() if not k.startswith("_")}
+        )
+    return item
+
+
+class AgentTypeBase(ObjectType):
     endpoint_id = String()
     agent_version_uuid = String()
     agent_uuid = String()
@@ -33,6 +46,9 @@ class AgentType(ObjectType):
     created_at = DateTime()
     updated_at = DateTime()
 
+
+class AgentType(AgentTypeBase):
+
     # Nested resolvers with DataLoader batch fetching for efficient database access
     llm = Field(lambda: LlmType)
     mcp_servers = List(JSON)
@@ -43,12 +59,13 @@ class AgentType(ObjectType):
     def resolve_llm(parent, info):
         """Resolve nested LLM for this agent using DataLoader."""
         from ..models.batch_loaders import get_loaders
-        from .llm import LlmType
 
         # Case 2: already embedded
         existing = getattr(parent, "llm", None)
         if isinstance(existing, dict):
             return LlmType(**existing)
+        if isinstance(existing, LlmType):
+            return existing
 
         # Case 1: need to fetch using DataLoader
         llm_provider = getattr(parent, "llm_provider", None)
@@ -67,9 +84,8 @@ class AgentType(ObjectType):
 
         # Check if already embedded
         existing = getattr(parent, "mcp_servers", None)
-        if isinstance(existing, list) and existing:
-
-            return existing
+        if isinstance(existing, list):
+            return [_normalize_to_json(mcp_dict) for mcp_dict in existing]
 
         # Fetch MCP servers for this agent
         endpoint_id = info.context.get("endpoint_id")
@@ -86,20 +102,20 @@ class AgentType(ObjectType):
 
         def filter_results(mcp_dicts):
             # Keep payload JSON-ready; filter out missing lookups.
-            return [mcp_dict for mcp_dict in mcp_dicts if mcp_dict]
+            return [_normalize_to_json(mcp_dict) for mcp_dict in mcp_dicts if mcp_dict]
 
         return Promise.all(promises).then(filter_results)
 
     def resolve_flow_snippet(parent, info):
         """Resolve nested FlowSnippet for this agent using DataLoader."""
         from ..models.batch_loaders import get_loaders
-        from .flow_snippet import FlowSnippetType
 
         # Check if already embedded
         existing = getattr(parent, "flow_snippet", None)
         if isinstance(existing, dict):
-
-            return FlowSnippetType(**existing)
+            return [
+                _normalize_to_json(flow_snippet_dict) for flow_snippet_dict in existing
+            ]
 
         # Fetch flow snippet if version UUID exists
         endpoint_id = info.context.get("endpoint_id")
@@ -112,16 +128,15 @@ class AgentType(ObjectType):
             (endpoint_id, flow_snippet_version_uuid)
         ).then(
             lambda flow_snippet_dict: (
-                FlowSnippetType(**flow_snippet_dict) if flow_snippet_dict else None
+                _normalize_to_json(flow_snippet_dict) if flow_snippet_dict else None
             )
         )
 
 
 class AgentListType(ListObjectType):
-    agent_list = List(AgentType)
+    agent_list = List(AgentTypeBase)
 
 
 # Import at end to avoid circular dependency
 from .flow_snippet import FlowSnippetType  # noqa: E402
 from .llm import LlmType  # noqa: E402
-from .thread import ThreadType  # noqa: E402

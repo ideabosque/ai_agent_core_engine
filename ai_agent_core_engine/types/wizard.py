@@ -7,9 +7,22 @@ __author__ = "bibow"
 from graphene import DateTime, Field, Int, List, ObjectType, String
 from promise import Promise
 from silvaengine_dynamodb_base import ListObjectType
-from silvaengine_utility import JSON
+from silvaengine_utility import JSON, Utility
 
 from ..types.wizard_schema import WizardSchemaType
+
+
+def _normalize_to_json(item):
+    """Convert various object shapes to a JSON-serializable dict/primitive."""
+    if isinstance(item, dict):
+        return Utility.json_normalize(item)
+    if hasattr(item, "attribute_values"):
+        return Utility.json_normalize(item.attribute_values)
+    if hasattr(item, "__dict__"):
+        return Utility.json_normalize(
+            {k: v for k, v in vars(item).items() if not k.startswith("_")}
+        )
+    return item
 
 
 class WizardType(ObjectType):
@@ -96,11 +109,13 @@ class WizardType(ObjectType):
                 if element_dict is not None:
                     ref = wizard_element_refs[i]
                     wizard_elements.append(
-                        {
-                            "element": element_dict,
-                            "required": ref.get("required", False),
-                            "placeholder": ref.get("placeholder"),
-                        }
+                        _normalize_to_json(
+                            {
+                                "element": element_dict,
+                                "required": ref.get("required", False),
+                                "placeholder": ref.get("placeholder"),
+                            }
+                        )
                     )
             return wizard_elements
 

@@ -10,7 +10,6 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
-import base64
 import json
 import logging
 import os

@@ -4,25 +4,29 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
-from graphene import Boolean, DateTime, Field, List, ObjectType, String
+from graphene import DateTime, List, ObjectType, String
 from promise import Promise
 from silvaengine_dynamodb_base import ListObjectType
-from silvaengine_utility import JSON
+from silvaengine_utility import JSON, Utility
 
 from ..types.mcp_server import MCPServerType
 from ..types.ui_component import UIComponentType
 
 
-def get_loaders(context):
-    """Get or create request-scoped loaders from context."""
-    if not hasattr(context, "loaders"):
-        from ..models.batch_loaders import RequestLoaders
+def _normalize_to_json(item):
+    """Convert various object shapes to a JSON-serializable dict/primitive."""
+    if isinstance(item, dict):
+        return Utility.json_normalize(item)
+    if hasattr(item, "attribute_values"):
+        return Utility.json_normalize(item.attribute_values)
+    if hasattr(item, "__dict__"):
+        return Utility.json_normalize(
+            {k: v for k, v in vars(item).items() if not k.startswith("_")}
+        )
+    return item
 
-        context.loaders = RequestLoaders(context, cache_enabled=True)
-    return context.loaders
 
-
-class PromptTemplateType(ObjectType):
+class PromptTemplateBaseType(ObjectType):
     endpoint_id = String()
     prompt_version_uuid = String()
     prompt_uuid = String()
@@ -41,6 +45,9 @@ class PromptTemplateType(ObjectType):
     created_at = DateTime()
     updated_at = DateTime()
 
+
+class PromptTemplateType(PromptTemplateBaseType):
+
     # Nested resolvers with DataLoader batch fetching for efficient database access
     mcp_servers = List(lambda: MCPServerType)
     ui_components = List(lambda: UIComponentType)
@@ -54,13 +61,16 @@ class PromptTemplateType(ObjectType):
         """
 
         # Case 1: Already embedded (backward compatibility)
-        if hasattr(parent, "mcp_servers") and parent.mcp_servers:
-            return [MCPServerType(**server) for server in parent.mcp_servers]
+        existing = getattr(parent, "mcp_servers", None)
+        if isinstance(existing, list):
+            return [_normalize_to_json(server) for server in existing]
 
         # Case 2: Load via DataLoader using mcp_server_refs
         mcp_server_refs = getattr(parent, "mcp_server_refs", None)
         if not mcp_server_refs:
             return []
+
+        from ..models.batch_loaders import get_loaders
 
         endpoint_id = parent.endpoint_id
         loaders = get_loaders(info.context)
@@ -73,7 +83,7 @@ class PromptTemplateType(ObjectType):
 
         return Promise.all(promises).then(
             lambda mcp_server_dicts: [
-                MCPServerType(**mcp_dict)
+                _normalize_to_json(mcp_dict)
                 for mcp_dict in mcp_server_dicts
                 if mcp_dict is not None
             ]
@@ -87,16 +97,16 @@ class PromptTemplateType(ObjectType):
         2. Otherwise, use ui_component_refs to load via DataLoader
         """
         # Case 1: Already embedded (backward compatibility)
-        if hasattr(parent, "ui_components") and parent.ui_components:
-            return [
-                UIComponentType(**ui_comp) if isinstance(ui_comp, dict) else ui_comp
-                for ui_comp in parent.ui_components
-            ]
+        existing = getattr(parent, "ui_components", None)
+        if isinstance(existing, list):
+            return [_normalize_to_json(ui_comp) for ui_comp in existing]
 
         # Case 2: Load via DataLoader using ui_component_refs
         ui_component_refs = getattr(parent, "ui_component_refs", None)
         if not ui_component_refs:
             return []
+
+        from ..models.batch_loaders import get_loaders
 
         loaders = get_loaders(info.context)
 
@@ -118,4 +128,4 @@ class PromptTemplateType(ObjectType):
 
 
 class PromptTemplateListType(ListObjectType):
-    prompt_template_list = List(PromptTemplateType)
+    prompt_template_list = List(PromptTemplateBaseType)

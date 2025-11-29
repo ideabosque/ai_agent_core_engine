@@ -15,6 +15,7 @@ from silvaengine_utility import Utility
 
 from ..models.agent import resolve_agent
 from ..models.async_task import insert_update_async_task
+from ..models.llm import get_llm
 from ..models.message import insert_update_message
 from ..models.run import insert_update_run
 from ..models.thread import insert_thread, resolve_thread, resolve_thread_list
@@ -152,6 +153,33 @@ def _get_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType:
         raise e
 
 
+def _get_agent(info: ResolveInfo, agent_uuid: str):
+    agent = resolve_agent(info, **{"agent_uuid": agent_uuid})
+    llm = get_llm(agent.llm_provider, agent.llm_name)
+    agent.llm = Utility.json_normalize(llm.__dict__["attribute_values"])
+
+    from ..models.utils import _get_mcp_servers
+
+    mcp_servers = [
+        {"mcp_server_uuid": mcp_server_uuid}
+        for mcp_server_uuid in agent.mcp_server_uuids
+    ]
+
+    agent.mcp_servers = [
+        {
+            "name": mcp_server["mcp_label"],
+            "mcp_server_uuid": mcp_server["mcp_server_uuid"],
+            "setting": {
+                "base_url": mcp_server["mcp_server_url"],
+                "headers": mcp_server["headers"],
+            },
+        }
+        for mcp_server in _get_mcp_servers(info, mcp_servers)
+    ]
+
+    return agent
+
+
 def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
     """
     Execute an AI model query and handle the response asynchronously.
@@ -193,8 +221,8 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
             },
         )
 
-        # Retrieve AI agent configuration
-        agent = resolve_agent(info, **{"agent_uuid": arguments["agent_uuid"]})
+        # Retrieve AI agent configuration with LLM details
+        agent = _get_agent(info, arguments["agent_uuid"])
 
         # Build conversation history and add new user query
         input_messages = get_input_messages(
@@ -429,7 +457,7 @@ def _update_user_message_with_files(
 
 def upload_file(info: ResolveInfo, **kwargs: Dict[str, Any]) -> FileType:
     # Retrieve AI agent configuration
-    agent = resolve_agent(info, **{"agent_uuid": kwargs["agent_uuid"]})
+    agent = _get_agent(info, kwargs["agent_uuid"])
 
     ai_agent_handler_class = getattr(
         __import__(agent.llm["module_name"]),
@@ -461,7 +489,7 @@ def upload_file(info: ResolveInfo, **kwargs: Dict[str, Any]) -> FileType:
 
 def get_file(info: ResolveInfo, **kwargs: Dict[str, Any]) -> FileType:
     # Retrieve AI agent configuration
-    agent = resolve_agent(info, **{"agent_uuid": kwargs["agent_uuid"]})
+    agent = _get_agent(info, kwargs["agent_uuid"])
 
     ai_agent_handler_class = getattr(
         __import__(agent.llm["module_name"]),
@@ -492,7 +520,7 @@ def get_file(info: ResolveInfo, **kwargs: Dict[str, Any]) -> FileType:
 
 def get_output_file(info: ResolveInfo, **kwargs: Dict[str, Any]) -> FileType:
     # Retrieve AI agent configuration
-    agent = resolve_agent(info, **{"agent_uuid": kwargs["agent_uuid"]})
+    agent = _get_agent(info, kwargs["agent_uuid"])
 
     ai_agent_handler_class = getattr(
         __import__(agent.llm["module_name"]),

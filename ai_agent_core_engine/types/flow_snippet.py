@@ -5,7 +5,6 @@ from __future__ import print_function
 __author__ = "bibow"
 
 from graphene import DateTime, Field, List, ObjectType, String
-
 from silvaengine_dynamodb_base import ListObjectType
 
 from .prompt_template import PromptTemplateType
@@ -22,6 +21,11 @@ class FlowSnippetBaseType(ObjectType):
     created_at = DateTime()
     updated_at = DateTime()
 
+
+class FlowSnippetType(FlowSnippetBaseType):
+    flow_relationship = String()
+    flow_context = String()
+
     # Nested resolvers with DataLoader batch fetching for efficient database access
     prompt_template = Field(lambda: PromptTemplateType)
 
@@ -35,6 +39,8 @@ class FlowSnippetBaseType(ObjectType):
         existing = getattr(parent, "prompt_template", None)
         if isinstance(existing, dict):
             return PromptTemplateType(**existing)
+        if isinstance(existing, PromptTemplateType):
+            return existing
 
         # Case 1: need to fetch using DataLoader
         endpoint_id = getattr(parent, "endpoint_id", None) or info.context.get(
@@ -52,14 +58,5 @@ class FlowSnippetBaseType(ObjectType):
         )
 
 
-class FlowSnippetType(FlowSnippetBaseType):
-    flow_relationship = String()
-    flow_context = String()
-
-
 class FlowSnippetListType(ListObjectType):
     flow_snippet_list = List(FlowSnippetBaseType)
-
-
-# Import at end to avoid circular dependency
-from .agent import AgentType  # noqa: E402
