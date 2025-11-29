@@ -8,6 +8,7 @@ import logging
 import time
 import uuid
 from functools import wraps
+import json
 from typing import Any, Dict, List, Optional, Tuple
 from unittest.mock import MagicMock
 
@@ -181,6 +182,11 @@ def call_method(
 
     try:
         result = method(**arguments)
+        if isinstance(result, str):
+            try:
+                result = json.loads(result)
+            except ValueError:
+                pass
         elapsed_ms = round((time.perf_counter() - t0) * 1000, 2)
         logger.info(
             f"Method response: cid={cid} op={op} elapsed_ms={elapsed_ms} "
