@@ -12,6 +12,7 @@ This module contains comprehensive tests for:
 """
 from __future__ import print_function
 
+import json
 import logging
 import os
 import sys
@@ -36,12 +37,24 @@ logging.basicConfig(
 )
 logger = logging.getLogger()
 
+def load_test_data():
+    try:
+        data_path = os.path.join(os.path.dirname(__file__), "test_data.json")
+        with open(data_path, "r") as f:
+            return json.load(f)
+    except Exception as e:
+        logger.warning(f"Could not load test_data.json: {e}")
+        return {}
+
+TEST_DATA = load_test_data()
+
+from graphene import Schema
 from silvaengine_utility import Utility
 
 from ai_agent_core_engine import AIAgentCoreEngine
 from ai_agent_core_engine.handlers.config import Config
 from ai_agent_core_engine.models.cache import purge_entity_cascading_cache
-
+from ai_agent_core_engine.schema import Mutations, Query, type_class
 
 # ============================================================================
 # FIXTURES
@@ -88,11 +101,8 @@ def cache_integration_setup():
 
     ai_agent_core_engine = AIAgentCoreEngine(logger, **setting)
     endpoint_id = setting.get("endpoint_id")
-    schema = Utility.fetch_graphql_schema(
-        logger,
-        f"https://{setting['api_id']}.execute-api.{setting['region_name']}.amazonaws.com/{setting['api_stage']}",
-        endpoint_id,
-    )
+    schema_object = Schema(query=Query, mutation=Mutations, types=type_class())
+    schema = schema_object.introspect()["__schema"]
 
     return {
         "ai_agent_core_engine": ai_agent_core_engine,
@@ -242,7 +252,24 @@ class TestCacheNames:
 
 @pytest.mark.integration
 @pytest.mark.cache
-@pytest.mark.skip(reason="demonstrating skipping")
+# @pytest.mark.skip(reason="demonstrating skipping")
+# Helper class for mock agent instance
+class MockAgentInstance:
+    def __init__(self, **kwargs):
+        for k, v in kwargs.items():
+            setattr(self, k, v)
+        self.attribute_values = kwargs.get("attribute_values", {})
+
+    def update(self, actions=None):
+        pass
+
+    def save(self):
+        pass
+
+    def delete(self):
+        pass
+
+
 class TestCachePerformance:
     """Integration tests for cache performance."""
 
@@ -253,75 +280,242 @@ class TestCachePerformance:
 
         logger.info("Testing agent cache performance...")
 
-        # Test data - using an existing agent for testing
-        test_agent_uuid = "agent-1759120093-6b0d64ad"  # Use existing test agent
+        # Test data
+        test_agent_uuid = "agent-1759120093-6b0d64ad"
 
-        # Query for agent (this should cache the result)
-        query = Utility.generate_graphql_operation("agent", "Query", schema)
-        payload = {
-            "query": query,
-            "variables": {
-                "agentUuid": test_agent_uuid,
-            },
-        }
-
-        # First call - should hit database and cache the result
-        logger.info("First agent query (cache miss expected)...")
-        start_time = time.time()
-        response1 = ai_agent_core_engine.ai_agent_core_graphql(**payload)
-        first_call_time = time.time() - start_time
-        logger.info(f"First call completed in {first_call_time:.4f} seconds")
-
-        # Second call - should hit cache (faster)
-        logger.info("Second agent query (cache hit expected)...")
-        start_time = time.time()
-        response2 = ai_agent_core_engine.ai_agent_core_graphql(**payload)
-        second_call_time = time.time() - start_time
-        logger.info(f"Second call completed in {second_call_time:.4f} seconds")
-
-        # Verify responses are identical
-        assert response1 == response2, "Cached and non-cached responses should be identical"
-
-        # Verify cache improved performance (second call should be faster)
-        logger.info(
-            f"Performance improvement: {((first_call_time - second_call_time) / first_call_time * 100):.1f}%"
-        )
-
-        # Test cache invalidation by updating the agent
-        logger.info("Testing cache invalidation...")
-        update_query = Utility.generate_graphql_operation(
-            "insertUpdateAgent", "Mutation", schema
-        )
-        update_payload = {
-            "query": update_query,
-            "variables": {
-                "agentUuid": test_agent_uuid,
-                "agentName": f"Cache Test Agent - {int(time.time())}",  # Unique name
-                "agentDescription": "Testing cache invalidation",
-                "llmProvider": "openai",
-                "llmName": "openai",
-                "instructions": "Test instructions for cache invalidation",
+        # Mock AgentModel to return data without hitting DB
+        with patch("ai_agent_core_engine.models.agent.AgentModel") as MockAgentModel:
+            # Setup mock agent instance
+            agent_attrs = {
+                "agent_uuid": test_agent_uuid,
+                "agent_name": "Original Agent",
+                "agent_description": "Original Description",
+                "llm_provider": "openai",
+                "llm_name": "gpt-4",
+                "instructions": "Original instructions",
                 "configuration": {},
+                "mcp_server_uuids": [],
+                "variables": [],
+                "updated_by": "test",
+                "created_at": "2024-01-01T00:00:00Z",
+                "updated_at": "2024-01-01T00:00:00Z",
                 "status": "active",
-                "updatedBy": "cache_test",
-            },
-        }
+                "endpoint_id": "test_endpoint",
+                "agent_version_uuid": "v1",
+            }
 
-        # Update the agent (this should clear the cache)
-        update_response = ai_agent_core_engine.ai_agent_core_graphql(**update_payload)
-        logger.info("Agent updated - cache should be invalidated")
+            mock_agent = MockAgentInstance(
+                agent_uuid=test_agent_uuid,
+                agent_name="Original Agent",
+                attribute_values=agent_attrs,
+                status="active"
+            )
 
-        # Query again - should hit database again since cache was cleared
-        logger.info("Third agent query after update (cache miss expected)...")
-        start_time = time.time()
-        response3 = ai_agent_core_engine.ai_agent_core_graphql(**payload)
-        third_call_time = time.time() - start_time
-        logger.info(f"Third call completed in {third_call_time:.4f} seconds")
+            # Setup AgentModel.get to return our mock agent
+            MockAgentModel.get.return_value = mock_agent
+            MockAgentModel.count.return_value = 1
 
-        # The updated response should be different from the original
-        assert response1 != response3, "Response after update should be different"
+            # Mock get_active_agent to avoid complex query logic
+            with patch(
+                "ai_agent_core_engine.models.agent._get_active_agent",
+                return_value=mock_agent,
+            ) as mock_get_active_agent:
+
+                # Query for agent (this should cache the result)
+                query = Utility.generate_graphql_operation("agent", "Query", schema)
+                payload = {
+                    "query": query,
+                    "variables": {
+                        "agentUuid": test_agent_uuid,
+                    },
+                }
+
+                # First call - should hit database (mock) and cache the result
+                logger.info("First agent query (cache miss expected)...")
+                start_time = time.time()
+                response1 = ai_agent_core_engine.ai_agent_core_graphql(**payload)
+                first_call_time = time.time() - start_time
+                logger.info(f"First call completed in {first_call_time:.4f} seconds")
+
+                # Second call - should hit cache (faster)
+                logger.info("Second agent query (cache hit expected)...")
+                start_time = time.time()
+                response2 = ai_agent_core_engine.ai_agent_core_graphql(**payload)
+                second_call_time = time.time() - start_time
+                logger.info(f"Second call completed in {second_call_time:.4f} seconds")
+
+                # Verify responses are identical
+                assert (
+                    response1 == response2
+                ), "Cached and non-cached responses should be identical"
+
+                # Update the mock agent for the next call to simulate DB update
+                updated_attrs = agent_attrs.copy()
+                updated_attrs["agent_name"] = "Updated Agent"
+
+                mock_agent_updated = MockAgentInstance(
+                    agent_uuid=test_agent_uuid,
+                    agent_name="Updated Agent",
+                    attribute_values=updated_attrs,
+                    status="active"
+                )
+
+                # Change what AgentModel.get returns
+                MockAgentModel.get.return_value = mock_agent_updated
+                mock_get_active_agent.return_value = mock_agent_updated
+
+                # Test cache invalidation by updating the agent
+                logger.info("Testing cache invalidation...")
+                update_query = Utility.generate_graphql_operation(
+                    "insertUpdateAgent", "Mutation", schema
+                )
+                update_payload = {
+                    "query": update_query,
+                    "variables": {
+                        "agentUuid": test_agent_uuid,
+                        "agentName": "Updated Agent",
+                        "agentDescription": "Testing cache invalidation",
+                        "llmProvider": "openai",
+                        "llmName": "openai",
+                        "instructions": "Test instructions for cache invalidation",
+                        "configuration": {},
+                        "status": "active",
+                        "updatedBy": "cache_test",
+                    },
+                }
+
+                # Mock saving/updating to avoid DB errors
+                # We don't need logic here, just need it to not crash and to trigger cache purge decorator
+                update_response = ai_agent_core_engine.ai_agent_core_graphql(
+                    **update_payload
+                )
+                logger.info("Agent updated - cache should be invalidated")
+
+                # Query again - should hit database (mock) again since cache was cleared
+                logger.info("Third agent query after update (cache miss expected)...")
+                start_time = time.time()
+                response3 = ai_agent_core_engine.ai_agent_core_graphql(**payload)
+                third_call_time = time.time() - start_time
+                logger.info(f"Third call completed in {third_call_time:.4f} seconds")
+
+                # The updated response should be different from the original
+                assert (
+                    response1 != response3
+                ), "Response after update should be different"
 
         logger.info("Cache performance test completed successfully!")
+
+    @pytest.mark.parametrize("agent_data", TEST_DATA.get("agents", []))
+    def test_agent_cache_performance_parametrized(
+        self, cache_integration_setup, agent_data
+    ):
+        """Test agent cache performance with parametrized data."""
+        ai_agent_core_engine = cache_integration_setup["ai_agent_core_engine"]
+        schema = cache_integration_setup["schema"]
+
+        logger.info(f"Testing cache for agent: {agent_data.get('agentName')}")
+
+        test_agent_uuid = "agent-param-" + str(time.time())
+
+        # Map camelCase from JSON to snake_case for internal model
+        agent_attrs = {
+            "agent_uuid": test_agent_uuid,
+            "agent_name": agent_data.get("agentName"),
+            "agent_description": agent_data.get("agentDescription"),
+            "llm_provider": agent_data.get("llmProvider"),
+            "llm_name": agent_data.get("llmName"),
+            "instructions": agent_data.get("instructions"),
+            "configuration": agent_data.get("configuration", {}),
+            "mcp_server_uuids": agent_data.get("mcpServerUuids", []),
+            "variables": agent_data.get("variables", []),
+            "num_of_messages": agent_data.get("numOfMessages"),
+            "tool_call_role": agent_data.get("toolCallRole"),
+            "status": agent_data.get("status"),
+            "updated_by": agent_data.get("updatedBy"),
+            "created_at": "2024-01-01T00:00:00Z",
+            "updated_at": "2024-01-01T00:00:00Z",
+            "endpoint_id": "test_endpoint",
+            "agent_version_uuid": "v1",
+        }
+
+        # Mock AgentModel
+        with patch("ai_agent_core_engine.models.agent.AgentModel") as MockAgentModel:
+            mock_agent = MockAgentInstance(
+                agent_uuid=test_agent_uuid,
+                agent_name=agent_attrs["agent_name"],
+                attribute_values=agent_attrs,
+                status=agent_attrs["status"],
+            )
+
+            MockAgentModel.get.return_value = mock_agent
+            MockAgentModel.count.return_value = 1
+
+            with patch(
+                "ai_agent_core_engine.models.agent._get_active_agent",
+                return_value=mock_agent,
+            ) as mock_get_active_agent:
+
+                # Query
+                query = Utility.generate_graphql_operation("agent", "Query", schema)
+                payload = {
+                    "query": query,
+                    "variables": {
+                        "agentUuid": test_agent_uuid,
+                    },
+                }
+
+                # First call (Cache Miss)
+                logger.info("First query (cache miss expected)...")
+                start_time = time.time()
+                response1 = ai_agent_core_engine.ai_agent_core_graphql(**payload)
+                logger.info(f"First call: {time.time() - start_time:.4f}s")
+
+                # Second call (Cache Hit)
+                logger.info("Second query (cache hit expected)...")
+                start_time = time.time()
+                response2 = ai_agent_core_engine.ai_agent_core_graphql(**payload)
+                logger.info(f"Second call: {time.time() - start_time:.4f}s")
+
+                assert response1 == response2
+
+                # Update
+                updated_attrs = agent_attrs.copy()
+                updated_attrs["agent_name"] = agent_attrs["agent_name"] + " (Updated)"
+                mock_agent_updated = MockAgentInstance(
+                    agent_uuid=test_agent_uuid,
+                    agent_name=updated_attrs["agent_name"],
+                    attribute_values=updated_attrs,
+                    status="active",
+                )
+
+                MockAgentModel.get.return_value = mock_agent_updated
+                mock_get_active_agent.return_value = mock_agent_updated
+
+                update_query = Utility.generate_graphql_operation(
+                    "insertUpdateAgent", "Mutation", schema
+                )
+                update_payload = {
+                    "query": update_query,
+                    "variables": {
+                        "agentUuid": test_agent_uuid,
+                        "agentName": updated_attrs["agent_name"],
+                        "llmProvider": agent_attrs["llm_provider"],
+                        "llmName": agent_attrs["llm_name"],
+                        "instructions": agent_attrs["instructions"],
+                        "updatedBy": "cache_test",
+                    },
+                }
+
+                ai_agent_core_engine.ai_agent_core_graphql(**update_payload)
+                logger.info("Agent updated")
+
+                # Third call (Cache Miss)
+                logger.info("Third query (cache miss expected)...")
+                start_time = time.time()
+                response3 = ai_agent_core_engine.ai_agent_core_graphql(**payload)
+                logger.info(f"Third call: {time.time() - start_time:.4f}s")
+
+                assert response1 != response3
 
     def test_agent_cache_statistics(self, cache_integration_setup):
         """Test cache statistics and monitoring."""
@@ -395,7 +589,9 @@ class TestCachePerformance:
         logger.info(f"Second call completed in {second_call_time:.4f} seconds")
 
         # Verify responses are identical
-        assert response1 == response2, "Cached and non-cached responses should be identical"
+        assert (
+            response1 == response2
+        ), "Cached and non-cached responses should be identical"
 
         # Verify cache improved performance (second call should be faster)
         if second_call_time < first_call_time:
@@ -442,7 +638,7 @@ class TestCachePerformance:
 
 @pytest.mark.integration
 @pytest.mark.cache
-@pytest.mark.skip(reason="demonstrating skipping")
+# @pytest.mark.skip(reason="demonstrating skipping")
 class TestUniversalCachePurging:
     """Integration tests for universal cache purging system."""
 
@@ -691,7 +887,9 @@ class TestUniversalCachePurging:
 
             thread_child_types = [child["entity_type"] for child in thread_children]
             assert "run" in thread_child_types, "Thread should have run as child"
-            assert "message" in thread_child_types, "Thread should have message as child"
+            assert (
+                "message" in thread_child_types
+            ), "Thread should have message as child"
             assert (
                 "tool_call" in thread_child_types
             ), "Thread should have tool_call as child"
@@ -863,3 +1061,9 @@ class TestUniversalCachePurging:
                 logger.error(f"Scenario {scenario['name']} failed: {str(e)}")
 
         logger.info("Cascading cache invalidation simulation completed!")
+
+
+if __name__ == "__main__":
+    import sys
+
+    sys.exit(pytest.main([__file__, "-v"] + sys.argv[1:]))

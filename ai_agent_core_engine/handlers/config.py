@@ -130,6 +130,13 @@ class Config:
             "list_resolver": "ai_agent_core_engine.queries.wizard_group.resolve_wizard_group_list",
             "cache_keys": ["context:endpoint_id", "key:wizard_group_uuid"],
         },
+        "wizard_group_filter": {
+            "module": "ai_agent_core_engine.models.wizard_group_filter",
+            "model_class": "WizardGroupFilterModel",
+            "getter": "get_wizard_group_filter",
+            "list_resolver": "ai_agent_core_engine.queries.wizard_group_filter.resolve_wizard_group_filter_list",
+            "cache_keys": ["context:endpoint_id", "key:wizard_group_filter_uuid"],
+        },
         "prompt_template": {
             "module": "ai_agent_core_engine.models.prompt_template",
             "model_class": "PromptTemplateModel",

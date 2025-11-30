@@ -147,23 +147,25 @@ def test_llm_lifecycle_flow(
     )
     assert error is None, f"Update LLM failed: {error}"
 
+    if not os.getenv("full_lifecycle_flow", False):
+        return
     # 5. Delete
-    # delete_query = Utility.generate_graphql_operation("deleteLlm", "Mutation", schema)
-    # delete_variables = {
-    #     "llmProvider": test_data["llmProvider"],
-    #     "llmName": test_data["llmName"],
-    #     "updatedBy": test_data.get("updatedBy", "test-user"),
-    # }
-    # result, error = call_method(
-    #     ai_agent_core_engine,
-    #     "ai_agent_core_graphql",
-    #     {"query": delete_query, "variables": delete_variables},
-    #     "delete_llm",
-    # )
-    # assert error is None, f"Delete LLM failed: {error}"
-    # assert (
-    #     result.get("data", {}).get("deleteLlm", {}).get("ok")
-    # ), "Delete LLM failed - ok flag missing/false"
+    delete_query = Utility.generate_graphql_operation("deleteLlm", "Mutation", schema)
+    delete_variables = {
+        "llmProvider": test_data["llmProvider"],
+        "llmName": test_data["llmName"],
+        "updatedBy": test_data.get("updatedBy", "test-user"),
+    }
+    result, error = call_method(
+        ai_agent_core_engine,
+        "ai_agent_core_graphql",
+        {"query": delete_query, "variables": delete_variables},
+        "delete_llm",
+    )
+    assert error is None, f"Delete LLM failed: {error}"
+    assert (
+        result.get("data", {}).get("deleteLlm", {}).get("ok")
+    ), "Delete LLM failed - ok flag missing/false"
 
 
 @pytest.mark.integration
@@ -220,22 +222,24 @@ def test_agent_lifecycle_flow(
     agent_list = result.get("data", {}).get("agentList", {}).get("agentList")
     assert agent_list and len(agent_list) > 0, "Agent list empty or missing"
 
+    if not os.getenv("full_lifecycle_flow", False):
+        return
     # 4. Delete
-    # delete_query = Utility.generate_graphql_operation("deleteAgent", "Mutation", schema)
-    # delete_variables = {
-    #     "agentVersionUuid": agent_version_uuid,
-    #     "updatedBy": test_data.get("updatedBy", "test-user"),
-    # }
-    # result, error = call_method(
-    #     ai_agent_core_engine,
-    #     "ai_agent_core_graphql",
-    #     {"query": delete_query, "variables": delete_variables},
-    #     "delete_agent",
-    # )
-    # assert error is None, f"Delete Agent failed: {error}"
-    # assert (
-    #     result.get("data", {}).get("deleteAgent", {}).get("ok")
-    # ), "Delete Agent failed - ok flag missing/false"
+    delete_query = Utility.generate_graphql_operation("deleteAgent", "Mutation", schema)
+    delete_variables = {
+        "agentVersionUuid": agent_version_uuid,
+        "updatedBy": test_data.get("updatedBy", "test-user"),
+    }
+    result, error = call_method(
+        ai_agent_core_engine,
+        "ai_agent_core_graphql",
+        {"query": delete_query, "variables": delete_variables},
+        "delete_agent",
+    )
+    assert error is None, f"Delete Agent failed: {error}"
+    assert (
+        result.get("data", {}).get("deleteAgent", {}).get("ok")
+    ), "Delete Agent failed - ok flag missing/false"
 
 
 @pytest.mark.integration
@@ -288,24 +292,26 @@ def test_thread_lifecycle_flow(
     thread_list = result.get("data", {}).get("threadList", {}).get("threadList")
     assert thread_list and len(thread_list) > 0, "Thread list empty or missing"
 
+    if not os.getenv("full_lifecycle_flow", False):
+        return
     # 4. Delete
-    # delete_query = Utility.generate_graphql_operation(
-    #     "deleteThread", "Mutation", schema
-    # )
-    # delete_variables = {
-    #     "threadUuid": thread_uuid,
-    #     "updatedBy": test_data.get("updatedBy", "test-user"),
-    # }
-    # result, error = call_method(
-    #     ai_agent_core_engine,
-    #     "ai_agent_core_graphql",
-    #     {"query": delete_query, "variables": delete_variables},
-    #     "delete_thread",
-    # )
-    # assert error is None, f"Delete Thread failed: {error}"
-    # assert (
-    #     result.get("data", {}).get("deleteThread", {}).get("ok")
-    # ), "Delete Thread failed - ok flag missing/false"
+    delete_query = Utility.generate_graphql_operation(
+        "deleteThread", "Mutation", schema
+    )
+    delete_variables = {
+        "threadUuid": thread_uuid,
+        "updatedBy": test_data.get("updatedBy", "test-user"),
+    }
+    result, error = call_method(
+        ai_agent_core_engine,
+        "ai_agent_core_graphql",
+        {"query": delete_query, "variables": delete_variables},
+        "delete_thread",
+    )
+    assert error is None, f"Delete Thread failed: {error}"
+    assert (
+        result.get("data", {}).get("deleteThread", {}).get("ok")
+    ), "Delete Thread failed - ok flag missing/false"
 
 
 @pytest.mark.integration
@@ -359,25 +365,25 @@ def test_run_lifecycle_flow(
     run_list = result.get("data", {}).get("runList", {}).get("runList")
     assert run_list and len(run_list) > 0, "Run list empty or missing"
 
+    if not os.getenv("full_lifecycle_flow", False):
+        return
     # 4. Delete
-    # delete_query = Utility.generate_graphql_operation(
-    #     "deleteRun", "Mutation", schema
-    # )
-    # delete_variables = {
-    #     "threadUuid": thread_uuid,
-    #     "runUuid": run_uuid,
-    #     "updatedBy": test_data.get("updatedBy", "test-user"),
-    # }
-    # result, error = call_method(
-    #     ai_agent_core_engine,
-    #     "ai_agent_core_graphql",
-    #     {"query": delete_query, "variables": delete_variables},
-    #     "delete_run",
-    # )
-    # assert error is None, f"Delete Run failed: {error}"
-    # assert (
-    #     result.get("data", {}).get("deleteRun", {}).get("ok")
-    # ), "Delete Run failed - ok flag missing/false"
+    delete_query = Utility.generate_graphql_operation("deleteRun", "Mutation", schema)
+    delete_variables = {
+        "threadUuid": thread_uuid,
+        "runUuid": run_uuid,
+        "updatedBy": test_data.get("updatedBy", "test-user"),
+    }
+    result, error = call_method(
+        ai_agent_core_engine,
+        "ai_agent_core_graphql",
+        {"query": delete_query, "variables": delete_variables},
+        "delete_run",
+    )
+    assert error is None, f"Delete Run failed: {error}"
+    assert (
+        result.get("data", {}).get("deleteRun", {}).get("ok")
+    ), "Delete Run failed - ok flag missing/false"
 
 
 @pytest.mark.integration
@@ -421,21 +427,23 @@ def test_message_lifecycle_flow(
     assert error is None, f"Get Message failed: {error}"
     assert result.get("data", {}).get("message"), "Message not found after insertion"
 
+    if not os.getenv("full_lifecycle_flow", False):
+        return
     # 3. Delete
-    # delete_query = Utility.generate_graphql_operation(
-    #     "deleteMessage", "Mutation", schema
-    # )
-    # delete_variables = {"threadUuid": thread_uuid, "messageUuid": message_uuid}
-    # result, error = call_method(
-    #     ai_agent_core_engine,
-    #     "ai_agent_core_graphql",
-    #     {"query": delete_query, "variables": delete_variables},
-    #     "delete_message",
-    # )
-    # assert error is None, f"Delete Message failed: {error}"
-    # assert (
-    #     result.get("data", {}).get("deleteMessage", {}).get("ok")
-    # ), "Delete Message failed - ok flag missing/false"
+    delete_query = Utility.generate_graphql_operation(
+        "deleteMessage", "Mutation", schema
+    )
+    delete_variables = {"threadUuid": thread_uuid, "messageUuid": message_uuid}
+    result, error = call_method(
+        ai_agent_core_engine,
+        "ai_agent_core_graphql",
+        {"query": delete_query, "variables": delete_variables},
+        "delete_message",
+    )
+    assert error is None, f"Delete Message failed: {error}"
+    assert (
+        result.get("data", {}).get("deleteMessage", {}).get("ok")
+    ), "Delete Message failed - ok flag missing/false"
 
 
 @pytest.mark.integration
@@ -478,21 +486,23 @@ def test_tool_call_lifecycle_flow(
     assert error is None, f"Get Tool Call failed: {error}"
     assert result.get("data", {}).get("toolCall"), "Tool Call not found after insertion"
 
+    if not os.getenv("full_lifecycle_flow", False):
+        return
     # 3. Delete
-    # delete_query = Utility.generate_graphql_operation(
-    #     "deleteToolCall", "Mutation", schema
-    # )
-    # delete_variables = {"threadUuid": thread_uuid, "toolCallUuid": tool_call_uuid}
-    # result, error = call_method(
-    #     ai_agent_core_engine,
-    #     "ai_agent_core_graphql",
-    #     {"query": delete_query, "variables": delete_variables},
-    #     "delete_tool_call",
-    # )
-    # assert error is None, f"Delete Tool Call failed: {error}"
-    # assert (
-    #     result.get("data", {}).get("deleteToolCall", {}).get("ok")
-    # ), "Delete Tool Call failed - ok flag missing/false"
+    delete_query = Utility.generate_graphql_operation(
+        "deleteToolCall", "Mutation", schema
+    )
+    delete_variables = {"threadUuid": thread_uuid, "toolCallUuid": tool_call_uuid}
+    result, error = call_method(
+        ai_agent_core_engine,
+        "ai_agent_core_graphql",
+        {"query": delete_query, "variables": delete_variables},
+        "delete_tool_call",
+    )
+    assert error is None, f"Delete Tool Call failed: {error}"
+    assert (
+        result.get("data", {}).get("deleteToolCall", {}).get("ok")
+    ), "Delete Tool Call failed - ok flag missing/false"
 
 
 @pytest.mark.integration
@@ -538,21 +548,23 @@ def test_fine_tuning_message_lifecycle_flow(
         "fineTuningMessage"
     ), "Fine Tuning Message not found after insertion"
 
+    if not os.getenv("full_lifecycle_flow", False):
+        return
     # 3. Delete
-    # delete_query = Utility.generate_graphql_operation(
-    #     "deleteFineTuningMessage", "Mutation", schema
-    # )
-    # delete_variables = {"agentUuid": agent_uuid, "messageUuid": message_uuid}
-    # result, error = call_method(
-    #     ai_agent_core_engine,
-    #     "ai_agent_core_graphql",
-    #     {"query": delete_query, "variables": delete_variables},
-    #     "delete_fine_tuning_message",
-    # )
-    # assert error is None, f"Delete Fine Tuning Message failed: {error}"
-    # assert (
-    #     result.get("data", {}).get("deleteFineTuningMessage", {}).get("ok")
-    # ), "Delete Fine Tuning Message failed - ok flag missing/false"
+    delete_query = Utility.generate_graphql_operation(
+        "deleteFineTuningMessage", "Mutation", schema
+    )
+    delete_variables = {"agentUuid": agent_uuid, "messageUuid": message_uuid}
+    result, error = call_method(
+        ai_agent_core_engine,
+        "ai_agent_core_graphql",
+        {"query": delete_query, "variables": delete_variables},
+        "delete_fine_tuning_message",
+    )
+    assert error is None, f"Delete Fine Tuning Message failed: {error}"
+    assert (
+        result.get("data", {}).get("deleteFineTuningMessage", {}).get("ok")
+    ), "Delete Fine Tuning Message failed - ok flag missing/false"
 
 
 @pytest.mark.integration
@@ -598,21 +610,23 @@ def test_async_task_lifecycle_flow(
         "asyncTask"
     ), "Async Task not found after insertion"
 
+    if not os.getenv("full_lifecycle_flow", False):
+        return
     # 3. Delete
-    # delete_query = Utility.generate_graphql_operation(
-    #     "deleteAsyncTask", "Mutation", schema
-    # )
-    # delete_variables = {"functionName": function_name, "asyncTaskUuid": async_task_uuid}
-    # result, error = call_method(
-    #     ai_agent_core_engine,
-    #     "ai_agent_core_graphql",
-    #     {"query": delete_query, "variables": delete_variables},
-    #     "delete_async_task",
-    # )
-    # assert error is None, f"Delete Async Task failed: {error}"
-    # assert (
-    #     result.get("data", {}).get("deleteAsyncTask", {}).get("ok")
-    # ), "Delete Async Task failed - ok flag missing/false"
+    delete_query = Utility.generate_graphql_operation(
+        "deleteAsyncTask", "Mutation", schema
+    )
+    delete_variables = {"functionName": function_name, "asyncTaskUuid": async_task_uuid}
+    result, error = call_method(
+        ai_agent_core_engine,
+        "ai_agent_core_graphql",
+        {"query": delete_query, "variables": delete_variables},
+        "delete_async_task",
+    )
+    assert error is None, f"Delete Async Task failed: {error}"
+    assert (
+        result.get("data", {}).get("deleteAsyncTask", {}).get("ok")
+    ), "Delete Async Task failed - ok flag missing/false"
 
 
 @pytest.mark.integration
@@ -653,21 +667,23 @@ def test_element_lifecycle_flow(
     assert error is None, f"Get Element failed: {error}"
     assert result.get("data", {}).get("element"), "Element not found after insertion"
 
+    if not os.getenv("full_lifecycle_flow", False):
+        return
     # 3. Delete
-    # delete_query = Utility.generate_graphql_operation(
-    #     "deleteElement", "Mutation", schema
-    # )
-    # delete_variables = {"elementUuid": element_uuid}
-    # result, error = call_method(
-    #     ai_agent_core_engine,
-    #     "ai_agent_core_graphql",
-    #     {"query": delete_query, "variables": delete_variables},
-    #     "delete_element",
-    # )
-    # assert error is None, f"Delete Element failed: {error}"
-    # assert (
-    #     result.get("data", {}).get("deleteElement", {}).get("ok")
-    # ), "Delete Element failed - ok flag missing/false"
+    delete_query = Utility.generate_graphql_operation(
+        "deleteElement", "Mutation", schema
+    )
+    delete_variables = {"elementUuid": element_uuid}
+    result, error = call_method(
+        ai_agent_core_engine,
+        "ai_agent_core_graphql",
+        {"query": delete_query, "variables": delete_variables},
+        "delete_element",
+    )
+    assert error is None, f"Delete Element failed: {error}"
+    assert (
+        result.get("data", {}).get("deleteElement", {}).get("ok")
+    ), "Delete Element failed - ok flag missing/false"
 
 
 @pytest.mark.integration
@@ -707,6 +723,8 @@ def test_wizard_lifecycle_flow(
     assert error is None, f"Get Wizard failed: {error}"
     assert result.get("data", {}).get("wizard"), "Wizard not found after insertion"
 
+    if not os.getenv("full_lifecycle_flow", False):
+        return
     # 3. Delete
     delete_query = Utility.generate_graphql_operation(
         "deleteWizard", "Mutation", schema
@@ -772,24 +790,26 @@ def test_wizard_schema_lifecycle_flow(
         "wizardSchema"
     ), "Wizard Schema not found after insertion"
 
+    if not os.getenv("full_lifecycle_flow", False):
+        return
     # 3. Delete
-    # delete_query = Utility.generate_graphql_operation(
-    #     "deleteWizardSchema", "Mutation", schema
-    # )
-    # delete_variables = {
-    #     "wizardSchemaType": schema_type,
-    #     "wizardSchemaName": schema_name,
-    # }
-    # result, error = call_method(
-    #     ai_agent_core_engine,
-    #     "ai_agent_core_graphql",
-    #     {"query": delete_query, "variables": delete_variables},
-    #     "delete_wizard_schema",
-    # )
-    # assert error is None, f"Delete Wizard Schema failed: {error}"
-    # assert (
-    #     result.get("data", {}).get("deleteWizardSchema", {}).get("ok")
-    # ), "Delete Wizard Schema failed - ok flag missing/false"
+    delete_query = Utility.generate_graphql_operation(
+        "deleteWizardSchema", "Mutation", schema
+    )
+    delete_variables = {
+        "wizardSchemaType": schema_type,
+        "wizardSchemaName": schema_name,
+    }
+    result, error = call_method(
+        ai_agent_core_engine,
+        "ai_agent_core_graphql",
+        {"query": delete_query, "variables": delete_variables},
+        "delete_wizard_schema",
+    )
+    assert error is None, f"Delete Wizard Schema failed: {error}"
+    assert (
+        result.get("data", {}).get("deleteWizardSchema", {}).get("ok")
+    ), "Delete Wizard Schema failed - ok flag missing/false"
 
 
 @pytest.mark.integration
@@ -833,21 +853,23 @@ def test_wizard_group_lifecycle_flow(
         "wizardGroup"
     ), "Wizard Group not found after insertion"
 
+    if not os.getenv("full_lifecycle_flow", False):
+        return
     # 3. Delete
-    # delete_query = Utility.generate_graphql_operation(
-    #     "deleteWizardGroup", "Mutation", schema
-    # )
-    # delete_variables = {"wizardGroupUuid": group_uuid}
-    # result, error = call_method(
-    #     ai_agent_core_engine,
-    #     "ai_agent_core_graphql",
-    #     {"query": delete_query, "variables": delete_variables},
-    #     "delete_wizard_group",
-    # )
-    # assert error is None, f"Delete Wizard Group failed: {error}"
-    # assert (
-    #     result.get("data", {}).get("deleteWizardGroup", {}).get("ok")
-    # ), "Delete Wizard Group failed - ok flag missing/false"
+    delete_query = Utility.generate_graphql_operation(
+        "deleteWizardGroup", "Mutation", schema
+    )
+    delete_variables = {"wizardGroupUuid": group_uuid}
+    result, error = call_method(
+        ai_agent_core_engine,
+        "ai_agent_core_graphql",
+        {"query": delete_query, "variables": delete_variables},
+        "delete_wizard_group",
+    )
+    assert error is None, f"Delete Wizard Group failed: {error}"
+    assert (
+        result.get("data", {}).get("deleteWizardGroup", {}).get("ok")
+    ), "Delete Wizard Group failed - ok flag missing/false"
 
 
 @pytest.mark.integration
@@ -895,21 +917,23 @@ def test_wizard_group_filter_lifecycle_flow(
         "wizardGroupFilter"
     ), "Wizard Group Filter not found after insertion"
 
+    if not os.getenv("full_lifecycle_flow", False):
+        return
     # 3. Delete
-    # delete_query = Utility.generate_graphql_operation(
-    #     "deleteWizardGroupFilter", "Mutation", schema
-    # )
-    # delete_variables = {"wizardGroupFilterUuid": filter_uuid}
-    # result, error = call_method(
-    #     ai_agent_core_engine,
-    #     "ai_agent_core_graphql",
-    #     {"query": delete_query, "variables": delete_variables},
-    #     "delete_wizard_group_filter",
-    # )
-    # assert error is None, f"Delete Wizard Group Filter failed: {error}"
-    # assert (
-    #     result.get("data", {}).get("deleteWizardGroupFilter", {}).get("ok")
-    # ), "Delete Wizard Group Filter failed - ok flag missing/false"
+    delete_query = Utility.generate_graphql_operation(
+        "deleteWizardGroupFilter", "Mutation", schema
+    )
+    delete_variables = {"wizardGroupFilterUuid": filter_uuid}
+    result, error = call_method(
+        ai_agent_core_engine,
+        "ai_agent_core_graphql",
+        {"query": delete_query, "variables": delete_variables},
+        "delete_wizard_group_filter",
+    )
+    assert error is None, f"Delete Wizard Group Filter failed: {error}"
+    assert (
+        result.get("data", {}).get("deleteWizardGroupFilter", {}).get("ok")
+    ), "Delete Wizard Group Filter failed - ok flag missing/false"
 
 
 @pytest.mark.integration
@@ -958,24 +982,26 @@ def test_ui_component_lifecycle_flow(
         "uiComponent"
     ), "UI Component not found after insertion"
 
+    if not os.getenv("full_lifecycle_flow", False):
+        return
     # 3. Delete
-    # delete_query = Utility.generate_graphql_operation(
-    #     "deleteUiComponent", "Mutation", schema
-    # )
-    # delete_variables = {
-    #     "uiComponentType": ui_comp_type,
-    #     "uiComponentUuid": ui_comp_uuid,
-    # }
-    # result, error = call_method(
-    #     ai_agent_core_engine,
-    #     "ai_agent_core_graphql",
-    #     {"query": delete_query, "variables": delete_variables},
-    #     "delete_ui_component",
-    # )
-    # assert error is None, f"Delete UI Component failed: {error}"
-    # assert (
-    #     result.get("data", {}).get("deleteUiComponent", {}).get("ok")
-    # ), "Delete UI Component failed - ok flag missing/false"
+    delete_query = Utility.generate_graphql_operation(
+        "deleteUiComponent", "Mutation", schema
+    )
+    delete_variables = {
+        "uiComponentType": ui_comp_type,
+        "uiComponentUuid": ui_comp_uuid,
+    }
+    result, error = call_method(
+        ai_agent_core_engine,
+        "ai_agent_core_graphql",
+        {"query": delete_query, "variables": delete_variables},
+        "delete_ui_component",
+    )
+    assert error is None, f"Delete UI Component failed: {error}"
+    assert (
+        result.get("data", {}).get("deleteUiComponent", {}).get("ok")
+    ), "Delete UI Component failed - ok flag missing/false"
 
 
 @pytest.mark.integration
@@ -1019,21 +1045,23 @@ def test_mcp_server_lifecycle_flow(
         "mcpServer"
     ), "MCP Server not found after insertion"
 
+    if not os.getenv("full_lifecycle_flow", False):
+        return
     # 3. Delete
-    # delete_query = Utility.generate_graphql_operation(
-    #     "deleteMcpServer", "Mutation", schema
-    # )
-    # delete_variables = {"mcpServerUuid": mcp_uuid}
-    # result, error = call_method(
-    #     ai_agent_core_engine,
-    #     "ai_agent_core_graphql",
-    #     {"query": delete_query, "variables": delete_variables},
-    #     "delete_mcp_server",
-    # )
-    # assert error is None, f"Delete MCP Server failed: {error}"
-    # assert (
-    #     result.get("data", {}).get("deleteMcpServer", {}).get("ok")
-    # ), "Delete MCP Server failed - ok flag missing/false"
+    delete_query = Utility.generate_graphql_operation(
+        "deleteMcpServer", "Mutation", schema
+    )
+    delete_variables = {"mcpServerUuid": mcp_uuid}
+    result, error = call_method(
+        ai_agent_core_engine,
+        "ai_agent_core_graphql",
+        {"query": delete_query, "variables": delete_variables},
+        "delete_mcp_server",
+    )
+    assert error is None, f"Delete MCP Server failed: {error}"
+    assert (
+        result.get("data", {}).get("deleteMcpServer", {}).get("ok")
+    ), "Delete MCP Server failed - ok flag missing/false"
 
 
 @pytest.mark.integration
@@ -1085,21 +1113,23 @@ def test_prompt_template_lifecycle_flow(
         "promptTemplate"
     ), "Prompt Template not found after insertion"
 
+    if not os.getenv("full_lifecycle_flow", False):
+        return
     # 3. Delete
-    # delete_query = Utility.generate_graphql_operation(
-    #     "deletePromptTemplate", "Mutation", schema
-    # )
-    # delete_variables = {"promptVersionUuid": prompt_version_uuid}
-    # result, error = call_method(
-    #     ai_agent_core_engine,
-    #     "ai_agent_core_graphql",
-    #     {"query": delete_query, "variables": delete_variables},
-    #     "delete_prompt_template",
-    # )
-    # assert error is None, f"Delete Prompt Template failed: {error}"
-    # assert (
-    #     result.get("data", {}).get("deletePromptTemplate", {}).get("ok")
-    # ), "Delete Prompt Template failed - ok flag missing/false"
+    delete_query = Utility.generate_graphql_operation(
+        "deletePromptTemplate", "Mutation", schema
+    )
+    delete_variables = {"promptVersionUuid": prompt_version_uuid}
+    result, error = call_method(
+        ai_agent_core_engine,
+        "ai_agent_core_graphql",
+        {"query": delete_query, "variables": delete_variables},
+        "delete_prompt_template",
+    )
+    assert error is None, f"Delete Prompt Template failed: {error}"
+    assert (
+        result.get("data", {}).get("deletePromptTemplate", {}).get("ok")
+    ), "Delete Prompt Template failed - ok flag missing/false"
 
 
 @pytest.mark.integration
@@ -1163,21 +1193,23 @@ def test_flow_snippet_lifecycle_flow(
     flow_list = result.get("data", {}).get("flowSnippetList", {}).get("flowSnippetList")
     assert flow_list and len(flow_list) > 0, "Flow Snippet list empty or missing"
 
+    if not os.getenv("full_lifecycle_flow", False):
+        return
     # 3. Delete
-    # delete_query = Utility.generate_graphql_operation(
-    #     "deleteFlowSnippet", "Mutation", schema
-    # )
-    # delete_variables = {"flowSnippetVersionUuid": flow_version_uuid}
-    # result, error = call_method(
-    #     ai_agent_core_engine,
-    #     "ai_agent_core_graphql",
-    #     {"query": delete_query, "variables": delete_variables},
-    #     "delete_flow_snippet",
-    # )
-    # assert error is None, f"Delete Flow Snippet failed: {error}"
-    # assert (
-    #     result.get("data", {}).get("deleteFlowSnippet", {}).get("ok")
-    # ), "Delete Flow Snippet failed - ok flag missing/false"
+    delete_query = Utility.generate_graphql_operation(
+        "deleteFlowSnippet", "Mutation", schema
+    )
+    delete_variables = {"flowSnippetVersionUuid": flow_version_uuid}
+    result, error = call_method(
+        ai_agent_core_engine,
+        "ai_agent_core_graphql",
+        {"query": delete_query, "variables": delete_variables},
+        "delete_flow_snippet",
+    )
+    assert error is None, f"Delete Flow Snippet failed: {error}"
+    assert (
+        result.get("data", {}).get("deleteFlowSnippet", {}).get("ok")
+    ), "Delete Flow Snippet failed - ok flag missing/false"
 
 
 if __name__ == "__main__":
