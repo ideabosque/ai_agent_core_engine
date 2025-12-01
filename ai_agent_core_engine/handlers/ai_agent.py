@@ -527,7 +527,7 @@ def get_presigned_aws_s3_url(
     bucket_name = info.context["setting"].get("aws_s3_bucket")
     object_key = kwargs.get("object_key")
     expiration = int(
-        info.context["setting"].get("expiration", 3600)
+        kwargs.get("expiration") or info.context["setting"].get("expiration", 3600)
     )  # Default to 1 hour
 
     # Generate the presigned URL for put_object
