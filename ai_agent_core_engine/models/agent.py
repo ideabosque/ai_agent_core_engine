@@ -106,10 +106,13 @@ def purge_cache():
                     entity_keys=entity_keys if entity_keys else None,
                     cascade_depth=3,
                 )
-                
+
                 # Also purge active_agent cache
                 from silvaengine_utility.cache import HybridCacheEngine
-                active_cache = HybridCacheEngine(Config.get_cache_name("models", "active_agent"))
+
+                active_cache = HybridCacheEngine(
+                    Config.get_cache_name("models", "active_agent")
+                )
                 active_cache.clear()
 
                 ## Original functoin.
@@ -182,14 +185,14 @@ def get_agent_type(info: ResolveInfo, agent: AgentModel) -> AgentType:
     try:
         llm = _get_llm(agent.llm_provider, agent.llm_name)
         mcp_servers = []
-        if agent.mcp_server_uuids:
-            mcp_servers = _get_mcp_servers(
-                info,
-                [
-                    {"mcp_server_uuid": mcp_server_uuid}
-                    for mcp_server_uuid in agent.mcp_server_uuids
-                ],
-            )
+
+        mcp_servers = _get_mcp_servers(
+            info,
+            [
+                {"mcp_server_uuid": mcp_server_uuid}
+                for mcp_server_uuid in agent.mcp_server_uuids
+            ],
+        )
         flow_snippet = None
         if agent.flow_snippet_version_uuid:
             flow_snippet = _get_flow_snippet(
@@ -220,6 +223,7 @@ def get_agent_type(info: ResolveInfo, agent: AgentModel) -> AgentType:
     agent.pop("flow_snippet_version_uuid", None)
     return AgentType(**Utility.json_normalize(agent))
 
+
 def get_agent_list_type(info: ResolveInfo, agent: AgentModel) -> AgentType:
     try:
         llm = {
@@ -234,7 +238,9 @@ def get_agent_list_type(info: ResolveInfo, agent: AgentModel) -> AgentType:
             ]
         flow_snippet = None
         if agent.flow_snippet_version_uuid:
-            flow_snippet = {"flow_snippet_version_uuid": agent.flow_snippet_version_uuid}
+            flow_snippet = {
+                "flow_snippet_version_uuid": agent.flow_snippet_version_uuid
+            }
     except Exception as e:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)
@@ -242,10 +248,7 @@ def get_agent_list_type(info: ResolveInfo, agent: AgentModel) -> AgentType:
     agent = agent.__dict__["attribute_values"]
     agent["llm"] = llm
     agent["mcp_servers"] = [
-        {
-            "mcp_server_uuid": mcp_server["mcp_server_uuid"]
-        }
-        for mcp_server in mcp_servers
+        {"mcp_server_uuid": mcp_server["mcp_server_uuid"]} for mcp_server in mcp_servers
     ]
 
     agent["flow_snippet"] = flow_snippet
@@ -254,6 +257,7 @@ def get_agent_list_type(info: ResolveInfo, agent: AgentModel) -> AgentType:
     agent.pop("mcp_server_uuids", None)
     agent.pop("flow_snippet_version_uuid", None)
     return AgentType(**Utility.json_normalize(agent))
+
 
 def resolve_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AgentType | None:
     if "agent_uuid" in kwargs:
@@ -429,23 +433,27 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
                         variable["name"]: variable["value"]
                         for variable in kwargs.get("variables", [])
                     }
-                    
+
                     replace_prmopt_template_variables = [
                         variable["name"]
                         for variable in prmopt_template.get("variables", [])
                         if variable["name"] in agent_variables
                     ]
-                    
+
                     has_flow_context_content = False
-                    if flow_snippet["flow_context"] is not None and flow_snippet["flow_context"] != "":
+                    if (
+                        flow_snippet["flow_context"] is not None
+                        and flow_snippet["flow_context"] != ""
+                    ):
                         if len(replace_prmopt_template_variables) > 0:
                             for variable in replace_prmopt_template_variables:
-                                flow_snippet["flow_context"] = flow_snippet["flow_context"].replace(
+                                flow_snippet["flow_context"] = flow_snippet[
+                                    "flow_context"
+                                ].replace(
                                     f"{{{variable}}}",
                                     agent_variables[variable],
                                 )
                         has_flow_context_content = True
-                            
 
                     cols["instructions"] = prmopt_template["template_context"].replace(
                         "{flow_snippet}", flow_snippet["flow_context"]
@@ -457,8 +465,8 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
                                 cols["instructions"] = cols["instructions"].replace(
                                     f"{{{variable}}}",
                                     agent_variables[variable],
-                            )
-                    
+                                )
+
                     cols["mcp_server_uuids"] = [
                         mcp_server["mcp_server_uuid"]
                         for mcp_server in prmopt_template["mcp_servers"]

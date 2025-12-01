@@ -81,9 +81,85 @@ Designed to meet the needs of mission-critical applications, our platform embrac
 
 
 ### 🧠 **Stateless Multi-LLM AI Agent Core Engine — Architecture Overview**
-![AI Agent Core Engine Architecture Diagram](/images/ai_agent_core_engine_architecture.jpg)
 
 This diagram showcases a **serverless, multi-LLM AI agent orchestration system** powered by **SilvaEngine**. It supports **real-time interactions over WebSocket**, integrates **multiple LLMs (OpenAI, Gemini, Claude)**, and executes tasks using **asynchronous Lambda functions and modular handlers**.
+
+```mermaid
+graph TB
+    subgraph "Client Layer"
+        User[User]
+    end
+
+    subgraph "API Gateway Layer"
+        APIGW[Amazon API Gateway<br/>WebSocket WSS]
+    end
+
+    subgraph "SilvaEngine Area Resource"
+        AreaLambda[AWS Lambda<br/>SilvaEngine Area Resource]
+        SQS[Amazon SQS<br/>SilvaEngineTask Queue]
+    end
+
+    subgraph "Agent Task Execution Layer"
+        AgentTask[AWS Lambda<br/>SilvaEngine Agent Task]
+    end
+
+    subgraph "AI Agent Core Engine"
+        CoreEngine[AI Agent Core Engine<br/>Stateless Orchestrator]
+        DDB[(Amazon DynamoDB<br/>Conversation Context)]
+    end
+
+    subgraph "Multi-LLM Handler Layer"
+        OpenAIHandler[OpenAI Agent Handler]
+        GeminiHandler[Gemini Agent Handler]
+        AnthropicHandler[Anthropic Agent Handler]
+    end
+
+    subgraph "External LLM Services"
+        OpenAIAPI[OpenAI Response API]
+        GeminiAPI[Google Gemini API]
+        AnthropicAPI[Anthropic Claude API]
+    end
+
+    subgraph "Response Handler"
+        AIHandler[AI Agent Handler<br/>Post-processing & Tool Calls]
+    end
+
+    User -->|WebSocket Query| APIGW
+    APIGW -->|Forward Request| AreaLambda
+    AreaLambda -->|Enqueue Message| SQS
+    SQS -->|Dequeue Task| AgentTask
+    AgentTask -->|Invoke Orchestration| CoreEngine
+    CoreEngine <-->|Read/Write Context| DDB
+    CoreEngine -->|Route to Handler| OpenAIHandler
+    CoreEngine -->|Route to Handler| GeminiHandler
+    CoreEngine -->|Route to Handler| AnthropicHandler
+    OpenAIHandler -->|API Call| OpenAIAPI
+    GeminiHandler -->|API Call| GeminiAPI
+    AnthropicHandler -->|API Call| AnthropicAPI
+    OpenAIAPI -->|Response| OpenAIHandler
+    GeminiAPI -->|Response| GeminiHandler
+    AnthropicAPI -->|Response| AnthropicHandler
+    OpenAIHandler -->|Process Response| AIHandler
+    GeminiHandler -->|Process Response| AIHandler
+    AnthropicHandler -->|Process Response| AIHandler
+    AIHandler -->|WebSocket Reply| APIGW
+    APIGW -->|Deliver Response| User
+
+    style User fill:#e1f5ff
+    style APIGW fill:#fff4e6
+    style AreaLambda fill:#ffe6f0
+    style SQS fill:#f0e6ff
+    style AgentTask fill:#ffe6f0
+    style CoreEngine fill:#e6f7ff
+    style DDB fill:#e6ffe6
+    style OpenAIHandler fill:#fff0e6
+    style GeminiHandler fill:#fff0e6
+    style AnthropicHandler fill:#fff0e6
+    style OpenAIAPI fill:#ffe6e6
+    style GeminiAPI fill:#ffe6e6
+    style AnthropicAPI fill:#ffe6e6
+    style AIHandler fill:#e6ffe6
+```
 
 ---
 
@@ -146,7 +222,84 @@ Each handler formats, sends, and processes responses independently, enabling **m
 ---
 
 ### 🔄 **AI Agent Orchestration: Sequence Flow Description**
-![AI Agent Core Engine Sequence Diagram](/images/ai_agent_core_engine_sequence_diagram.jpg)
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant ResolveAskModel
+    participant AsyncExecuteAskModel
+    participant ExecuteAskModel
+    participant OpenAIEventHandler
+    participant OpenAIAPI
+    participant FunctionCalling
+    participant AIAgentHandler
+    participant SQS
+    participant AsyncInsertUpdateToolCall
+    participant WebSocket
+
+    User->>ResolveAskModel: Send Query
+    activate ResolveAskModel
+    ResolveAskModel->>AsyncExecuteAskModel: Async Execute Ask Model
+    activate AsyncExecuteAskModel
+    AsyncExecuteAskModel->>ExecuteAskModel: Execute Ask Model
+    activate ExecuteAskModel
+
+    ExecuteAskModel->>OpenAIEventHandler: Invoke Model Handler
+    activate OpenAIEventHandler
+    OpenAIEventHandler->>OpenAIAPI: API Call with Messages
+    activate OpenAIAPI
+    OpenAIAPI-->>OpenAIEventHandler: Response (may include tool_calls)
+    deactivate OpenAIAPI
+
+    alt Function Call Required
+        OpenAIEventHandler->>FunctionCalling: Execute Tool Call
+        activate FunctionCalling
+        FunctionCalling->>AIAgentHandler: Update Status: Initial
+        activate AIAgentHandler
+        AIAgentHandler->>SQS: Queue Update
+        activate SQS
+        SQS->>AsyncInsertUpdateToolCall: Async Update Tool Call
+        activate AsyncInsertUpdateToolCall
+        AsyncInsertUpdateToolCall-->>AIAgentHandler: Status: Initial
+        deactivate AsyncInsertUpdateToolCall
+        deactivate SQS
+        deactivate AIAgentHandler
+
+        FunctionCalling->>AIAgentHandler: Update Status: In Progress
+        activate AIAgentHandler
+        AIAgentHandler->>SQS: Queue Update
+        activate SQS
+        SQS->>AsyncInsertUpdateToolCall: Async Update Tool Call
+        activate AsyncInsertUpdateToolCall
+        AsyncInsertUpdateToolCall-->>AIAgentHandler: Status: In Progress
+        deactivate AsyncInsertUpdateToolCall
+        deactivate SQS
+        deactivate AIAgentHandler
+
+        FunctionCalling->>AIAgentHandler: Update Status: Completed
+        activate AIAgentHandler
+        AIAgentHandler->>SQS: Queue Update
+        activate SQS
+        SQS->>AsyncInsertUpdateToolCall: Async Update Tool Call
+        activate AsyncInsertUpdateToolCall
+        AsyncInsertUpdateToolCall-->>AIAgentHandler: Status: Completed
+        deactivate AsyncInsertUpdateToolCall
+        deactivate SQS
+        deactivate AIAgentHandler
+        FunctionCalling-->>OpenAIEventHandler: Tool Result
+        deactivate FunctionCalling
+    end
+
+    OpenAIEventHandler-->>ExecuteAskModel: Final Response
+    deactivate OpenAIEventHandler
+    ExecuteAskModel-->>AsyncExecuteAskModel: Processing Complete
+    deactivate ExecuteAskModel
+    AsyncExecuteAskModel->>WebSocket: Send Data to WebSocket
+    deactivate AsyncExecuteAskModel
+    deactivate ResolveAskModel
+
+    WebSocket-->>User: Deliver Response
+```
 
 #### 🧍‍♂️ **1. User Initiates Query**
 
@@ -219,9 +372,246 @@ Each handler formats, sends, and processes responses independently, enabling **m
 ---
 
 ### 🧩 **ER Diagram Overview: Modular AI Agent Orchestration System**
-![AI Agent Core Engine ER Diagram](/images/ai_agent_core_engine_er_diagram.jpg)
 
 This ER diagram structures the system into the following core **logical domains**:
+
+```mermaid
+erDiagram
+    %% Core Conversation Flow
+    llms ||--o{ agents : "provides"
+    agents ||--o{ threads : "manages"
+    agents ||--o{ flow_snippets : "uses"
+    agents }o--o{ mcp_servers : "integrates"
+    threads ||--o{ runs : "contains"
+    runs ||--o{ messages : "includes"
+    runs ||--o{ tool_calls : "executes"
+
+    %% Configuration & Template System
+    prompt_templates ||--o{ flow_snippets : "defines"
+    prompt_templates }o--o{ mcp_servers : "references"
+    prompt_templates }o--o{ ui_components : "includes"
+
+    %% Wizard & Configuration
+    wizard_schemas ||--o{ wizards : "structures"
+    wizards }o--o{ elements : "contains"
+    wizards }o--o{ wizard_groups : "belongs_to"
+    wizard_groups ||--o{ wizard_group_filters : "filters"
+
+    %% Training & Async
+    agents ||--o{ fine_tuning_messages : "trains"
+    threads ||--o{ fine_tuning_messages : "sources"
+
+    llms {
+        string llm_provider PK
+        string llm_name PK
+        string module_name
+        string class_name
+        datetime updated_at
+        datetime created_at
+        string updated_by
+    }
+
+    agents {
+        string endpoint_id PK
+        string agent_version_uuid PK
+        string agent_uuid
+        string llm_provider FK
+        string llm_name FK
+        string flow_snippet_version_uuid FK
+        json configuration
+        json variables
+        list mcp_server_uuids
+        string status
+        datetime updated_at
+        datetime created_at
+        string updated_by
+    }
+
+    threads {
+        string endpoint_id PK
+        string thread_uuid PK
+        string agent_uuid FK
+        string user_id
+        datetime updated_at
+        datetime created_at
+        string updated_by
+    }
+
+    runs {
+        string thread_uuid PK
+        string run_uuid PK
+        string run_id
+        int completion_tokens
+        int prompt_tokens
+        int total_tokens
+        float time_spent
+        datetime updated_at
+        datetime created_at
+        string updated_by
+    }
+
+    messages {
+        string thread_uuid PK
+        string message_uuid PK
+        string run_uuid FK
+        string message_id
+        string role
+        text message
+        datetime updated_at
+        datetime created_at
+        string updated_by
+    }
+
+    tool_calls {
+        string thread_uuid PK
+        string tool_call_uuid PK
+        string run_uuid FK
+        string tool_call_id
+        string tool_type
+        string tool_name
+        json arguments
+        text content
+        string status
+        text notes
+        float time_spent
+        datetime updated_at
+        datetime created_at
+        string updated_by
+    }
+
+    async_tasks {
+        string function_name PK
+        string async_task_uuid PK
+        string endpoint_id
+        json arguments
+        text result
+        string status
+        text notes
+        float time_spent
+        list output_files
+        datetime updated_at
+        datetime created_at
+        string updated_by
+    }
+
+    fine_tuning_messages {
+        string agent_uuid PK
+        string message_uuid PK
+        string thread_uuid FK
+        datetime timestamp
+        string role
+        json tool_calls
+        float weight
+        boolean trained
+        datetime updated_at
+        datetime created_at
+        string updated_by
+    }
+
+    prompt_templates {
+        string endpoint_id PK
+        string prompt_version_uuid PK
+        string prompt_uuid
+        string prompt_type
+        text prompt_template
+        json variables
+        list mcp_servers
+        list ui_components
+        string status
+        datetime updated_at
+        datetime created_at
+        string updated_by
+    }
+
+    flow_snippets {
+        string endpoint_id PK
+        string flow_snippet_version_uuid PK
+        string flow_snippet_uuid
+        string prompt_uuid FK
+        text flow_snippet
+        json variables
+        string status
+        datetime updated_at
+        datetime created_at
+        string updated_by
+    }
+
+    mcp_servers {
+        string endpoint_id PK
+        string mcp_server_uuid PK
+        string mcp_server_name
+        string base_url
+        json headers
+        datetime updated_at
+        datetime created_at
+        string updated_by
+    }
+
+    ui_components {
+        string ui_component_type PK
+        string ui_component_uuid PK
+        string ui_component_name
+        json configuration
+        datetime updated_at
+        datetime created_at
+        string updated_by
+    }
+
+    wizards {
+        string endpoint_id PK
+        string wizard_uuid PK
+        string wizard_schema_type FK
+        string wizard_schema_name FK
+        string wizard_name
+        list wizard_attributes
+        list wizard_elements
+        datetime updated_at
+        datetime created_at
+        string updated_by
+    }
+
+    wizard_schemas {
+        string wizard_schema_type PK
+        string wizard_schema_name PK
+        list attributes
+        list attribute_groups
+        datetime updated_at
+        datetime created_at
+        string updated_by
+    }
+
+    wizard_groups {
+        string endpoint_id PK
+        string wizard_group_uuid PK
+        string wizard_group_name
+        list wizard_uuids
+        datetime updated_at
+        datetime created_at
+        string updated_by
+    }
+
+    wizard_group_filters {
+        string endpoint_id PK
+        string wizard_group_filter_uuid PK
+        string wizard_group_uuid FK
+        json criteria
+        datetime updated_at
+        datetime created_at
+        string updated_by
+    }
+
+    elements {
+        string endpoint_id PK
+        string element_uuid PK
+        string element_name
+        string data_type
+        list option_values
+        list conditions
+        datetime updated_at
+        datetime created_at
+        string updated_by
+    }
+```
 
 ---
 
@@ -319,6 +709,409 @@ This ER diagram structures the system into the following core **logical domains*
 
 ---
 
+## 📊 **Models Relationship & Architecture**
+
+This section provides a comprehensive overview of the domain models, their relationships, and architectural patterns used throughout the AI Agent Core Engine.
+
+---
+
+### 🗂️ **Model Inventory**
+
+The platform consists of **17 core models** organized into logical domains:
+
+#### **1. Core Conversation Flow Models**
+
+| Model | Table | Purpose | Key Relationships |
+|-------|-------|---------|-------------------|
+| **Agent** | `aace-agents` | Defines AI agent versions and configurations | → LLM, FlowSnippet, MCPServer |
+| **Thread** | `aace-threads` | Represents a conversation session | ← Agent, → Runs |
+| **Run** | `aace-runs` | Single execution/inference within a thread | ← Thread, → Messages, ToolCalls |
+| **Message** | `aace-messages` | Individual messages in a conversation | ← Thread, Run |
+| **ToolCall** | `aace-tool_calls` | Function/tool invocations by agents | ← Thread, Run |
+
+#### **2. Configuration & Template Models**
+
+| Model | Table | Purpose | Key Relationships |
+|-------|-------|---------|-------------------|
+| **LLM** | `aace-llms` | Language model provider definitions | ← Agents |
+| **PromptTemplate** | `aace-prompt_templates` | Versioned prompt templates | → FlowSnippets, MCPServers, UIComponents |
+| **FlowSnippet** | `aace-flow_snippets` | Versioned flow context snippets | ← PromptTemplate, ← Agents |
+| **MCPServer** | `aace-mcp_servers` | External MCP server configurations | ← Agents, PromptTemplates |
+| **UIComponent** | `aace-ui_components` | UI element definitions | ← PromptTemplates |
+
+#### **3. Wizard & Configuration Models**
+
+| Model | Table | Purpose | Key Relationships |
+|-------|-------|---------|-------------------|
+| **Wizard** | `aace-wizards` | Configuration wizards | → WizardSchema, Elements, WizardGroups |
+| **WizardSchema** | `aace-wizard_schemas` | Schema templates for wizards | ← Wizards |
+| **WizardGroup** | `aace-wizard_groups` | Groups of related wizards | → Wizards, ← WizardGroupFilters |
+| **WizardGroupFilter** | `aace-wizard_group_filters` | Filter logic for wizard groups | → WizardGroups |
+| **Element** | `aace-elements` | Configurable UI/form elements | ← Wizards |
+
+#### **4. Training & Async Models**
+
+| Model | Table | Purpose | Key Relationships |
+|-------|-------|---------|-------------------|
+| **FineTuningMessage** | `aace-fine_tuning_messages` | Messages for model fine-tuning | ← Agent, Thread |
+| **AsyncTask** | `aace-async_tasks` | Background task tracking | Independent |
+
+---
+
+### 🔗 **Relationship Patterns**
+
+#### **1. Hierarchical Conversation Flow** (Primary Workflow)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                   CONVERSATION HIERARCHY                     │
+└─────────────────────────────────────────────────────────────┘
+
+LLM (OpenAI/Gemini/Anthropic/Ollama)
+  │
+  └──> Agent (1:N) ──┐
+          │          │
+          │          └──> FlowSnippet (1:1) ──> PromptTemplate (1:1)
+          │
+          └──> Thread (1:N) ──> Run (1:N) ──┬──> Message (1:N)
+                                             └──> ToolCall (1:N)
+```
+
+**Cascade Delete Protection:**
+- Cannot delete Agent if Threads exist
+- Cannot delete Thread if Runs exist
+- Cannot delete Run if Messages or ToolCalls exist
+- Cannot delete LLM if Agents reference it
+
+**Key Fields:**
+- Agent references LLM via: `llm_provider` + `llm_name`
+- Thread references Agent via: `agent_uuid`
+- Run belongs to: `thread_uuid`
+- Message/ToolCall belong to: `thread_uuid` + `run_uuid`
+
+---
+
+#### **2. Configuration & Template System**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                  CONFIGURATION HIERARCHY                     │
+└─────────────────────────────────────────────────────────────┘
+
+PromptTemplate (versioned)
+  │
+  ├──> FlowSnippet (1:N, versioned)
+  │       └──> Agent (1:N, references via flow_snippet_version_uuid)
+  │
+  ├──> MCPServer (N:N, via mcp_servers list)
+  │       └──> Agent (N:N, via mcp_server_uuids list)
+  │
+  └──> UIComponent (N:N, via ui_components list)
+```
+
+**Reference Patterns:**
+- PromptTemplate stores: `mcp_servers[]`, `ui_components[]` as lists
+- FlowSnippet references: `prompt_uuid` (logical ID, not version)
+- Agent references: `flow_snippet_version_uuid` (specific version)
+- Agent stores: `mcp_server_uuids[]` for direct MCP access
+
+---
+
+#### **3. Wizard Configuration System**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      WIZARD SYSTEM                           │
+└─────────────────────────────────────────────────────────────┘
+
+WizardSchema (defines structure)
+  │
+  └──> Wizard (1:N) ──┬──> Element (N:N, via wizard_elements[])
+                      │
+                      └──> WizardGroup (N:N, via wizard_uuids[])
+                              │
+                              └──> WizardGroupFilter (1:N)
+```
+
+**Reference Fields:**
+- Wizard → WizardSchema: `wizard_schema_type` + `wizard_schema_name`
+- Wizard → Elements: `wizard_elements[{element_uuid, ...}]`
+- WizardGroup → Wizards: `wizard_uuids[]`
+- WizardGroupFilter → WizardGroup: `wizard_group_uuid`
+
+---
+
+### 🔄 **Versioning Pattern**
+
+Three models support **multi-version architecture**:
+
+| Model | Logical ID | Version ID | Status Field |
+|-------|------------|------------|--------------|
+| **Agent** | `agent_uuid` | `agent_version_uuid` | `status` |
+| **PromptTemplate** | `prompt_uuid` | `prompt_version_uuid` | `status` |
+| **FlowSnippet** | `flow_snippet_uuid` | `flow_snippet_version_uuid` | `status` |
+
+**Versioning Rules:**
+1. Multiple versions share the same logical ID
+2. Only ONE version can have `status="active"` at a time
+3. Creating a new version auto-inactivates the previous active version
+4. Deleting an active version promotes the most recent inactive version
+5. Agents automatically update when FlowSnippets are versioned
+
+**Example:**
+```
+agent_uuid: "abc-123"
+├─ agent_version_uuid: "v1-uuid" (status: "inactive")
+├─ agent_version_uuid: "v2-uuid" (status: "inactive")
+└─ agent_version_uuid: "v3-uuid" (status: "active")  ← Current version
+```
+
+---
+
+### 🗝️ **Primary Key Patterns**
+
+#### **Multi-Tenant Pattern** (Most Models)
+```
+Hash Key: endpoint_id (tenant isolation)
+Range Key: {entity}_uuid
+```
+**Models:** Agent, Thread, PromptTemplate, FlowSnippet, Wizard, WizardGroup, WizardGroupFilter, Element
+
+#### **Shared Resource Pattern**
+```
+Hash Key: {type}_field
+Range Key: {name}_field
+```
+**Models:**
+- LLM: `llm_provider` + `llm_name`
+- WizardSchema: `wizard_schema_type` + `wizard_schema_name`
+- UIComponent: `ui_component_type` + `ui_component_uuid`
+
+#### **Conversation Context Pattern**
+```
+Hash Key: thread_uuid (conversation scope)
+Range Key: {entity}_uuid
+```
+**Models:** Run, Message, ToolCall, FineTuningMessage
+
+#### **Function-Based Pattern**
+```
+Hash Key: function_name
+Range Key: async_task_uuid
+```
+**Models:** AsyncTask
+
+---
+
+### 📑 **Index Strategies**
+
+#### **Local Secondary Indexes (LSI)** - Query within partition
+
+| Model | Index Name | Purpose |
+|-------|------------|---------|
+| Agent | `agent_uuid-index` | Query all versions of an agent |
+| Thread | `agent_uuid-index` | Find all threads for an agent |
+| Thread | `updated_at-index` | Query threads by time |
+| Run | `updated_at-index` | Query runs by time |
+| Message | `run_uuid-index` | Find all messages in a run |
+| Message | `updated_at-index` | Query messages by time |
+| ToolCall | `run_uuid-index` | Find all tool calls in a run |
+| ToolCall | `updated_at-index` | Query tool calls by time |
+| PromptTemplate | `prompt_uuid-index` | Query all versions of a prompt |
+| PromptTemplate | `prompt_type-index` | Find prompts by type |
+| FlowSnippet | `flow_snippet_uuid-index` | Query all versions |
+| FlowSnippet | `prompt_uuid-index` | Find flows by prompt template |
+| Element | `data_type-index` | Find elements by type |
+| FineTuningMessage | `thread_uuid-index` | Find training messages by thread |
+| FineTuningMessage | `timestamp-index` | Query by time |
+
+#### **Global Secondary Index (GSI)** - Query across partitions
+
+| Model | Index Name | Purpose |
+|-------|------------|---------|
+| AsyncTask | `endpoint_id-updated_at-index` | Query tasks by tenant + time |
+
+---
+
+### 🧩 **Composite Attributes (Nested Structures)**
+
+Many models use **MapAttribute** and **ListAttribute** for flexible schemas:
+
+#### **Agent**
+```python
+configuration: MapAttribute  # LLM-specific settings
+variables: List[MapAttribute]  # [{name, value}, ...]
+```
+
+#### **PromptTemplate**
+```python
+variables: List[MapAttribute]  # Template variables
+mcp_servers: List[MapAttribute]  # Server references
+ui_components: List[MapAttribute]  # Component references
+```
+
+#### **Wizard**
+```python
+wizard_attributes: List[MapAttribute]  # [{name, value}, ...]
+wizard_elements: List[MapAttribute]  # [{element_uuid, required, ...}, ...]
+```
+
+#### **WizardSchema**
+```python
+attributes: List[MapAttribute]  # Full attribute definitions
+attribute_groups: List[MapAttribute]  # Grouping metadata
+```
+
+#### **Element**
+```python
+option_values: List[MapAttribute]  # Selectable options
+conditions: List[MapAttribute]  # Conditional rules
+```
+
+#### **AsyncTask**
+```python
+arguments: MapAttribute  # Function arguments
+output_files: List[MapAttribute]  # File metadata
+```
+
+---
+
+### 🎯 **Key Architectural Decisions**
+
+#### **1. Multi-Tenancy via `endpoint_id`**
+- Isolates data by tenant at the partition level
+- Ensures data security and access control
+- Exceptions: LLM, WizardSchema, UIComponent (shared resources)
+
+#### **2. Stateless with Context Persistence**
+- Conversation state stored in DynamoDB
+- Agents are stateless compute units
+- Context reconstructed from Thread → Run → Message/ToolCall chain
+
+#### **3. Denormalization for Performance**
+- Agent stores direct LLM references (`llm_provider`, `llm_name`)
+- Avoids joins; resolves at query time
+- Trade-off: Data duplication vs. read performance
+
+#### **4. Flexible Schemas with MapAttribute**
+- Configuration stored as JSON-like structures
+- Enables schema evolution without migrations
+- Used for: `configuration`, `variables`, `criteria`, `headers`, etc.
+
+#### **5. Cascading Cache Invalidation**
+- All models implement intelligent caching
+- Cache purge cascades through relationships (depth=3)
+- Example: Agent update → Thread cache → Run cache → Message cache
+
+#### **6. Soft Deletes via Status**
+- Versioned entities use `status="active"/"inactive"`
+- Preserves history and audit trail
+- Enables rollback capabilities
+
+#### **7. Dynamic Tool Resolution**
+- MCPServer doesn't store tools in DB
+- Tools fetched dynamically via HTTP at runtime
+- Ensures tools are always current
+
+---
+
+### 📈 **Data Flow Example**
+
+```
+User Query
+   │
+   ├──> 1. Lookup Agent (by agent_uuid)
+   │      ├──> Resolve LLM (via llm_provider + llm_name)
+   │      ├──> Resolve FlowSnippet (via flow_snippet_version_uuid)
+   │      │      └──> Resolve PromptTemplate (via prompt_uuid)
+   │      └──> Resolve MCPServers (via mcp_server_uuids[])
+   │
+   ├──> 2. Find/Create Thread (by endpoint_id + agent_uuid)
+   │
+   ├──> 3. Create Run (in thread_uuid)
+   │
+   ├──> 4. Store Messages (in thread_uuid + run_uuid)
+   │      └──> role: "user" | "assistant" | "system" | "tool"
+   │
+   ├──> 5. Execute ToolCalls (if LLM requests function calls)
+   │      └──> Store in thread_uuid + run_uuid
+   │      └──> Update status: "initial" → "completed"
+   │
+   └──> 6. Track Tokens & Time (in Run model)
+          └──> completion_tokens, prompt_tokens, time_spent
+```
+
+---
+
+### 🔍 **Query Patterns**
+
+#### **Get Active Agent Version**
+```python
+# Using agent_uuid-index LSI
+Agent.query(
+    endpoint_id,
+    Agent.agent_uuid == "abc-123",
+    Agent.status == "active"
+)
+```
+
+#### **Get All Threads for Agent**
+```python
+# Using agent_uuid-index LSI
+Thread.query(
+    endpoint_id,
+    Thread.agent_uuid == "abc-123"
+)
+```
+
+#### **Get All Messages in a Run**
+```python
+# Using run_uuid-index LSI
+Message.query(
+    thread_uuid,
+    Message.run_uuid == "run-456"
+)
+```
+
+#### **Get Recent Tool Calls**
+```python
+# Using updated_at-index LSI
+ToolCall.query(
+    thread_uuid,
+    scan_index_forward=False,  # Descending order
+    limit=10
+)
+```
+
+#### **Find Async Tasks by Tenant**
+```python
+# Using endpoint_id-updated_at-index GSI
+AsyncTask.endpoint_id_updated_at_index.query(
+    endpoint_id,
+    scan_index_forward=False
+)
+```
+
+---
+
+### 📚 **Audit & Compliance**
+
+All models include standard audit fields:
+
+```python
+updated_by: str  # User/system identifier
+created_at: datetime  # Creation timestamp (UTC)
+updated_at: datetime  # Last modification timestamp (UTC)
+```
+
+These enable:
+- Complete audit trails
+- Compliance reporting
+- Debugging and troubleshooting
+- Data lineage tracking
+
+---
+
 Certainly! Here's a rephrased and enhanced version:
 
 ---
@@ -328,9 +1121,95 @@ Certainly! Here's a rephrased and enhanced version:
 To successfully deploy and configure the AI Agent, please follow the detailed instructions provided in the [AI Agent Deployment Guide](https://github.com/ideabosque/ai_agent_deployment). This resource includes step-by-step guidance to ensure a smooth and efficient setup process.
 
 ## 🤖 **Agent Definition & Configuration (Event Handler Layer)**
-![AI Agent Event Handler Class Diagram](/images/ai_agent_event_handler_class_diagram.jpg)
 
 This section defines the architecture for how agents are implemented, extended, and executed using a modular, class-based event handling system. It enables **runtime polymorphism** across different language model providers such as OpenAI, Gemini, Anthropic, and Ollama.
+
+```mermaid
+classDiagram
+    class AIAgentEventHandler {
+        <<abstract>>
+        +str endpoint_id
+        +str agent_name
+        +str agent_description
+        +dict short_term_memory
+        +dict settings_dict
+        +dict accumulated_json
+        +invoke_async_func(function_name, arguments)
+        +send_data_to_stream(data, connection_id)
+        +get_function(function_name)
+        +accumulate_partial_json(chunk)
+        +invoke_model()* abstract
+    }
+
+    class OpenAIEventHandler {
+        +OpenAI client
+        +dict model_settings
+        +invoke_model(messages, tools, stream)
+        -handle_streaming()
+        -parse_tool_calls()
+        -track_tokens()
+    }
+
+    class GeminiEventHandler {
+        +genai.Client client
+        +dict model_settings
+        +list assistant_messages
+        +invoke_model(prompt, tools, stream)
+        -handle_gemini_events()
+        -format_response()
+    }
+
+    class AnthropicEventHandler {
+        +anthropic.Anthropic client
+        +dict model_settings
+        +list assistant_messages
+        +invoke_model(messages, tools, stream)
+        -handle_claude_streaming()
+        -process_function_returns()
+    }
+
+    class OllamaEventHandler {
+        +str system_message
+        +dict model_settings
+        +list tools
+        +invoke_model(messages, tools)
+        -handle_local_model()
+        -parse_tool_call()
+    }
+
+    AIAgentEventHandler <|-- OpenAIEventHandler : extends
+    AIAgentEventHandler <|-- GeminiEventHandler : extends
+    AIAgentEventHandler <|-- AnthropicEventHandler : extends
+    AIAgentEventHandler <|-- OllamaEventHandler : extends
+
+    class AgentModel {
+        +str agent_uuid
+        +str llm_provider
+        +str llm_name
+        +dict configuration
+        +list mcp_server_uuids
+    }
+
+    class LlmModel {
+        +str llm_provider
+        +str llm_name
+        +str module_name
+        +str class_name
+    }
+
+    AgentModel --> LlmModel : references
+    AgentModel ..> AIAgentEventHandler : instantiates via reflection
+
+    note for AIAgentEventHandler "Base handler provides common\nutilities for all LLM providers:\n- Async function invocation\n- WebSocket streaming\n- JSON accumulation\n- Dynamic function loading"
+
+    note for OpenAIEventHandler "Supports:\n- GPT-3.5, GPT-4, GPT-4o\n- File uploads\n- Function calling\n- Streaming responses"
+
+    note for GeminiEventHandler "Supports:\n- Gemini Pro, Ultra\n- Event streaming\n- Tool calling\n- Multi-turn conversation"
+
+    note for AnthropicEventHandler "Supports:\n- Claude 3 (Opus, Sonnet, Haiku)\n- Message threading\n- Tool use\n- Streaming completions"
+
+    note for OllamaEventHandler "Supports:\n- LLaMA, Mistral, etc.\n- Local model hosting\n- Embedded runtime\n- Tool calling"
+```
 
 ---
 

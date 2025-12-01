@@ -33,6 +33,16 @@ def insert_update_wizard_group_with_wizards(info: ResolveInfo, **kwargs: Dict[st
         wizard_group_data["wizard_group_uuid"] = wizard_group_uuid
     wizards = kwargs.get("wizards", [])
     wizard_uuids = insert_update_wizards(info, wizards, endpoint_id, updated_by)
+    if wizard_group_uuid is not None:
+        try:
+            wizard_group = get_wizard_group(endpoint_id, wizard_group_uuid)
+            wizard_group_wizard_uuids = wizard_group.wizard_uuids
+            delete_wizard_uuids = [uuid for uuid in wizard_group_wizard_uuids if uuid not in wizard_uuids]
+            if len(delete_wizard_uuids) > 0:
+                for wizard_uuid in delete_wizard_uuids:
+                    delete_wizard(info, **{"endpoint_id": endpoint_id, "wizard_uuid": wizard_uuid})
+        except Exception as e:
+            wizard_group_wizard_uuids = []
     wizard_group_data["wizard_uuids"] = wizard_uuids
     return insert_update_wizard_group(info, **wizard_group_data)
 
@@ -108,7 +118,7 @@ def insert_update_wizard_elements(info: ResolveInfo, wizard_elements: Dict[str, 
                 "priority": element.get("priority"),
                 "attribute_name": element.get("attribute_name"),
                 "attribute_type": element.get("attribute_type"),
-                "option_vlaues": element.get("option_vlaues", []),
+                "option_values": element.get("option_values", []),
                 "pattern": element.get("pattern"),
                 "conditions": element.get("conditions", []),
                 "updated_by": updated_by,
