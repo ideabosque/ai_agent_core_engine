@@ -10,12 +10,10 @@ from typing import Any, Dict, List
 
 import pendulum
 from graphene import ResolveInfo
-
 from silvaengine_utility import Utility
 
 from ..models.agent import resolve_agent
 from ..models.async_task import insert_update_async_task
-from ..models.llm import get_llm
 from ..models.message import insert_update_message
 from ..models.run import insert_update_run
 from ..models.thread import insert_thread, resolve_thread, resolve_thread_list
@@ -154,9 +152,14 @@ def _get_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType:
 
 
 def _get_agent(info: ResolveInfo, agent_uuid: str):
+    from ..models.batch_loaders import get_loaders
+
     agent = resolve_agent(info, **{"agent_uuid": agent_uuid})
-    llm = get_llm(agent.llm_provider, agent.llm_name)
-    agent.llm = Utility.json_normalize(llm.__dict__["attribute_values"])
+
+    # Use the DataLoader to fetch LLM data (triggers nested resolver)
+    loaders = get_loaders(info.context)
+    llm_dict = loaders.llm_loader.load((agent.llm_provider, agent.llm_name)).get()
+    agent.llm = llm_dict
 
     from ..models.utils import _get_mcp_servers
 
