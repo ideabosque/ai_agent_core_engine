@@ -4,7 +4,6 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
-import logging
 import traceback
 import xml.dom.minidom
 import xml.etree.ElementTree as ET
@@ -31,34 +30,44 @@ except (
 ):  # Optional dependency; only needed for Claude token counting
     anthropic = None
 from graphene import ResolveInfo
+
 from silvaengine_utility import Utility
 
 from ..models.async_task import insert_update_async_task
 from ..models.message import resolve_message_list
-from ..models.run import RunModel
 from ..models.tool_call import resolve_tool_call_list
 from ..types.agent import AgentType
 from .config import Config
 
 
 def _load_runs_by_keys(
-    run_keys: set[tuple[str, str]], logger: logging.Logger
+    info: ResolveInfo, run_keys: set[tuple[str, str]]
 ) -> Dict[tuple[str, str], Dict[str, Any]]:
-    """Fetch runs in one batch keyed by (thread_uuid, run_uuid)."""
+    """Fetch runs in one batch keyed by (thread_uuid, run_uuid) using DataLoader."""
     if not run_keys:
         return {}
     try:
-        return {
-            (run.thread_uuid, run.run_uuid): {
-                "run_uuid": run.run_uuid,
-                "prompt_tokens": int(getattr(run, "prompt_tokens", 0) or 0),
-                "completion_tokens": int(getattr(run, "completion_tokens", 0) or 0),
-                "total_tokens": int(getattr(run, "total_tokens", 0) or 0),
-            }
-            for run in RunModel.batch_get(run_keys)
-        }
+        from ..models.batch_loaders import get_loaders
+
+        loaders = get_loaders(info.context)
+        run_loader = loaders.run_loader
+
+        # Load all runs using the DataLoader (handles batching and caching)
+        runs = run_loader.load_many(list(run_keys)).get()
+
+        # Build the result map
+        result = {}
+        for key, run in zip(run_keys, runs):
+            if run is not None:
+                result[key] = {
+                    "run_uuid": run.get("run_uuid"),
+                    "prompt_tokens": int(run.get("prompt_tokens", 0) or 0),
+                    "completion_tokens": int(run.get("completion_tokens", 0) or 0),
+                    "total_tokens": int(run.get("total_tokens", 0) or 0),
+                }
+        return result
     except Exception:
-        logger.error(traceback.format_exc())
+        info.context["logger"].error(traceback.format_exc())
         return {}
 
 
@@ -192,7 +201,7 @@ def combine_thread_messages(
         for message in message_list.message_list
         if getattr(message, "run_uuid", None)
     }
-    run_map = _load_runs_by_keys(run_keys, info.context["logger"])
+    run_map = _load_runs_by_keys(info, run_keys)
 
     # Combine messages from both message_list and tool_call_list
     seen_contents = set()
