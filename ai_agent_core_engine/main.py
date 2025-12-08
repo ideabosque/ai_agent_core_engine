@@ -9,7 +9,7 @@ from typing import Any, Dict, List
 
 from graphene import Schema
 
-from silvaengine_dynamodb_base import SilvaEngineDynamoDBBase
+from silvaengine_utility import Graphql
 from silvaengine_utility import Utility
 
 from .handlers import at_agent_listener
@@ -204,9 +204,9 @@ def deploy() -> List:
     ]
 
 
-class AIAgentCoreEngine(SilvaEngineDynamoDBBase):
+class AIAgentCoreEngine(Graphql):
     def __init__(self, logger: logging.Logger, **setting: Dict[str, Any]) -> None:
-        SilvaEngineDynamoDBBase.__init__(self, logger, **setting)
+        Graphql.__init__(self, logger, **setting)
 
         # Initialize configuration via the Config class
         Config.initialize(logger, **setting)
@@ -277,4 +277,4 @@ class AIAgentCoreEngine(SilvaEngineDynamoDBBase):
             mutation=Mutations,
             types=type_class(),
         )
-        return self.graphql_execute(schema, **params)
+        return self.execute(schema, **params)
