@@ -127,7 +127,14 @@ def ai_agent_core_engine():
         logger.info("AIAgentCoreEngine initialized successfully")
         return engine
     except Exception as ex:
-        logger.warning(f"AIAgentCoreEngine initialization failed: {ex}")
+        import traceback
+        import sys
+        error_file = r"c:\Users\bibo7\gitrepo\silvaengine\ai_agent_core_engine\error.log"
+        with open(error_file, "w") as f:
+            traceback.print_exc(file=f)
+        sys.stderr.write("Exception in fixture:\n")
+        traceback.print_exc(file=sys.stderr)
+        logger.exception(f"AIAgentCoreEngine initialization failed: {ex}")
         pytest.skip(f"AIAgentCoreEngine not available: {ex}")
 
 

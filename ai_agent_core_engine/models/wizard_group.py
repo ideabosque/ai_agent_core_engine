@@ -18,8 +18,6 @@ from pynamodb.attributes import (
     UTCDateTimeAttribute,
 )
 from pynamodb.indexes import AllProjection, LocalSecondaryIndex
-from tenacity import retry, stop_after_attempt, wait_exponential
-
 from silvaengine_dynamodb_base import (
     BaseModel,
     delete_decorator,
@@ -28,6 +26,7 @@ from silvaengine_dynamodb_base import (
     resolve_list_decorator,
 )
 from silvaengine_utility import Utility, method_cache
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
 from ..types.wizard_group import WizardGroupListType, WizardGroupType
@@ -44,7 +43,7 @@ class UpdatedAtIndex(LocalSecondaryIndex):
         projection = AllProjection()
         index_name = "updated_at-index"
 
-    endpoint_id = UnicodeAttribute(hash_key=True)
+    partition_key = UnicodeAttribute(hash_key=True)
     updated_at = UnicodeAttribute(range_key=True)
 
 
@@ -52,8 +51,10 @@ class WizardGroupModel(BaseModel):
     class Meta(BaseModel.Meta):
         table_name = "aace-wizard_groups"
 
-    endpoint_id = UnicodeAttribute(hash_key=True)
+    partition_key = UnicodeAttribute(hash_key=True)
     wizard_group_uuid = UnicodeAttribute(range_key=True)
+    endpoint_id = UnicodeAttribute()
+    part_id = UnicodeAttribute()
     wizard_group_name = UnicodeAttribute()
     wizard_group_description = UnicodeAttribute(null=True)
     weight = NumberAttribute(default=0)
@@ -77,8 +78,8 @@ def purge_cache():
                 except Exception as e:
                     wizard_group = None
 
-                endpoint_id = args[0].context.get("endpoint_id") or kwargs.get(
-                    "endpoint_id"
+                partition_key = args[0].context.get("partition_key") or kwargs.get(
+                    "partition_key"
                 )
                 entity_keys = {}
                 if kwargs.get("wizard_group_uuid"):
@@ -91,7 +92,9 @@ def purge_cache():
                 result = purge_entity_cascading_cache(
                     args[0].context.get("logger"),
                     entity_type="wizard_group",
-                    context_keys={"endpoint_id": endpoint_id} if endpoint_id else None,
+                    context_keys=(
+                        {"partition_key": partition_key} if partition_key else None
+                    ),
                     entity_keys=entity_keys if entity_keys else None,
                     cascade_depth=3,
                 )
@@ -128,8 +131,8 @@ def create_wizard_group_table(logger: logging.Logger) -> bool:
     ttl=Config.get_cache_ttl(),
     cache_name=Config.get_cache_name("models", "wizard_group"),
 )
-def get_wizard_group(endpoint_id: str, wizard_group_uuid: str) -> WizardGroupModel:
-    return WizardGroupModel.get(endpoint_id, wizard_group_uuid)
+def get_wizard_group(partition_key: str, wizard_group_uuid: str) -> WizardGroupModel:
+    return WizardGroupModel.get(partition_key, wizard_group_uuid)
 
 
 @retry(
@@ -137,12 +140,13 @@ def get_wizard_group(endpoint_id: str, wizard_group_uuid: str) -> WizardGroupMod
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
 )
-def _get_wizard_group(endpoint_id: str, wizard_group_uuid: str) -> WizardGroupModel:
-    return WizardGroupModel.get(endpoint_id, wizard_group_uuid)
+def _get_wizard_group(partition_key: str, wizard_group_uuid: str) -> WizardGroupModel:
+    return WizardGroupModel.get(partition_key, wizard_group_uuid)
 
-def get_wizard_group_count(endpoint_id: str, wizard_group_uuid: str) -> int:
+
+def get_wizard_group_count(partition_key: str, wizard_group_uuid: str) -> int:
     return WizardGroupModel.count(
-        endpoint_id, WizardGroupModel.wizard_group_uuid == wizard_group_uuid
+        partition_key, WizardGroupModel.wizard_group_uuid == wizard_group_uuid
     )
 
 
@@ -163,6 +167,7 @@ def get_wizard_group_type(
         info.context.get("logger").exception(log)
         raise e
 
+
 def get_wizard_group_list_type(
     info: ResolveInfo, wizard_group: WizardGroupModel
 ) -> WizardGroupType:
@@ -179,29 +184,31 @@ def get_wizard_group_list_type(
         info.context.get("logger").exception(log)
         raise e
 
+
 def resolve_wizard_group(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> WizardGroupType | None:
     count = get_wizard_group_count(
-        info.context["endpoint_id"], kwargs["wizard_group_uuid"]
+        info.context["partition_key"], kwargs["wizard_group_uuid"]
     )
     if count == 0:
         return None
 
     return get_wizard_group_type(
-        info, get_wizard_group(info.context["endpoint_id"], kwargs["wizard_group_uuid"])
+        info,
+        get_wizard_group(info.context["partition_key"], kwargs["wizard_group_uuid"]),
     )
 
 
 @monitor_decorator
 @resolve_list_decorator(
-    attributes_to_get=["endpoint_id", "wizard_group_uuid", "updated_at"],
+    attributes_to_get=["partition_key", "wizard_group_uuid", "updated_at"],
     list_type_class=WizardGroupListType,
     type_funct=get_wizard_group_list_type,
     scan_index_forward=False,
 )
 def resolve_wizard_group_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
-    endpoint_id = info.context["endpoint_id"]
+    partition_key = info.context["partition_key"]
     wizard_group_name = kwargs.get("wizard_group_name")
     updated_at_gt = kwargs.get("updated_at_gt")
     updated_at_lt = kwargs.get("updated_at_lt")
@@ -210,7 +217,7 @@ def resolve_wizard_group_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> An
     inquiry_funct = WizardGroupModel.scan
     count_funct = WizardGroupModel.count
     range_key_condition = None
-    if endpoint_id:
+    if partition_key:
         # Build range key condition for updated_at when using updated_at_index
         if updated_at_gt is not None and updated_at_lt is not None:
             range_key_condition = WizardGroupModel.updated_at.between(
@@ -221,7 +228,7 @@ def resolve_wizard_group_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> An
         elif updated_at_lt is not None:
             range_key_condition = WizardGroupModel.updated_at < updated_at_lt
 
-        args = [endpoint_id, range_key_condition]
+        args = [partition_key, range_key_condition]
         inquiry_funct = WizardGroupModel.updated_at_index.query
         count_funct = WizardGroupModel.updated_at_index.count
 
@@ -246,7 +253,7 @@ def resolve_wizard_group_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> An
 )
 def insert_update_wizard_group(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
 
-    endpoint_id = kwargs.get("endpoint_id")
+    partition_key = kwargs.get("partition_key")
     wizard_group_uuid = kwargs.get("wizard_group_uuid")
 
     if kwargs.get("entity") is None:
@@ -259,8 +266,10 @@ def insert_update_wizard_group(info: ResolveInfo, **kwargs: Dict[str, Any]) -> A
             "created_at": pendulum.now("UTC"),
             "updated_at": pendulum.now("UTC"),
         }
+        cols["endpoint_id"] = info.context.get("endpoint_id")
+        cols["part_id"] = info.context.get("part_id")
         WizardGroupModel(
-            endpoint_id,
+            partition_key,
             wizard_group_uuid,
             **cols,
         ).save()
@@ -291,7 +300,7 @@ def insert_update_wizard_group(info: ResolveInfo, **kwargs: Dict[str, Any]) -> A
 @purge_cache()
 @delete_decorator(
     keys={
-        "hash_key": "endpoint_id",
+        "hash_key": "partition_key",
         "range_key": "wizard_group_uuid",
     },
     model_funct=get_wizard_group,

@@ -283,7 +283,12 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
             agent.__dict__,
             **info.context.get("setting", {}),
         )
-        ai_agent_handler.endpoint_id = endpoint_id
+        # Extract both endpoint_id and part_id from context
+        endpoint_id = info.context.get("endpoint_id")
+        part_id = info.context.get("part_id")
+
+        ai_agent_handler.endpoint_id = endpoint_id  # Platform identifier
+        ai_agent_handler.part_id = part_id          # Business partition
         ai_agent_handler.run = run.__dict__
         ai_agent_handler.connection_id = connection_id
         ai_agent_handler.task_queue = Config.task_queue
@@ -472,6 +477,7 @@ def upload_file(info: ResolveInfo, **kwargs: Dict[str, Any]) -> FileType:
         **info.context.get("setting", {}),
     )
     ai_agent_handler.endpoint_id = info.context["endpoint_id"]
+    ai_agent_handler.part_id = info.context.get("part_id")
 
     file = ai_agent_handler.insert_file(**kwargs["arguments"])
     if agent.llm["llm_name"] == "gemini":
@@ -504,6 +510,7 @@ def get_file(info: ResolveInfo, **kwargs: Dict[str, Any]) -> FileType:
         **info.context.get("setting", {}),
     )
     ai_agent_handler.endpoint_id = info.context["endpoint_id"]
+    ai_agent_handler.part_id = info.context.get("part_id")
 
     file = ai_agent_handler.get_file(**kwargs["arguments"])
 
@@ -535,6 +542,7 @@ def get_output_file(info: ResolveInfo, **kwargs: Dict[str, Any]) -> FileType:
         **info.context.get("setting", {}),
     )
     ai_agent_handler.endpoint_id = info.context["endpoint_id"]
+    ai_agent_handler.part_id = info.context.get("part_id")
 
     file = ai_agent_handler.get_output_file(**kwargs["arguments"])
 

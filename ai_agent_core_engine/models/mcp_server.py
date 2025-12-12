@@ -44,7 +44,7 @@ class UpdatedAtIndex(LocalSecondaryIndex):
         projection = AllProjection()
         index_name = "updated_at-index"
 
-    endpoint_id = UnicodeAttribute(hash_key=True)
+    partition_key = UnicodeAttribute(hash_key=True)
     updated_at = UnicodeAttribute(range_key=True)
 
 
@@ -52,8 +52,10 @@ class MCPServerModel(BaseModel):
     class Meta(BaseModel.Meta):
         table_name = "aace-mcp_servers"
 
-    endpoint_id = UnicodeAttribute(hash_key=True)
+    partition_key = UnicodeAttribute(hash_key=True)
     mcp_server_uuid = UnicodeAttribute(range_key=True)
+    endpoint_id = UnicodeAttribute()
+    part_id = UnicodeAttribute()
     mcp_label = UnicodeAttribute()
     mcp_server_url = UnicodeAttribute()
     headers = MapAttribute()
@@ -71,8 +73,8 @@ def purge_cache():
                 # Use cascading cache purging for mcp servers
                 from ..models.cache import purge_entity_cascading_cache
 
-                endpoint_id = args[0].context.get("endpoint_id") or kwargs.get(
-                    "endpoint_id"
+                partition_key = args[0].context.get("partition_key") or kwargs.get(
+                    "partition_key"
                 )
                 entity_keys = {}
                 if kwargs.get("mcp_server_uuid"):
@@ -81,7 +83,9 @@ def purge_cache():
                 result = purge_entity_cascading_cache(
                     args[0].context.get("logger"),
                     entity_type="mcp_server",
-                    context_keys={"endpoint_id": endpoint_id} if endpoint_id else None,
+                    context_keys=(
+                        {"partition_key": partition_key} if partition_key else None
+                    ),
                     entity_keys=entity_keys if entity_keys else None,
                     cascade_depth=3,
                 )
@@ -125,13 +129,13 @@ def create_mcp_server_table(logger: logging.Logger) -> bool:
 @method_cache(
     ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name("models", "mcp_server")
 )
-def get_mcp_server(endpoint_id: str, mcp_server_uuid: str) -> MCPServerModel:
-    return MCPServerModel.get(endpoint_id, mcp_server_uuid)
+def get_mcp_server(partition_key: str, mcp_server_uuid: str) -> MCPServerModel:
+    return MCPServerModel.get(partition_key, mcp_server_uuid)
 
 
-def get_mcp_server_count(endpoint_id: str, mcp_server_uuid: str) -> int:
+def get_mcp_server_count(partition_key: str, mcp_server_uuid: str) -> int:
     return MCPServerModel.count(
-        endpoint_id, MCPServerModel.mcp_server_uuid == mcp_server_uuid
+        partition_key, MCPServerModel.mcp_server_uuid == mcp_server_uuid
     )
 
 
@@ -187,23 +191,25 @@ def get_mcp_server_type(
 def resolve_mcp_server(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> MCPServerType | None:
-    count = get_mcp_server_count(info.context["endpoint_id"], kwargs["mcp_server_uuid"])
+    count = get_mcp_server_count(
+        info.context["partition_key"], kwargs["mcp_server_uuid"]
+    )
     if count == 0:
         return None
 
     return get_mcp_server_type(
-        info, get_mcp_server(info.context["endpoint_id"], kwargs["mcp_server_uuid"])
+        info, get_mcp_server(info.context["partition_key"], kwargs["mcp_server_uuid"])
     )
 
 
 @monitor_decorator
 @resolve_list_decorator(
-    attributes_to_get=["endpoint_id", "mcp_server_uuid"],
+    attributes_to_get=["partition_key", "mcp_server_uuid"],
     list_type_class=MCPServerListType,
     type_funct=get_mcp_server_type,
 )
 def resolve_mcp_server_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
-    endpoint_id = info.context["endpoint_id"]
+    partition_key = info.context["partition_key"]
     mcp_label = kwargs.get("mcp_label")
     updated_at_gt = kwargs.get("updated_at_gt")
     updated_at_lt = kwargs.get("updated_at_lt")
@@ -212,7 +218,7 @@ def resolve_mcp_server_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     inquiry_funct = MCPServerModel.scan
     count_funct = MCPServerModel.count
     range_key_condition = None
-    if endpoint_id:
+    if partition_key:
         # Build range key condition for updated_at when using updated_at_index
         if updated_at_gt is not None and updated_at_lt is not None:
             range_key_condition = MCPServerModel.updated_at.between(
@@ -223,7 +229,7 @@ def resolve_mcp_server_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
         elif updated_at_lt is not None:
             range_key_condition = MCPServerModel.updated_at < updated_at_lt
 
-        args = [endpoint_id, range_key_condition]
+        args = [partition_key, range_key_condition]
         inquiry_funct = MCPServerModel.updated_at_index.query
         count_funct = MCPServerModel.updated_at_index.count
 
@@ -247,7 +253,7 @@ def resolve_mcp_server_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     type_funct=get_mcp_server_type,
 )
 def insert_update_mcp_server(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
-    endpoint_id = kwargs.get("endpoint_id")
+    partition_key = kwargs.get("partition_key")
     mcp_server_uuid = kwargs.get("mcp_server_uuid")
 
     if kwargs.get("entity") is None:
@@ -259,8 +265,10 @@ def insert_update_mcp_server(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any
             "created_at": pendulum.now("UTC"),
             "updated_at": pendulum.now("UTC"),
         }
+        cols["endpoint_id"] = info.context.get("endpoint_id")
+        cols["part_id"] = info.context.get("part_id")
         MCPServerModel(
-            endpoint_id,
+            partition_key,
             mcp_server_uuid,
             **cols,
         ).save()
@@ -290,7 +298,7 @@ def insert_update_mcp_server(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any
 @purge_cache()
 @delete_decorator(
     keys={
-        "hash_key": "endpoint_id",
+        "hash_key": "partition_key",
         "range_key": "mcp_server_uuid",
     },
     model_funct=get_mcp_server,

@@ -61,7 +61,7 @@ class UpdatedAtIndex(LocalSecondaryIndex):
         projection = AllProjection()
         index_name = "updated_at-index"
 
-    endpoint_id = UnicodeAttribute(hash_key=True)
+    partition_key = UnicodeAttribute(hash_key=True)
     updated_at = UnicodeAttribute(range_key=True)
 
 
@@ -69,8 +69,10 @@ class WizardModel(BaseModel):
     class Meta(BaseModel.Meta):
         table_name = "aace-wizards"
 
-    endpoint_id = UnicodeAttribute(hash_key=True)
+    partition_key = UnicodeAttribute(hash_key=True)
     wizard_uuid = UnicodeAttribute(range_key=True)
+    endpoint_id = UnicodeAttribute()
+    part_id = UnicodeAttribute()
     wizard_title = UnicodeAttribute()
     wizard_description = UnicodeAttribute(null=True)
     wizard_type = UnicodeAttribute()
@@ -98,8 +100,8 @@ def purge_cache():
                 except Exception as e:
                     wizard = None
 
-                endpoint_id = args[0].context.get("endpoint_id") or kwargs.get(
-                    "endpoint_id"
+                partition_key = args[0].context.get("partition_key") or kwargs.get(
+                    "partition_key"
                 )
                 entity_keys = {}
                 if kwargs.get("wizard_uuid"):
@@ -117,7 +119,9 @@ def purge_cache():
                 result = purge_entity_cascading_cache(
                     args[0].context.get("logger"),
                     entity_type="wizard",
-                    context_keys={"endpoint_id": endpoint_id} if endpoint_id else None,
+                    context_keys=(
+                        {"partition_key": partition_key} if partition_key else None
+                    ),
                     entity_keys=entity_keys if entity_keys else None,
                     cascade_depth=3,
                 )
@@ -153,8 +157,8 @@ def create_wizard_table(logger: logging.Logger) -> bool:
 @method_cache(
     ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name("models", "wizard")
 )
-def get_wizard(endpoint_id: str, wizard_uuid: str) -> WizardModel:
-    return WizardModel.get(endpoint_id, wizard_uuid)
+def get_wizard(partition_key: str, wizard_uuid: str) -> WizardModel:
+    return WizardModel.get(partition_key, wizard_uuid)
 
 
 @retry(
@@ -162,12 +166,12 @@ def get_wizard(endpoint_id: str, wizard_uuid: str) -> WizardModel:
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
 )
-def _get_wizard(endpoint_id: str, wizard_uuid: str) -> WizardModel:
-    return WizardModel.get(endpoint_id, wizard_uuid)
+def _get_wizard(partition_key: str, wizard_uuid: str) -> WizardModel:
+    return WizardModel.get(partition_key, wizard_uuid)
 
 
-def get_wizard_count(endpoint_id: str, wizard_uuid: str) -> int:
-    return WizardModel.count(endpoint_id, WizardModel.wizard_uuid == wizard_uuid)
+def get_wizard_count(partition_key: str, wizard_uuid: str) -> int:
+    return WizardModel.count(partition_key, WizardModel.wizard_uuid == wizard_uuid)
 
 
 def get_wizard_type(info: ResolveInfo, wizard: WizardModel) -> WizardType:
@@ -192,24 +196,24 @@ def get_wizard_type(info: ResolveInfo, wizard: WizardModel) -> WizardType:
 
 
 def resolve_wizard(info: ResolveInfo, **kwargs: Dict[str, Any]) -> WizardType | None:
-    count = get_wizard_count(info.context["endpoint_id"], kwargs["wizard_uuid"])
+    count = get_wizard_count(info.context["partition_key"], kwargs["wizard_uuid"])
     if count == 0:
         return None
 
     return get_wizard_type(
-        info, get_wizard(info.context["endpoint_id"], kwargs["wizard_uuid"])
+        info, get_wizard(info.context["partition_key"], kwargs["wizard_uuid"])
     )
 
 
 @monitor_decorator
 @resolve_list_decorator(
-    attributes_to_get=["endpoint_id", "wizard_uuid", "updated_at"],
+    attributes_to_get=["partition_key", "wizard_uuid", "updated_at"],
     list_type_class=WizardListType,
     type_funct=get_wizard_type,
     scan_index_forward=False,
 )
 def resolve_wizard_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
-    endpoint_id = info.context["endpoint_id"]
+    partition_key = info.context["partition_key"]
     wizard_type = kwargs.get("wizard_type")
     wizard_title = kwargs.get("wizard_title")
     updated_at_gt = kwargs.get("updated_at_gt")
@@ -219,7 +223,7 @@ def resolve_wizard_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     inquiry_funct = WizardModel.scan
     count_funct = WizardModel.count
     range_key_condition = None
-    if endpoint_id:
+    if partition_key:
         # Build range key condition for updated_at when using updated_at_index
         if updated_at_gt is not None and updated_at_lt is not None:
             range_key_condition = WizardModel.updated_at.between(
@@ -230,7 +234,7 @@ def resolve_wizard_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
         elif updated_at_lt is not None:
             range_key_condition = WizardModel.updated_at < updated_at_lt
 
-        args = [endpoint_id, range_key_condition]
+        args = [partition_key, range_key_condition]
         inquiry_funct = WizardModel.updated_at_index.query
         count_funct = WizardModel.updated_at_index.count
 
@@ -257,7 +261,7 @@ def resolve_wizard_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
 )
 def insert_update_wizard(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
 
-    endpoint_id = kwargs.get("endpoint_id")
+    partition_key = kwargs.get("partition_key")
     wizard_uuid = kwargs.get("wizard_uuid")
 
     if kwargs.get("entity") is None:
@@ -276,8 +280,10 @@ def insert_update_wizard(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
             "created_at": pendulum.now("UTC"),
             "updated_at": pendulum.now("UTC"),
         }
+        cols["endpoint_id"] = info.context.get("endpoint_id")
+        cols["part_id"] = info.context.get("part_id")
         WizardModel(
-            endpoint_id,
+            partition_key,
             wizard_uuid,
             **cols,
         ).save()
@@ -321,7 +327,7 @@ def insert_update_wizard(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
 @purge_cache()
 @delete_decorator(
     keys={
-        "hash_key": "endpoint_id",
+        "hash_key": "partition_key",
         "range_key": "wizard_uuid",
     },
     model_funct=get_wizard,

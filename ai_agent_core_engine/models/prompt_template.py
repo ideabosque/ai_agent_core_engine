@@ -44,7 +44,7 @@ class PromptUuidIndex(LocalSecondaryIndex):
         projection = AllProjection()
         index_name = "prompt_uuid-index"
 
-    endpoint_id = UnicodeAttribute(hash_key=True)
+    partition_key = UnicodeAttribute(hash_key=True)
     prompt_uuid = UnicodeAttribute(range_key=True)
 
 
@@ -59,7 +59,7 @@ class PromptTypeIndex(LocalSecondaryIndex):
         projection = AllProjection()
         index_name = "prompt_type-index"
 
-    endpoint_id = UnicodeAttribute(hash_key=True)
+    partition_key = UnicodeAttribute(hash_key=True)
     prompt_type = UnicodeAttribute(range_key=True)
 
 
@@ -74,7 +74,7 @@ class UpdatedAtIndex(LocalSecondaryIndex):
         projection = AllProjection()
         index_name = "updated_at-index"
 
-    endpoint_id = UnicodeAttribute(hash_key=True)
+    partition_key = UnicodeAttribute(hash_key=True)
     updated_at = UnicodeAttribute(range_key=True)
 
 
@@ -82,8 +82,10 @@ class PromptTemplateModel(BaseModel):
     class Meta(BaseModel.Meta):
         table_name = "aace-prompt_templates"
 
-    endpoint_id = UnicodeAttribute(hash_key=True)
+    partition_key = UnicodeAttribute(hash_key=True)
     prompt_version_uuid = UnicodeAttribute(range_key=True)
+    endpoint_id = UnicodeAttribute()
+    part_id = UnicodeAttribute()
     prompt_uuid = UnicodeAttribute()
     prompt_type = UnicodeAttribute()
     prompt_name = UnicodeAttribute()
@@ -114,8 +116,8 @@ def purge_cache():
                 except Exception:
                     prompt_template = None
 
-                endpoint_id = args[0].context.get("endpoint_id") or kwargs.get(
-                    "endpoint_id"
+                partition_key = args[0].context.get("partition_key") or kwargs.get(
+                    "partition_key"
                 )
                 entity_keys = {}
                 if kwargs.get("prompt_version_uuid"):
@@ -128,7 +130,9 @@ def purge_cache():
                 result = purge_entity_cascading_cache(
                     args[0].context.get("logger"),
                     entity_type="prompt_template",
-                    context_keys={"endpoint_id": endpoint_id} if endpoint_id else None,
+                    context_keys=(
+                        {"partition_key": partition_key} if partition_key else None
+                    ),
                     entity_keys=entity_keys if entity_keys else None,
                     cascade_depth=3,
                 )
@@ -174,9 +178,9 @@ def create_prompt_template_table(logger: logging.Logger) -> bool:
     cache_name=Config.get_cache_name("models", "prompt_template"),
 )
 def get_prompt_template(
-    endpoint_id: str, prompt_version_uuid: str
+    partition_key: str, prompt_version_uuid: str
 ) -> PromptTemplateModel:
-    return PromptTemplateModel.get(endpoint_id, prompt_version_uuid)
+    return PromptTemplateModel.get(partition_key, prompt_version_uuid)
 
 
 @retry(
@@ -189,11 +193,11 @@ def get_prompt_template(
     cache_name=Config.get_cache_name("models", "active_prompt_template"),
 )
 def _get_active_prompt_template(
-    endpoint_id: str, prompt_uuid: str
+    partition_key: str, prompt_uuid: str
 ) -> PromptTemplateModel | None:
     try:
         results = PromptTemplateModel.prompt_uuid_index.query(
-            endpoint_id,
+            partition_key,
             PromptTemplateModel.prompt_uuid == prompt_uuid,
             filter_condition=(PromptTemplateModel.status == "active"),
             scan_index_forward=False,
@@ -205,21 +209,15 @@ def _get_active_prompt_template(
         return None
 
 
-def get_prompt_template_count(endpoint_id: str, prompt_version_uuid: str) -> int:
+def get_prompt_template_count(partition_key: str, prompt_version_uuid: str) -> int:
     return PromptTemplateModel.count(
-        endpoint_id, PromptTemplateModel.prompt_version_uuid == prompt_version_uuid
+        partition_key, PromptTemplateModel.prompt_version_uuid == prompt_version_uuid
     )
 
 
 def get_prompt_template_type(
     info: ResolveInfo, prompt_template: PromptTemplateModel
 ) -> PromptTemplateType:
-    """
-    Nested resolver approach: return minimal prompt template data.
-    - Do NOT embed 'mcp_servers', 'ui_components'.
-    - Store the raw references as 'mcp_server_refs' and 'ui_component_refs'.
-    - These are resolved lazily by PromptTemplateType.resolve_mcp_servers, resolve_ui_components.
-    """
     try:
         prompt_dict: Dict = prompt_template.__dict__["attribute_values"]
 
@@ -241,30 +239,32 @@ def resolve_prompt_template(
         return get_prompt_template_type(
             info,
             _get_active_prompt_template(
-                info.context["endpoint_id"], kwargs["prompt_uuid"]
+                info.context["partition_key"], kwargs["prompt_uuid"]
             ),
         )
 
     count = get_prompt_template_count(
-        info.context["endpoint_id"], kwargs["prompt_version_uuid"]
+        info.context["partition_key"], kwargs["prompt_version_uuid"]
     )
     if count == 0:
         return None
 
     return get_prompt_template_type(
         info,
-        get_prompt_template(info.context["endpoint_id"], kwargs["prompt_version_uuid"]),
+        get_prompt_template(
+            info.context["partition_key"], kwargs["prompt_version_uuid"]
+        ),
     )
 
 
 @monitor_decorator
 @resolve_list_decorator(
-    attributes_to_get=["endpoint_id", "prompt_version_uuid", "prompt_uuid"],
+    attributes_to_get=["partition_key", "prompt_version_uuid", "prompt_uuid"],
     list_type_class=PromptTemplateListType,
     type_funct=get_prompt_template_type,
 )
 def resolve_prompt_template_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
-    endpoint_id = info.context["endpoint_id"]
+    partition_key = info.context["partition_key"]
     prompt_uuid = kwargs.get("prompt_uuid")
     prompt_type = kwargs.get("prompt_type")
     prompt_name = kwargs.get("prompt_name")
@@ -276,7 +276,7 @@ def resolve_prompt_template_list(info: ResolveInfo, **kwargs: Dict[str, Any]) ->
     inquiry_funct = PromptTemplateModel.scan
     count_funct = PromptTemplateModel.count
     range_key_condition = None
-    if endpoint_id:
+    if partition_key:
         # Build range key condition for updated_at when using updated_at_index
         if updated_at_gt is not None and updated_at_lt is not None:
             range_key_condition = PromptTemplateModel.updated_at.between(
@@ -287,7 +287,7 @@ def resolve_prompt_template_list(info: ResolveInfo, **kwargs: Dict[str, Any]) ->
         elif updated_at_lt is not None:
             range_key_condition = PromptTemplateModel.updated_at < updated_at_lt
 
-        args = [endpoint_id, range_key_condition]
+        args = [partition_key, range_key_condition]
         inquiry_funct = PromptTemplateModel.updated_at_index.query
         count_funct = PromptTemplateModel.updated_at_index.count
 
@@ -316,12 +316,12 @@ def resolve_prompt_template_list(info: ResolveInfo, **kwargs: Dict[str, Any]) ->
 
 
 def _inactivate_prompt_templates(
-    info: ResolveInfo, endpoint_id: str, prompt_uuid: str
+    info: ResolveInfo, partition_key: str, prompt_uuid: str
 ) -> None:
     try:
-        endpoint_id = endpoint_id or info.context.get("endpoint_id")
+        partition_key = partition_key or info.context.get("partition_key")
         prompt_templates = PromptTemplateModel.prompt_uuid_index.query(
-            endpoint_id,
+            partition_key,
             PromptTemplateModel.prompt_uuid == prompt_uuid,
             filter_condition=PromptTemplateModel.status == "active",
         )
@@ -346,7 +346,7 @@ def _inactivate_prompt_templates(
     type_funct=get_prompt_template_type,
 )
 def insert_update_prompt_template(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
-    endpoint_id = kwargs.get("endpoint_id")
+    partition_key = kwargs.get("partition_key")
     prompt_version_uuid = kwargs.get("prompt_version_uuid")
     duplicate = kwargs.get("duplicate", False)
 
@@ -363,11 +363,13 @@ def insert_update_prompt_template(info: ResolveInfo, **kwargs: Dict[str, Any]) -
         active_prompt_template = None
         if "prompt_uuid" in kwargs:
             active_prompt_template = _get_active_prompt_template(
-                endpoint_id, kwargs["prompt_uuid"]
+                partition_key, kwargs["prompt_uuid"]
             )
         if active_prompt_template:
             excluded_fields = {
+                "partition_key",
                 "endpoint_id",
+                "part_id",
                 "prompt_version_uuid",
                 "status",
                 "updated_by",
@@ -389,7 +391,7 @@ def insert_update_prompt_template(info: ResolveInfo, **kwargs: Dict[str, Any]) -
                 cols["prompt_name"] = f"{cols['prompt_name']} (Copy)"
             else:
                 # Deactivate previous versions before creating new one
-                _inactivate_prompt_templates(info, endpoint_id, kwargs["prompt_uuid"])
+                _inactivate_prompt_templates(info, partition_key, kwargs["prompt_uuid"])
         else:
             timestamp = pendulum.now("UTC").int_timestamp
             cols["prompt_uuid"] = f"prompt-{timestamp}-{str(uuid.uuid4())[:8]}"
@@ -406,8 +408,11 @@ def insert_update_prompt_template(info: ResolveInfo, **kwargs: Dict[str, Any]) -
             if key in kwargs:
                 cols[key] = kwargs[key]
 
+        cols["endpoint_id"] = info.context.get("endpoint_id")
+        cols["part_id"] = info.context.get("part_id")
+
         PromptTemplateModel(
-            endpoint_id,
+            partition_key,
             prompt_version_uuid,
             **cols,
         ).save()
@@ -422,7 +427,7 @@ def insert_update_prompt_template(info: ResolveInfo, **kwargs: Dict[str, Any]) -
     if "status" in kwargs and (
         kwargs["status"] == "active" and prompt_template.status == "inactive"
     ):
-        _inactivate_prompt_templates(info, endpoint_id, prompt_template.prompt_uuid)
+        _inactivate_prompt_templates(info, partition_key, prompt_template.prompt_uuid)
 
     field_map = {
         "prompt_type": PromptTemplateModel.prompt_type,
@@ -447,7 +452,7 @@ def insert_update_prompt_template(info: ResolveInfo, **kwargs: Dict[str, Any]) -
 @purge_cache()
 @delete_decorator(
     keys={
-        "hash_key": "endpoint_id",
+        "hash_key": "partition_key",
         "range_key": "prompt_version_uuid",
     },
     model_funct=get_prompt_template,
@@ -455,7 +460,7 @@ def insert_update_prompt_template(info: ResolveInfo, **kwargs: Dict[str, Any]) -
 def delete_prompt_template(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
     if kwargs["entity"].status == "active":
         results = PromptTemplateModel.prompt_uuid_index.query(
-            kwargs["entity"].endpoint_id,
+            kwargs["entity"].partition_key,
             PromptTemplateModel.prompt_uuid == kwargs["entity"].prompt_uuid,
             filter_condition=(PromptTemplateModel.status == "inactive"),
         )

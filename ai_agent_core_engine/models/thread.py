@@ -39,7 +39,7 @@ class AgentUuidIndex(LocalSecondaryIndex):
         projection = AllProjection()
         index_name = "agent_uuid-index"
 
-    endpoint_id = UnicodeAttribute(hash_key=True)
+    partition_key = UnicodeAttribute(hash_key=True)
     agent_uuid = UnicodeAttribute(range_key=True)
 
 
@@ -54,7 +54,7 @@ class CreatedAtIndex(LocalSecondaryIndex):
         projection = AllProjection()
         index_name = "updated_at-index"
 
-    endpoint_id = UnicodeAttribute(hash_key=True)
+    partition_key = UnicodeAttribute(hash_key=True)
     created_at = UnicodeAttribute(range_key=True)
 
 
@@ -62,8 +62,10 @@ class ThreadModel(BaseModel):
     class Meta(BaseModel.Meta):
         table_name = "aace-threads"
 
-    endpoint_id = UnicodeAttribute(hash_key=True)
+    partition_key = UnicodeAttribute(hash_key=True)
     thread_uuid = UnicodeAttribute(range_key=True)
+    endpoint_id = UnicodeAttribute()
+    part_id = UnicodeAttribute()
     agent_uuid = UnicodeAttribute()
     user_id = UnicodeAttribute(null=True)
     created_at = UTCDateTimeAttribute()
@@ -79,8 +81,8 @@ def purge_cache():
                 # Use cascading cache purging for threads
                 from ..models.cache import purge_entity_cascading_cache
 
-                endpoint_id = args[0].context.get("endpoint_id") or kwargs.get(
-                    "endpoint_id"
+                partition_key = args[0].context.get("partition_key") or kwargs.get(
+                    "partition_key"
                 )
                 entity_keys = {}
                 if kwargs.get("thread_uuid"):
@@ -89,7 +91,9 @@ def purge_cache():
                 result = purge_entity_cascading_cache(
                     args[0].context.get("logger"),
                     entity_type="thread",
-                    context_keys={"endpoint_id": endpoint_id} if endpoint_id else None,
+                    context_keys=(
+                        {"partition_key": partition_key} if partition_key else None
+                    ),
                     entity_keys=entity_keys if entity_keys else None,
                     cascade_depth=3,
                 )
@@ -125,20 +129,15 @@ def create_thread_table(logger: logging.Logger) -> bool:
 @method_cache(
     ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name("models", "thread")
 )
-def get_thread(endpoint_id: str, thread_uuid: str) -> ThreadModel:
-    return ThreadModel.get(endpoint_id, thread_uuid)
+def get_thread(partition_key: str, thread_uuid: str) -> ThreadModel:
+    return ThreadModel.get(partition_key, thread_uuid)
 
 
-def get_thread_count(endpoint_id: str, thread_uuid: str) -> int:
-    return ThreadModel.count(endpoint_id, ThreadModel.thread_uuid == thread_uuid)
+def get_thread_count(partition_key: str, thread_uuid: str) -> int:
+    return ThreadModel.count(partition_key, ThreadModel.thread_uuid == thread_uuid)
 
 
 def get_thread_type(info: ResolveInfo, thread: ThreadModel) -> ThreadType:
-    """
-    Nested resolver approach: return minimal thread data.
-    - Do NOT embed 'agent', 'messages', 'runs'.
-    These are resolved lazily by ThreadType.resolve_agent, resolve_messages, resolve_runs.
-    """
     try:
         thread_dict: Dict = thread.__dict__["attribute_values"]
         # Keep foreign keys for nested resolvers
@@ -151,19 +150,19 @@ def get_thread_type(info: ResolveInfo, thread: ThreadModel) -> ThreadType:
 
 
 def resolve_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType | None:
-    count = get_thread_count(info.context["endpoint_id"], kwargs["thread_uuid"])
+    count = get_thread_count(info.context["partition_key"], kwargs["thread_uuid"])
     if count == 0:
         return None
 
     return get_thread_type(
-        info, get_thread(info.context["endpoint_id"], kwargs["thread_uuid"])
+        info, get_thread(info.context["partition_key"], kwargs["thread_uuid"])
     )
 
 
 @monitor_decorator
 @resolve_list_decorator(
     attributes_to_get=[
-        "endpoint_id",
+        "partition_key",
         "thread_uuid",
         "agent_uuid",
         "user_id",
@@ -174,7 +173,7 @@ def resolve_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType | 
     scan_index_forward=False,
 )
 def resolve_thread_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
-    endpoint_id = info.context["endpoint_id"]
+    partition_key = info.context["partition_key"]
     agent_uuid = kwargs.get("agent_uuid", None)
     user_id = kwargs.get("user_id", None)
     created_at_gt = kwargs.get("created_at_gt", None)
@@ -184,7 +183,7 @@ def resolve_thread_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     inquiry_funct = ThreadModel.scan
     count_funct = ThreadModel.count
     range_key_condition = None
-    if endpoint_id:
+    if partition_key:
 
         # Build range key condition for created_at when using created_at_index
         if created_at_gt is not None and created_at_lt is not None:
@@ -196,7 +195,7 @@ def resolve_thread_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
         elif created_at_lt is not None:
             range_key_condition = ThreadModel.created_at < created_at_lt
 
-        args = [endpoint_id, range_key_condition]
+        args = [partition_key, range_key_condition]
         inquiry_funct = ThreadModel.created_at_index.query
         count_funct = ThreadModel.created_at_index.count
 
@@ -231,7 +230,7 @@ def resolve_thread_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
 )
 def insert_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
 
-    endpoint_id = kwargs.get("endpoint_id")
+    partition_key = kwargs.get("partition_key")
     thread_uuid = kwargs.get("thread_uuid")
     if kwargs.get("entity") is None:
         cols = {
@@ -242,8 +241,11 @@ def insert_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
             if key in kwargs:
                 cols[key] = kwargs[key]
 
+        cols["endpoint_id"] = info.context.get("endpoint_id")
+        cols["part_id"] = info.context.get("part_id")
+
         ThreadModel(
-            endpoint_id,
+            partition_key,
             thread_uuid,
             **cols,
         ).save()
@@ -264,7 +266,7 @@ def delete_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
     run_list = resolve_run_list(
         info,
         **{
-            "endpoint_id": kwargs["entity"].endpoint_id,
+            "partition_key": kwargs["entity"].partition_key,
             "thread_uuid": kwargs["entity"].thread_uuid,
         },
     )

@@ -17,7 +17,7 @@ Key = Tuple[str, str]
 
 
 class AgentLoader(SafeDataLoader):
-    """Batch loader for AgentModel keyed by (endpoint_id, agent_uuid) returning the active version."""
+    """Batch loader for AgentModel keyed by (partition_key, agent_uuid) returning the active version."""
 
     def __init__(self, logger=None, cache_enabled=True, **kwargs):
         super(AgentLoader, self).__init__(
@@ -34,7 +34,7 @@ class AgentLoader(SafeDataLoader):
         # Check cache first if enabled
         if self.cache_enabled:
             for key in unique_keys:
-                cache_key = f"{key[0]}:{key[1]}"  # endpoint_id:agent_uuid
+                cache_key = f"{key[0]}:{key[1]}"  # partition_key:agent_uuid
                 cached_item = self.cache.get(cache_key)
                 if cached_item:
                     key_map[key] = cached_item
@@ -46,9 +46,9 @@ class AgentLoader(SafeDataLoader):
         # Fetch uncached items via agent_uuid_index, returning the latest active version
         if uncached_keys:
             try:
-                for endpoint_id, agent_uuid in uncached_keys:
+                for partition_key, agent_uuid in uncached_keys:
                     results = AgentModel.agent_uuid_index.query(
-                        endpoint_id,
+                        partition_key,
                         AgentModel.agent_uuid == agent_uuid,
                         filter_condition=(AgentModel.status == "active"),
                         scan_index_forward=False,
@@ -61,9 +61,9 @@ class AgentLoader(SafeDataLoader):
 
                     if agent:
                         normalized = normalize_model(agent)
-                        key_map[(endpoint_id, agent_uuid)] = normalized
+                        key_map[(partition_key, agent_uuid)] = normalized
                         if self.cache_enabled:
-                            cache_key = f"{endpoint_id}:{agent_uuid}"
+                            cache_key = f"{partition_key}:{agent_uuid}"
                             self.cache.set(
                                 cache_key, normalized, ttl=Config.get_cache_ttl()
                             )

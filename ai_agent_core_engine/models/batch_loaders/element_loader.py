@@ -17,7 +17,7 @@ Key = Tuple[str, str]
 
 
 class ElementLoader(SafeDataLoader):
-    """Batch loader for ElementModel keyed by (endpoint_id, element_uuid)."""
+    """Batch loader for ElementModel keyed by (partition_key, element_uuid)."""
 
     def __init__(self, logger=None, cache_enabled=True, **kwargs):
         super(ElementLoader, self).__init__(
@@ -34,7 +34,7 @@ class ElementLoader(SafeDataLoader):
         # Check cache first if enabled
         if self.cache_enabled:
             for key in unique_keys:
-                cache_key = f"{key[0]}:{key[1]}"  # endpoint_id:element_uuid
+                cache_key = f"{key[0]}:{key[1]}"  # partition_key:element_uuid
                 cached_item = self.cache.get(cache_key)
                 if cached_item:
                     key_map[key] = cached_item
@@ -48,7 +48,7 @@ class ElementLoader(SafeDataLoader):
             try:
                 for element in ElementModel.batch_get(uncached_keys):
                     normalized = normalize_model(element)
-                    key = (element.endpoint_id, element.element_uuid)
+                    key = (element.partition_key, element.element_uuid)
                     key_map[key] = normalized
 
                     # Cache the result if enabled

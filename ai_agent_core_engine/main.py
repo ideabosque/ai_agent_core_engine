@@ -272,6 +272,19 @@ class AIAgentCoreEngine(Graphql):
         if params.get("endpoint_id") is None:
             params["endpoint_id"] = self.setting.get("endpoint_id")
         ##<--Testing Data-->##
+
+        # NEW: Extract part_id and assemble partition_key
+        endpoint_id = params.get("endpoint_id")
+        part_id = params.get("part_id")  # From JWT, header, or request body
+
+        # Backward compatibility: if part_id not provided, use endpoint_id
+        if not part_id:
+            part_id = endpoint_id
+
+        # Assemble composite partition_key ONCE here
+        partition_key = f"{endpoint_id}#{part_id}"
+        params["partition_key"] = partition_key  # Add to params
+
         schema = Schema(
             query=Query,
             mutation=Mutations,

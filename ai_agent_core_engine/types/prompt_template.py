@@ -15,7 +15,9 @@ from ..utils.normalization import normalize_to_json
 
 
 class PromptTemplateBaseType(ObjectType):
+    partition_key = String()
     endpoint_id = String()
+    part_id = String()
     prompt_version_uuid = String()
     prompt_uuid = String()
     prompt_type = String()
@@ -41,13 +43,6 @@ class PromptTemplateType(PromptTemplateBaseType):
     ui_components = List(lambda: UIComponentType)
 
     def resolve_mcp_servers(parent, info):
-        """
-        Resolve MCP servers for this prompt template.
-        Two cases:
-        1. If mcp_servers is already embedded (dict list), convert to MCPServerType
-        2. Otherwise, use mcp_server_refs to load via DataLoader
-        """
-
         # Case 1: Already embedded (backward compatibility)
         existing = getattr(parent, "mcp_servers", None)
         if isinstance(existing, list):
@@ -60,11 +55,11 @@ class PromptTemplateType(PromptTemplateBaseType):
 
         from ..models.batch_loaders import get_loaders
 
-        endpoint_id = parent.endpoint_id
+        partition_key = parent.partition_key
         loaders = get_loaders(info.context)
 
         promises = [
-            loaders.mcp_server_loader.load((endpoint_id, ref["mcp_server_uuid"]))
+            loaders.mcp_server_loader.load((partition_key, ref["mcp_server_uuid"]))
             for ref in mcp_server_refs
             if "mcp_server_uuid" in ref
         ]
@@ -78,12 +73,6 @@ class PromptTemplateType(PromptTemplateBaseType):
         )
 
     def resolve_ui_components(parent, info):
-        """
-        Resolve UI components for this prompt template using DataLoader.
-        Two cases:
-        1. If ui_components is already embedded (dict list), convert to UIComponentType
-        2. Otherwise, use ui_component_refs to load via DataLoader
-        """
         # Case 1: Already embedded (backward compatibility)
         existing = getattr(parent, "ui_components", None)
         if isinstance(existing, list):

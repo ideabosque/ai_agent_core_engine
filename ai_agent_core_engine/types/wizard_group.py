@@ -13,7 +13,9 @@ from ..utils.normalization import normalize_to_json
 
 
 class WizardGroupType(ObjectType):
+    partition_key = String()
     endpoint_id = String()
+    part_id = String()
     wizard_group_uuid = String()
     wizard_group_name = String()
     wizard_group_description = String()
@@ -47,11 +49,11 @@ class WizardGroupType(ObjectType):
         if not wizard_uuids:
             return []
 
-        endpoint_id = parent.endpoint_id
+        partition_key = parent.partition_key
         loaders = get_loaders(info.context)
 
         promises = [
-            loaders.wizard_loader.load((endpoint_id, wizard_uuid))
+            loaders.wizard_loader.load((partition_key, wizard_uuid))
             for wizard_uuid in wizard_uuids
         ]
 

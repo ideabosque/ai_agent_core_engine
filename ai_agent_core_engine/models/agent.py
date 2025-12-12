@@ -38,7 +38,12 @@ from .utils import _get_flow_snippet, _get_prompt_template
 
 class AgentUuidIndex(LocalSecondaryIndex):
     """
-    This class represents a local secondary index
+    LSI for querying agents by agent_uuid within a partition.
+
+    MIGRATION NOTE: Updated from endpoint_id to partition_key as hash_key.
+    All LSIs share the same partition_key as the main table.
+    This allows efficient queries like:
+        AgentModel.agent_uuid_index.query(partition_key, AgentModel.agent_uuid == uuid)
     """
 
     class Meta:
@@ -47,13 +52,17 @@ class AgentUuidIndex(LocalSecondaryIndex):
         projection = AllProjection()
         index_name = "agent_uuid-index"
 
-    endpoint_id = UnicodeAttribute(hash_key=True)
+    partition_key = UnicodeAttribute(hash_key=True)  # MIGRATED: was endpoint_id
     agent_uuid = UnicodeAttribute(range_key=True)
 
 
 class UpdatedAtIndex(LocalSecondaryIndex):
     """
-    This class represents a local secondary index
+    LSI for querying agents by updated_at within a partition.
+
+    MIGRATION NOTE: Updated from endpoint_id to partition_key as hash_key.
+    Enables time-range queries like:
+        AgentModel.updated_at_index.query(partition_key, AgentModel.updated_at > start_time)
     """
 
     class Meta:
@@ -62,16 +71,45 @@ class UpdatedAtIndex(LocalSecondaryIndex):
         projection = AllProjection()
         index_name = "updated_at-index"
 
-    endpoint_id = UnicodeAttribute(hash_key=True)
+    partition_key = UnicodeAttribute(hash_key=True)  # MIGRATED: was endpoint_id
     updated_at = UnicodeAttribute(range_key=True)
 
 
 class AgentModel(BaseModel):
+    """
+    Agent Model - Reference Implementation for partition_key Migration
+
+    MIGRATION PATTERN:
+    1. Hash key changed from endpoint_id to partition_key (composite key)
+    2. Added denormalized endpoint_id and part_id fields (for reference/debugging)
+    3. Updated all LSI indexes to use partition_key as hash_key
+    4. partition_key assembled in main.py: f"{endpoint_id}#{part_id}"
+
+    USAGE:
+    - Direct lookup: AgentModel.get(partition_key, agent_version_uuid)
+    - Query by agent_uuid: AgentModel.agent_uuid_index.query(partition_key, ...)
+    - Query by time: AgentModel.updated_at_index.query(partition_key, ...)
+
+    IMPORTANT:
+    - All 3 fields (partition_key, endpoint_id, part_id) must be set on insert/update
+    - Extract endpoint_id/part_id from info.context, NOT by parsing partition_key
+    - This model serves as the reference for migrating 8 remaining models
+    """
+
     class Meta(BaseModel.Meta):
         table_name = "aace-agents"
 
-    endpoint_id = UnicodeAttribute(hash_key=True)
+    # Primary Key (MIGRATED)
+    partition_key = UnicodeAttribute(
+        hash_key=True
+    )  # Format: "endpoint_id#part_id" (was: endpoint_id)
     agent_version_uuid = UnicodeAttribute(range_key=True)
+
+    # Denormalized attributes (NEW - for reference/debugging only, no indexes needed)
+    endpoint_id = UnicodeAttribute()  # Platform partition (e.g., "aws-prod-us-east-1")
+    part_id = UnicodeAttribute()  # Business partition (e.g., "acme-corp")
+
+    # Other attributes
     agent_uuid = UnicodeAttribute()
     agent_name = UnicodeAttribute()
     agent_description = UnicodeAttribute(null=True)
@@ -88,8 +126,11 @@ class AgentModel(BaseModel):
     updated_by = UnicodeAttribute()
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()
-    agent_uuid_index = AgentUuidIndex()
-    updated_at_index = UpdatedAtIndex()
+
+    # Indexes (all LSI - share same partition_key)
+    # MIGRATION NOTE: All LSIs updated to use partition_key instead of endpoint_id
+    agent_uuid_index = AgentUuidIndex()  # Query by agent_uuid within partition
+    updated_at_index = UpdatedAtIndex()  # Query by time range within partition
 
 
 def purge_cache():
@@ -105,8 +146,8 @@ def purge_cache():
                 except Exception as e:
                     agent = None
 
-                endpoint_id = args[0].context.get("endpoint_id") or kwargs.get(
-                    "endpoint_id"
+                partition_key = args[0].context.get("partition_key") or kwargs.get(
+                    "partition_key"
                 )
                 entity_keys = {}
                 if agent:
@@ -117,7 +158,9 @@ def purge_cache():
                 result = purge_entity_cascading_cache(
                     args[0].context.get("logger"),
                     entity_type="agent",
-                    context_keys={"endpoint_id": endpoint_id} if endpoint_id else None,
+                    context_keys=(
+                        {"partition_key": partition_key} if partition_key else None
+                    ),
                     entity_keys=entity_keys if entity_keys else None,
                     cascade_depth=3,
                 )
@@ -161,8 +204,8 @@ def create_agent_table(logger: logging.Logger) -> bool:
 @method_cache(
     ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name("models", "agent")
 )
-def get_agent(endpoint_id: str, agent_version_uuid: str) -> AgentModel:
-    return AgentModel.get(endpoint_id, agent_version_uuid)
+def get_agent(partition_key: str, agent_version_uuid: str) -> AgentModel:
+    return AgentModel.get(partition_key, agent_version_uuid)
 
 
 @retry(
@@ -174,10 +217,10 @@ def get_agent(endpoint_id: str, agent_version_uuid: str) -> AgentModel:
     ttl=Config.get_cache_ttl(),
     cache_name=Config.get_cache_name("models", "active_agent"),
 )
-def _get_active_agent(endpoint_id: str, agent_uuid: str) -> AgentModel | None:
+def _get_active_agent(partition_key: str, agent_uuid: str) -> AgentModel | None:
     try:
         results = AgentModel.agent_uuid_index.query(
-            endpoint_id,
+            partition_key,
             AgentModel.agent_uuid == agent_uuid,
             filter_condition=(AgentModel.status == "active"),
             scan_index_forward=False,
@@ -190,18 +233,13 @@ def _get_active_agent(endpoint_id: str, agent_uuid: str) -> AgentModel | None:
         return None
 
 
-def get_agent_count(endpoint_id: str, agent_version_uuid: str) -> int:
+def get_agent_count(partition_key: str, agent_version_uuid: str) -> int:
     return AgentModel.count(
-        endpoint_id, AgentModel.agent_version_uuid == agent_version_uuid
+        partition_key, AgentModel.agent_version_uuid == agent_version_uuid
     )
 
 
 def get_agent_type(info: ResolveInfo, agent: AgentModel) -> AgentType:
-    """
-    Nested resolver approach: return minimal agent data.
-    - Do NOT embed 'llm', 'mcp_servers', 'flow_snippet'.
-    These are resolved lazily by AgentType.resolve_llm, resolve_mcp_servers, resolve_flow_snippet.
-    """
     try:
         agent_dict: Dict = agent.__dict__["attribute_values"]
         # Keep foreign keys for nested resolvers
@@ -214,30 +252,37 @@ def get_agent_type(info: ResolveInfo, agent: AgentModel) -> AgentType:
 
 
 def resolve_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AgentType | None:
+    partition_key = info.context["partition_key"]
+
     if "agent_uuid" in kwargs:
         return get_agent_type(
-            info, _get_active_agent(info.context["endpoint_id"], kwargs["agent_uuid"])
+            info, _get_active_agent(partition_key, kwargs["agent_uuid"])
         )
 
-    count = get_agent_count(info.context["endpoint_id"], kwargs["agent_version_uuid"])
+    count = get_agent_count(partition_key, kwargs["agent_version_uuid"])
     if count == 0:
         return None
 
     return get_agent_type(
         info,
-        get_agent(info.context["endpoint_id"], kwargs["agent_version_uuid"]),
+        get_agent(partition_key, kwargs["agent_version_uuid"]),
     )
 
 
 @monitor_decorator
 @resolve_list_decorator(
-    attributes_to_get=["endpoint_id", "agent_version_uuid", "agent_uuid", "updated_at"],
+    attributes_to_get=[
+        "partition_key",
+        "agent_version_uuid",
+        "agent_uuid",
+        "updated_at",
+    ],
     list_type_class=AgentListType,
     type_funct=get_agent_type,
     scan_index_forward=False,
 )
 def resolve_agent_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
-    endpoint_id = info.context["endpoint_id"]
+    partition_key = info.context["partition_key"]
     agent_uuid = kwargs.get("agent_uuid")
     agent_name = kwargs.get("agent_name")
     llm_provider = kwargs.get("llm_provider")
@@ -252,7 +297,7 @@ def resolve_agent_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     inquiry_funct = AgentModel.scan
     count_funct = AgentModel.count
     range_key_condition = None
-    if endpoint_id:
+    if partition_key:
         # Build range key condition for updated_at when using updated_at_index
         if updated_at_gt is not None and updated_at_lt is not None:
             range_key_condition = AgentModel.updated_at.between(
@@ -263,7 +308,7 @@ def resolve_agent_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
         elif updated_at_lt is not None:
             range_key_condition = AgentModel.updated_at < updated_at_lt
 
-        args = [endpoint_id, range_key_condition]
+        args = [partition_key, range_key_condition]
         inquiry_funct = AgentModel.updated_at_index.query
         count_funct = AgentModel.updated_at_index.count
 
@@ -293,12 +338,12 @@ def resolve_agent_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     return inquiry_funct, count_funct, args
 
 
-def _inactivate_agents(info: ResolveInfo, endpoint_id: str, agent_uuid: str) -> None:
+def _inactivate_agents(info: ResolveInfo, partition_key: str, agent_uuid: str) -> None:
     try:
         # Query for active agents matching the type and ID
-        endpoint_id = endpoint_id or info.context.get("endpoint_id")
+        partition_key = partition_key or info.context.get("partition_key")
         agents = AgentModel.agent_uuid_index.query(
-            endpoint_id,
+            partition_key,
             AgentModel.agent_uuid == agent_uuid,
             filter_condition=AgentModel.status == "active",
         )
@@ -316,7 +361,7 @@ def _inactivate_agents(info: ResolveInfo, endpoint_id: str, agent_uuid: str) -> 
 @purge_cache()
 @insert_update_decorator(
     keys={
-        "hash_key": "endpoint_id",
+        "hash_key": "partition_key",
         "range_key": "agent_version_uuid",
     },
     model_funct=get_agent,
@@ -326,7 +371,7 @@ def _inactivate_agents(info: ResolveInfo, endpoint_id: str, agent_uuid: str) -> 
     # activity_history_funct=None,
 )
 def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
-    endpoint_id = kwargs.get("endpoint_id")
+    partition_key = kwargs.get("partition_key")
     agent_version_uuid = kwargs.get("agent_version_uuid")
     duplicate = kwargs.get("duplicate", False)
 
@@ -343,11 +388,13 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
         # Handle an existing agent if an ID is provided
         active_agent = None
         if "agent_uuid" in kwargs:
-            active_agent = _get_active_agent(endpoint_id, kwargs["agent_uuid"])
+            active_agent = _get_active_agent(partition_key, kwargs["agent_uuid"])
         if active_agent:
             # Copy all configuration and attributes from existing agent
             excluded_fields = {
+                "partition_key",
                 "endpoint_id",
+                "part_id",
                 "agent_version_uuid",
                 "status",
                 "updated_by",
@@ -372,7 +419,7 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
                 cols["agent_name"] = f"{cols['agent_name']} (Copy)"
             else:
                 # Deactivate previous versions before creating new one
-                _inactivate_agents(info, endpoint_id, kwargs["agent_uuid"])
+                _inactivate_agents(info, partition_key, kwargs["agent_uuid"])
         else:
             # Generate new unique agent UUID with timestamp
             timestamp = pendulum.now("UTC").int_timestamp
@@ -395,7 +442,7 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
                 cols[key] = kwargs[key]
 
                 if key == "flow_snippet_version_uuid":
-                    flow_snippet = _get_flow_snippet(endpoint_id, kwargs[key])
+                    flow_snippet = _get_flow_snippet(partition_key, kwargs[key])
                     prmopt_template = _get_prompt_template(
                         info, flow_snippet["prompt_uuid"]
                     )
@@ -445,8 +492,11 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
                         if mcp_server.get("mcp_server_uuid")
                     ]
 
+        cols["endpoint_id"] = info.context.get("endpoint_id")  # Platform identifier
+        cols["part_id"] = info.context.get("part_id")  # Business partition
+
         AgentModel(
-            endpoint_id,
+            partition_key,
             agent_version_uuid,
             **convert_decimal_to_number(cols),
         ).save()
@@ -461,7 +511,7 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     if "status" in kwargs and (
         kwargs["status"] == "active" and agent.status == "inactive"
     ):
-        _inactivate_agents(info, endpoint_id, agent.agent_uuid)
+        _inactivate_agents(info, partition_key, agent.agent_uuid)
 
     # Map of kwargs keys to AgentModel attributes
     field_map = {
@@ -493,7 +543,7 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
 @purge_cache()
 @delete_decorator(
     keys={
-        "hash_key": "endpoint_id",
+        "hash_key": "partition_key",
         "range_key": "agent_version_uuid",
     },
     model_funct=get_agent,
@@ -502,7 +552,7 @@ def delete_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
     thread_list = resolve_thread_list(
         info,
         **{
-            "endpoint_id": kwargs["entity"].endpoint_id,
+            "partition_key": kwargs["entity"].partition_key,
             "agent_uuid": kwargs["entity"].agent_version_uuid,
         },
     )
@@ -511,7 +561,7 @@ def delete_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
 
     if kwargs["entity"].status == "active":
         results = AgentModel.agent_uuid_index.query(
-            kwargs["entity"].endpoint_id,
+            kwargs["entity"].partition_key,
             AgentModel.agent_uuid == kwargs["entity"].agent_uuid,
             filter_condition=(AgentModel.status == "inactive"),
         )

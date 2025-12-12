@@ -12,7 +12,9 @@ from ..types.wizard_group import WizardGroupType
 
 
 class WizardGroupFilterType(ObjectType):
+    partition_key = String()
     endpoint_id = String()
+    part_id = String()
     wizard_group_filter_uuid = String()
     wizard_group_filter_name = String()
     wizard_group_filter_description = String()
@@ -51,10 +53,10 @@ class WizardGroupFilterType(ObjectType):
         if not wizard_group_uuid:
             return None
 
-        endpoint_id = parent.endpoint_id
+        partition_key = parent.partition_key
         loaders = get_loaders(info.context)
 
-        return loaders.wizard_group_loader.load((endpoint_id, wizard_group_uuid)).then(
+        return loaders.wizard_group_loader.load((partition_key, wizard_group_uuid)).then(
             lambda wizard_group_dict: (
                 WizardGroupType(**wizard_group_dict) if wizard_group_dict else None
             )
