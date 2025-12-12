@@ -46,7 +46,7 @@ class PromptTemplateType(PromptTemplateBaseType):
         # Case 1: Already embedded (backward compatibility)
         existing = getattr(parent, "mcp_servers", None)
         if isinstance(existing, list):
-            return [normalize_to_json(server) for server in existing]
+            return [server for server in existing]
 
         # Case 2: Load via DataLoader using mcp_server_refs
         mcp_server_refs = getattr(parent, "mcp_server_refs", None)
@@ -66,7 +66,7 @@ class PromptTemplateType(PromptTemplateBaseType):
 
         return Promise.all(promises).then(
             lambda mcp_server_dicts: [
-                normalize_to_json(mcp_dict)
+                MCPServerType(**mcp_dict)
                 for mcp_dict in mcp_server_dicts
                 if mcp_dict is not None
             ]
@@ -76,7 +76,7 @@ class PromptTemplateType(PromptTemplateBaseType):
         # Case 1: Already embedded (backward compatibility)
         existing = getattr(parent, "ui_components", None)
         if isinstance(existing, list):
-            return [normalize_to_json(ui_comp) for ui_comp in existing]
+            return [ui_comp for ui_comp in existing]
 
         # Case 2: Load via DataLoader using ui_component_refs
         ui_component_refs = getattr(parent, "ui_component_refs", None)

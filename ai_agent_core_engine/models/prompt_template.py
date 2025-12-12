@@ -338,7 +338,7 @@ def _inactivate_prompt_templates(
 @purge_cache()
 @insert_update_decorator(
     keys={
-        "hash_key": "endpoint_id",
+        "hash_key": "partition_key",
         "range_key": "prompt_version_uuid",
     },
     model_funct=get_prompt_template,

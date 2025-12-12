@@ -591,20 +591,64 @@ internal_mcp = Config.get_internal_mcp(endpoint_id, part_id)
 
 ---
 
-## 8. Agent Model Reference Implementation
+## 8. Migration Status
 
-> **Status**: ✅ COMPLETED
-> **Purpose**: Reference implementation for migrating remaining 8 models
+> **Status**: ✅ FULLY COMPLETED (Commit: 7620492 + handlers fix)
+> **Date**: 2025-12-11 (Initial), 2025-12-12 (Completed)
+> **Purpose**: Migrate all models to partition_key architecture
 
-### What Was Changed
+### ✅ Completed Components
 
-1. ✅ **Main Entry Point** - main.py (partition_key assembly)
-2. ✅ **Model Schema** - agent.py (LSI indexes, denormalized fields)
-3. ✅ **CRUD Functions** - agent.py (signature changes)
-4. ✅ **Type Resolvers** - types/agent.py (nested resolvers)
-5. ✅ **Batch Loaders** - batch_loaders/agent_loader.py (key format)
-6. ✅ **Handler Integration** - handlers/ai_agent.py
-7. ✅ **Config Updates** - handlers/config.py
+1. ✅ **Main Entry Point** - [main.py](../main.py) (partition_key assembly)
+2. ✅ **Model Schemas** - All 9 models migrated:
+   - ✅ [agent.py](../models/agent.py)
+   - ✅ [thread.py](../models/thread.py)
+   - ✅ [prompt_template.py](../models/prompt_template.py)
+   - ✅ [flow_snippet.py](../models/flow_snippet.py)
+   - ✅ [mcp_server.py](../models/mcp_server.py)
+   - ✅ [element.py](../models/element.py)
+   - ✅ [wizard.py](../models/wizard.py)
+   - ✅ [wizard_group.py](../models/wizard_group.py)
+   - ✅ [wizard_group_filter.py](../models/wizard_group_filter.py)
+3. ✅ **Type Resolvers** - All 9 type files migrated to use partition_key
+4. ✅ **Batch Loaders** - All 10 loader files migrated:
+   - ✅ [agent_loader.py](../models/batch_loaders/agent_loader.py)
+   - ✅ [thread_loader.py](../models/batch_loaders/thread_loader.py)
+   - ✅ [prompt_template_loader.py](../models/batch_loaders/prompt_template_loader.py)
+   - ✅ [flow_snippet_loader.py](../models/batch_loaders/flow_snippet_loader.py)
+   - ✅ [mcp_server_loader.py](../models/batch_loaders/mcp_server_loader.py)
+   - ✅ [element_loader.py](../models/batch_loaders/element_loader.py)
+   - ✅ [wizard_loader.py](../models/batch_loaders/wizard_loader.py)
+   - ✅ [wizard_group_loader.py](../models/batch_loaders/wizard_group_loader.py)
+   - ✅ [tool_calls_by_run_loader.py](../models/batch_loaders/tool_calls_by_run_loader.py)
+   - ✅ [tool_calls_by_thread_loader.py](../models/batch_loaders/tool_calls_by_thread_loader.py)
+5. ✅ **Handler Integration** - [handlers/ai_agent.py](../handlers/ai_agent.py)
+6. ✅ **Config Updates** - [handlers/config.py](../handlers/config.py)
+7. ✅ **Test Updates** - Test files updated:
+   - ✅ [conftest.py](../tests/conftest.py)
+   - ✅ [test_nested_resolvers.py](../tests/test_nested_resolvers.py)
+
+### ✅ Handler Utility Files
+
+8. ✅ **Handler Utility Files** - All handler files migrated:
+   - ✅ [handlers/wizard_group.py](../handlers/wizard_group.py) - **COMPLETED 2025-12-12**
+     - Migrated `insert_update_wizard_group_with_wizards()` to use partition_key
+     - Migrated `delete_wizard_from_wizard_group()` to use partition_key
+     - Migrated `insert_update_wizards()` signature and implementation
+     - Migrated `insert_update_wizard_elements()` signature and implementation
+     - All model function calls now pass `partition_key` correctly
+   - ✅ [handlers/ai_agent.py](../handlers/ai_agent.py) - Already migrated in commit 7620492
+   - ✅ [handlers/config.py](../handlers/config.py) - Already migrated in commit 7620492
+   - ✅ [handlers/ai_agent_utility.py](../handlers/ai_agent_utility.py) - Uses `endpoint_id` for external Lambda invocation only, not for DB operations
+   - ✅ [handlers/at_agent_listener.py](../handlers/at_agent_listener.py) - No DB operations required
+
+### 🎉 Migration Complete
+
+All code components have been successfully migrated to use the `partition_key` architecture. The system now properly:
+- Assembles `partition_key` in [main.py](../main.py)
+- Passes `partition_key` through context to all resolvers
+- Uses `partition_key` for all database operations
+- Stores denormalized `endpoint_id` and `part_id` attributes for reference
 
 ### Step-by-Step Implementation Guide
 
@@ -855,6 +899,41 @@ def test_agent_crud_with_partition_key():
 | 2.0 | 2025-12-11 | Minimal changes approach with partition_key assembly in main.py |
 | 2.1 | 2025-12-11 | Added denormalized endpoint_id/part_id attributes with LSI indexes for better query flexibility |
 | 2.2 | 2025-12-11 | Updated handler pattern to use endpoint_id and part_id separately, constructing partition_key internally for DB operations |
+| 2.3 | 2025-12-12 | **Migration Status Update**: Documented completion status of commit 7620492, identified critical issue in handlers/wizard_group.py that was only reformatted but not migrated to partition_key |
+| 2.4 | 2025-12-12 | **✅ MIGRATION COMPLETED**: Fixed handlers/wizard_group.py - all 4 functions now use partition_key. All Phase 1 (Code Changes) tasks completed. |
+
+---
+
+## Next Steps
+
+### Phase 1: Code Changes ✅ COMPLETED
+
+All code has been successfully migrated to use `partition_key` architecture.
+
+### Phase 2: Data Migration (Next Priority)
+
+1. **Create Data Migration Script**
+   - Script to backfill `partition_key` for existing DynamoDB records
+   - Update existing records: set `partition_key = endpoint_id` (for backward compatibility)
+   - Add denormalized `endpoint_id` and `part_id` attributes
+
+2. **Data Migration Steps**:
+   - [ ] Create migration script for each of the 9 tables
+   - [ ] Test migration on dev environment
+   - [ ] Validate data integrity after migration
+   - [ ] Run migration on staging environment
+   - [ ] Run migration on production environment
+
+3. **Testing**:
+   - [ ] Run integration tests to verify all CRUD operations work correctly
+   - [ ] Test wizard_group operations (insert, update, delete)
+   - [ ] Test nested resolver operations
+   - [ ] Load testing with partition_key queries
+
+4. **Deployment**:
+   - [ ] Deploy code changes to dev
+   - [ ] Deploy to staging with monitoring
+   - [ ] Staged rollout to production
 
 ---
 

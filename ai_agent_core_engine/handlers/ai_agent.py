@@ -288,7 +288,7 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
         part_id = info.context.get("part_id")
 
         ai_agent_handler.endpoint_id = endpoint_id  # Platform identifier
-        ai_agent_handler.part_id = part_id          # Business partition
+        ai_agent_handler.part_id = part_id  # Business partition
         ai_agent_handler.run = run.__dict__
         ai_agent_handler.connection_id = connection_id
         ai_agent_handler.task_queue = Config.task_queue

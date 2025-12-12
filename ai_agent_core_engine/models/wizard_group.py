@@ -244,7 +244,7 @@ def resolve_wizard_group_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> An
 @purge_cache()
 @insert_update_decorator(
     keys={
-        "hash_key": "endpoint_id",
+        "hash_key": "partition_key",
         "range_key": "wizard_group_uuid",
     },
     model_funct=_get_wizard_group,
@@ -252,7 +252,6 @@ def resolve_wizard_group_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> An
     type_funct=get_wizard_group_type,
 )
 def insert_update_wizard_group(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
-
     partition_key = kwargs.get("partition_key")
     wizard_group_uuid = kwargs.get("wizard_group_uuid")
 

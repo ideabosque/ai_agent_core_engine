@@ -9,8 +9,7 @@ from typing import Any, Dict, List
 
 from graphene import Schema
 
-from silvaengine_utility import Graphql
-from silvaengine_utility import Utility
+from silvaengine_utility import Graphql, Utility
 
 from .handlers import at_agent_listener
 from .handlers.config import Config
@@ -211,9 +210,6 @@ class AIAgentCoreEngine(Graphql):
         # Initialize configuration via the Config class
         Config.initialize(logger, **setting)
 
-        self.logger = logger
-        self.setting = setting
-
     def ai_agent_build_graphql_query(self, **params: Dict[str, Any]):
         endpoint_id = params.get("endpoint_id")
         ## Test the waters 🧪 before diving in!
@@ -271,6 +267,8 @@ class AIAgentCoreEngine(Graphql):
             params["connection_id"] = self.setting.get("connection_id")
         if params.get("endpoint_id") is None:
             params["endpoint_id"] = self.setting.get("endpoint_id")
+        if params.get("part_id") is None:
+            params["part_id"] = self.setting.get("part_id")
         ##<--Testing Data-->##
 
         # NEW: Extract part_id and assemble partition_key

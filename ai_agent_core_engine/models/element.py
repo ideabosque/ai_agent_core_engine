@@ -231,7 +231,7 @@ def resolve_element_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
 @purge_cache()
 @insert_update_decorator(
     keys={
-        "hash_key": "endpoint_id",
+        "hash_key": "partition_key",
         "range_key": "element_uuid",
     },
     model_funct=_get_element,
@@ -239,7 +239,6 @@ def resolve_element_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     type_funct=get_element_type,
 )
 def insert_update_element(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
-
     partition_key = kwargs.get("partition_key")
     element_uuid = kwargs.get("element_uuid")
 

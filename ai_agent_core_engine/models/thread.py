@@ -13,6 +13,8 @@ import pendulum
 from graphene import ResolveInfo
 from pynamodb.attributes import UnicodeAttribute, UTCDateTimeAttribute
 from pynamodb.indexes import AllProjection, LocalSecondaryIndex
+from tenacity import retry, stop_after_attempt, wait_exponential
+
 from silvaengine_dynamodb_base import (
     BaseModel,
     delete_decorator,
@@ -21,7 +23,6 @@ from silvaengine_dynamodb_base import (
     resolve_list_decorator,
 )
 from silvaengine_utility import Utility, method_cache
-from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
 from ..types.thread import ThreadListType, ThreadType
@@ -219,7 +220,7 @@ def resolve_thread_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
 @purge_cache()
 @insert_update_decorator(
     keys={
-        "hash_key": "endpoint_id",
+        "hash_key": "partition_key",
         "range_key": "thread_uuid",
     },
     model_funct=get_thread,
@@ -229,7 +230,6 @@ def resolve_thread_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     # activity_history_funct=None,
 )
 def insert_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
-
     partition_key = kwargs.get("partition_key")
     thread_uuid = kwargs.get("thread_uuid")
     if kwargs.get("entity") is None:
@@ -256,7 +256,7 @@ def insert_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
 @purge_cache()
 @delete_decorator(
     keys={
-        "hash_key": "endpoint_id",
+        "hash_key": "partition_key",
         "range_key": "thread_uuid",
     },
     model_funct=get_thread,

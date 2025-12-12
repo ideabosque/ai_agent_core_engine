@@ -13,7 +13,7 @@ from silvaengine_utility import JSON
 class AsyncTaskType(ObjectType):
     function_name = String()
     async_task_uuid = String()
-    endpoint_id = String()
+    partition_key = String()
     arguments = JSON()
     result = String()
     output_files = List(JSON)

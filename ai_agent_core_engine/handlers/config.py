@@ -4,6 +4,8 @@ from __future__ import print_function
 __author__ = "bibow"
 
 import logging
+import sys
+import traceback
 from typing import Any, Dict, List
 
 import boto3
@@ -294,8 +296,6 @@ class Config:
                 cls._initialize_tables(logger)
             logger.info("Configuration initialized successfully.")
         except Exception as e:
-            import traceback
-            import sys
             sys.stderr.write(f"Config Initialize Error: {e}\n")
             traceback.print_exc(file=sys.stderr)
             logger.exception("Failed to initialize configuration.")

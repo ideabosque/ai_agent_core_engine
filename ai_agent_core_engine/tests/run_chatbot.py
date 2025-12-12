@@ -45,6 +45,12 @@ sys.path.insert(
         os.path.join(os.path.dirname(__file__), "../../../mcp_http_client")
     ),
 )
+sys.path.insert(
+    0,
+    os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "../../../silvaengine_utility")
+    ),
+)
 
 # Setup logging
 logging.basicConfig(
