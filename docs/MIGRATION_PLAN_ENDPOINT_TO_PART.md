@@ -32,11 +32,11 @@ partition_key = "aws-prod-us-east-1#acme-corp"  (composite, assembled in main.py
 - Format: `"{endpoint_id}#{part_id}"`
 - Passed to all downstream code via context
 
-**Denormalized Attributes + LSI:**
+**Denormalized Attributes:**
 - Store `partition_key` as hash key
 - Store `endpoint_id` and `part_id` as separate attributes (denormalized)
-- Create Local Secondary Indexes (LSI) on `endpoint_id` and `part_id`
-- Benefits: Query flexibility, strongly consistent reads, no extra write capacity
+- No additional indexes needed for endpoint_id/part_id
+- Benefits: Simple schema, no extra index maintenance
 
 **Minimal Code Changes:**
 - `/models`: Change function signatures from `endpoint_id` to `partition_key`
@@ -107,30 +107,55 @@ def get_agent(logger, endpoint_id: str, agent_version_uuid: str):
     return agent
 ```
 
-**After:**
+**After (Actual Implementation):**
 ```python
-def get_agent(logger, partition_key: str, agent_version_uuid: str):
-    agent = AgentModel.get(partition_key, agent_version_uuid)
-    return agent
+@method_cache(
+    ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name("models", "agent")
+)
+def get_agent(partition_key: str, agent_version_uuid: str) -> AgentModel:
+    return AgentModel.get(partition_key, agent_version_uuid)
 ```
 
 **Change:** Replace `endpoint_id` parameter with `partition_key`
 
-**Note:** When creating new records, both `partition_key` and denormalized `endpoint_id`/`part_id` must be set:
+**Note:** When creating new records, extract `endpoint_id` and `part_id` from context:
 
 ```python
-def create_agent(logger, partition_key: str, **kwargs):
-    # Parse partition_key to extract components
-    endpoint_id, part_id = partition_key.split('#', 1)
-
-    agent = AgentModel()
-    agent.partition_key = partition_key
-    agent.endpoint_id = endpoint_id     # Denormalized
-    agent.part_id = part_id             # Denormalized
-    agent.agent_version_uuid = str(uuid.uuid4())
-    # ... set other attributes
-    agent.save()
-    return agent
+@insert_update_decorator(
+    keys={
+        "hash_key": "partition_key",
+        "range_key": "agent_version_uuid",
+    },
+    model_funct=get_agent,
+    count_funct=get_agent_count,
+    type_funct=get_agent_type,
+)
+def insert_update_agent(info: ResolveInfo, **kwargs) -> Any:
+    partition_key = kwargs.get("partition_key")
+    agent_version_uuid = kwargs.get("agent_version_uuid")
+    
+    if kwargs.get("entity") is None:
+        cols = {
+            "configuration": {},
+            "mcp_server_uuids": [],
+            "variables": [],
+            "updated_by": kwargs["updated_by"],
+            "created_at": pendulum.now("UTC"),
+            "updated_at": pendulum.now("UTC"),
+        }
+        
+        # ... populate cols with other fields ...
+        
+        # CRITICAL: Extract denormalized fields from context
+        cols["endpoint_id"] = info.context.get("endpoint_id")
+        cols["part_id"] = info.context.get("part_id")
+        
+        AgentModel(
+            partition_key,
+            agent_version_uuid,
+            **convert_decimal_to_number(cols),
+        ).save()
+        return
 ```
 
 ### 2.2 Model Schema Changes
@@ -144,32 +169,12 @@ class AgentModel(BaseModel):
 
 **After:**
 ```python
-class EndpointIdIndex(LocalSecondaryIndex):
-    """LSI for querying by endpoint_id within same partition."""
-    class Meta:
-        index_name = "endpoint_id-index"
-        projection = AllProjection()
-
-    partition_key = UnicodeAttribute(hash_key=True)
-    endpoint_id = UnicodeAttribute(range_key=True)
-
-
-class PartIdIndex(LocalSecondaryIndex):
-    """LSI for querying by part_id within same partition."""
-    class Meta:
-        index_name = "part_id-index"
-        projection = AllProjection()
-
-    partition_key = UnicodeAttribute(hash_key=True)
-    part_id = UnicodeAttribute(range_key=True)
-
-
 class AgentModel(BaseModel):
     # Primary Key
     partition_key = UnicodeAttribute(hash_key=True)  # Format: "endpoint_id#part_id"
     agent_version_uuid = UnicodeAttribute(range_key=True)
 
-    # Denormalized attributes for indexing
+    # Denormalized attributes (for reference/debugging only)
     endpoint_id = UnicodeAttribute()  # Platform partition
     part_id = UnicodeAttribute()      # Business partition
 
@@ -179,26 +184,17 @@ class AgentModel(BaseModel):
     # ... other fields
 
     # Indexes (all LSI - share same partition_key)
-    endpoint_id_index = EndpointIdIndex()
-    part_id_index = PartIdIndex()
     agent_uuid_index = AgentUuidIndex()  # Existing LSI
     updated_at_index = UpdatedAtIndex()  # Existing LSI
 ```
 
 **Changes:**
 - Rename hash key from `endpoint_id` to `partition_key`
-- Add `endpoint_id` and `part_id` as denormalized attributes
-- Add Local Secondary Indexes (LSI) for both `endpoint_id` and `part_id`
-- All indexes share the same partition_key (LSI requirement)
-- Keep existing LSIs for backward compatibility
+- Add `endpoint_id` and `part_id` as denormalized attributes (for reference only)
+- Keep existing LSIs (agent_uuid_index, updated_at_index)
+- Update existing LSI classes to use `partition_key` as hash_key
 
-**Benefits of LSI over GSI:**
-- Strongly consistent reads
-- No additional write capacity units required
-- Automatically updated with base table writes
-- Lower cost (no separate provisioning)
-
-### 2.3 Query Patterns with LSI
+### 2.3 Query Patterns
 
 **Primary Key Query (Most Efficient):**
 ```python
@@ -207,27 +203,25 @@ partition_key = "aws-prod#acme-corp"
 agent = AgentModel.get(partition_key, agent_version_uuid)
 ```
 
-**Query by endpoint_id using LSI:**
+**Query by agent_uuid using existing LSI:**
 ```python
-# Query all agents with specific endpoint_id within a partition
+# Query all agents with specific agent_uuid within a partition
 partition_key = "aws-prod#acme-corp"
-agents = AgentModel.endpoint_id_index.query(
-    hash_key=partition_key,
-    range_key_condition=AgentModel.endpoint_id == "aws-prod"
+agents = AgentModel.agent_uuid_index.query(
+    partition_key,
+    AgentModel.agent_uuid == agent_uuid
 )
 ```
 
-**Query by part_id using LSI:**
+**Query by updated_at using existing LSI:**
 ```python
-# Query all agents with specific part_id within a partition
+# Query agents by time range within a partition
 partition_key = "aws-prod#acme-corp"
-agents = AgentModel.part_id_index.query(
-    hash_key=partition_key,
-    range_key_condition=AgentModel.part_id == "acme-corp"
+agents = AgentModel.updated_at_index.query(
+    partition_key,
+    AgentModel.updated_at > start_time
 )
 ```
-
-**Note:** LSI queries require the partition_key (hash key) to be specified. This is efficient because each partition_key already contains the endpoint_id and part_id information.
 
 ### 2.4 Models Requiring Schema Updates
 
@@ -245,9 +239,8 @@ Apply the same pattern (partition_key + denormalized endpoint_id/part_id + LSIs)
 
 **For each model:**
 - Change hash key from `endpoint_id` to `partition_key`
-- Add `endpoint_id` and `part_id` as UnicodeAttribute fields
-- Add `endpoint_id_index` LSI
-- Add `part_id_index` LSI
+- Add `endpoint_id` and `part_id` as UnicodeAttribute fields (denormalized)
+- Update existing LSI classes to use `partition_key` as hash_key
 - Update create/update functions to populate all three fields
 
 ---
@@ -312,28 +305,73 @@ def resolve_insert_update_agent(info: ResolveInfo, **kwargs):
 
 ## 5. Type Changes (Minimal)
 
-### 5.1 Nested Resolvers
+### 5.1 Update TypeBase Schema
 
 **Before:**
 ```python
-class AgentType(graphene.ObjectType):
-    def resolve_flow_snippet(self, info: ResolveInfo):
+class AgentTypeBase(ObjectType):
+    endpoint_id = String()
+    agent_version_uuid = String()
+    agent_uuid = String()
+    # ... other fields
+```
+
+**After (Actual Implementation):**
+```python
+class AgentTypeBase(ObjectType):
+    # Primary Key
+    partition_key = String()  # Composite: "endpoint_id#part_id"
+    agent_version_uuid = String()
+
+    # Denormalized attributes
+    endpoint_id = String()  # Platform partition
+    part_id = String()      # Business partition
+
+    # Agent identifiers
+    agent_uuid = String()
+    agent_name = String()
+    # ... other fields
+```
+
+### 5.2 Nested Resolvers
+
+**Before:**
+```python
+class AgentType(AgentTypeBase):
+    def resolve_flow_snippet(parent, info):
         loaders = get_loaders(info.context)
         endpoint_id = info.context.get("endpoint_id")
         
-        flow_key = (endpoint_id, self.flow_snippet_version_uuid)
+        flow_key = (endpoint_id, parent.flow_snippet_version_uuid)
         return loaders.flow_snippet_loader.load(flow_key)
 ```
 
-**After:**
+**After (Actual Implementation):**
 ```python
-class AgentType(graphene.ObjectType):
-    def resolve_flow_snippet(self, info: ResolveInfo):
-        loaders = get_loaders(info.context)
+class AgentType(AgentTypeBase):
+    def resolve_flow_snippet(parent, info):
+        """Resolve nested FlowSnippet for this agent using DataLoader."""
+        from ..models.batch_loaders import get_loaders
+
+        # Check if already embedded
+        existing = getattr(parent, "flow_snippet", None)
+        if isinstance(existing, dict):
+            return [normalize_to_json(flow_snippet_dict) for flow_snippet_dict in existing]
+
+        # Fetch flow snippet if version UUID exists
         partition_key = info.context.get("partition_key")  # CHANGED
-        
-        flow_key = (partition_key, self.flow_snippet_version_uuid)  # CHANGED
-        return loaders.flow_snippet_loader.load(flow_key)
+        flow_snippet_version_uuid = getattr(parent, "flow_snippet_version_uuid", None)
+        if not partition_key or not flow_snippet_version_uuid:
+            return None
+
+        loaders = get_loaders(info.context)
+        return loaders.flow_snippet_loader.load(
+            (partition_key, flow_snippet_version_uuid)  # CHANGED
+        ).then(
+            lambda flow_snippet_dict: (
+                normalize_to_json(flow_snippet_dict) if flow_snippet_dict else None
+            )
+        )
 ```
 
 **Change:** Replace `endpoint_id` with `partition_key` from context
@@ -553,7 +591,145 @@ internal_mcp = Config.get_internal_mcp(endpoint_id, part_id)
 
 ---
 
-## 8. Migration Phases
+## 8. Agent Model Reference Implementation
+
+> **Status**: ✅ COMPLETED
+> **Purpose**: Reference implementation for migrating remaining 8 models
+
+### What Was Changed
+
+1. ✅ **Main Entry Point** - main.py (partition_key assembly)
+2. ✅ **Model Schema** - agent.py (LSI indexes, denormalized fields)
+3. ✅ **CRUD Functions** - agent.py (signature changes)
+4. ✅ **Type Resolvers** - types/agent.py (nested resolvers)
+5. ✅ **Batch Loaders** - batch_loaders/agent_loader.py (key format)
+6. ✅ **Handler Integration** - handlers/ai_agent.py
+7. ✅ **Config Updates** - handlers/config.py
+
+### Step-by-Step Implementation Guide
+
+#### Step 1: Update Existing LSI Classes
+
+Change hash_key from `endpoint_id` to `partition_key`:
+
+```python
+class AgentUuidIndex(LocalSecondaryIndex):
+    partition_key = UnicodeAttribute(hash_key=True)  # Changed
+    agent_uuid = UnicodeAttribute(range_key=True)
+```
+
+#### Step 2: Update Model Schema
+
+```python
+class AgentModel(BaseModel):
+    # Primary Key
+    partition_key = UnicodeAttribute(hash_key=True)
+    agent_version_uuid = UnicodeAttribute(range_key=True)
+
+    # Denormalized attributes (for reference only)
+    endpoint_id = UnicodeAttribute()
+    part_id = UnicodeAttribute()
+
+    # Other attributes...
+
+    # Indexes (existing LSIs updated to use partition_key)
+    agent_uuid_index = AgentUuidIndex()
+    updated_at_index = UpdatedAtIndex()
+```
+
+#### Step 3: Update CRUD Functions
+
+**get_* functions:**
+```python
+def get_agent(partition_key: str, agent_version_uuid: str) -> AgentModel:
+    return AgentModel.get(partition_key, agent_version_uuid)
+```
+
+**resolve_* functions:**
+```python
+def resolve_agent(info: ResolveInfo, **kwargs) -> AgentType | None:
+    partition_key = info.context["partition_key"]
+    # Use partition_key for all queries
+```
+
+**insert_update_* functions:**
+```python
+@insert_update_decorator(
+    keys={"hash_key": "partition_key", "range_key": "agent_version_uuid"},
+    ...
+)
+def insert_update_agent(info: ResolveInfo, **kwargs) -> Any:
+    # Extract denormalized fields from context
+    cols["endpoint_id"] = info.context.get("endpoint_id")
+    cols["part_id"] = info.context.get("part_id")
+    
+    AgentModel(partition_key, agent_version_uuid, **cols).save()
+```
+
+#### Step 4: Update TypeBase Schema
+
+```python
+class AgentTypeBase(ObjectType):
+    partition_key = String()
+    agent_version_uuid = String()
+    endpoint_id = String()
+    part_id = String()
+    # ... other fields
+```
+
+#### Step 5: Update Nested Resolvers
+
+```python
+def resolve_mcp_servers(parent, info):
+    partition_key = info.context.get("partition_key")
+    loaders = get_loaders(info.context)
+    promises = [
+        loaders.mcp_server_loader.load((partition_key, mcp_uuid))
+        for mcp_uuid in mcp_server_uuids
+    ]
+    return Promise.all(promises).then(filter_results)
+```
+
+#### Step 6: Update Batch Loaders
+
+```python
+class AgentLoader(SafeDataLoader):
+    def batch_load_fn(self, keys: List[Key]) -> Promise:
+        for partition_key, agent_uuid in uncached_keys:
+            results = AgentModel.agent_uuid_index.query(
+                partition_key,
+                AgentModel.agent_uuid == agent_uuid,
+            )
+```
+
+### Checklist for Each Model
+
+- [ ] Update existing LSIs to use partition_key hash key
+- [ ] Update Model schema (partition_key, denormalized fields, indexes)
+- [ ] Update get_* functions signature
+- [ ] Update get_*_count functions signature
+- [ ] Update resolve_* functions to extract partition_key from context
+- [ ] Update resolve_*_list functions to use partition_key
+- [ ] Update insert_update_* decorator and denormalized fields
+- [ ] Update delete_* decorator
+- [ ] Update TypeBase to include partition_key and part_id fields
+- [ ] Update Type nested resolvers
+- [ ] Update batch loader key format
+
+### Common Pitfalls
+
+❌ **DON'T**: Parse partition_key to extract endpoint_id/part_id
+✅ **DO**: Extract from info.context
+
+❌ **DON'T**: Forget to update excluded_fields in insert_update
+✅ **DO**: Add partition_key, endpoint_id, part_id to excluded_fields
+
+❌ **DON'T**: Change queries/mutations files
+✅ **DO**: Let decorators handle context extraction
+
+---
+
+## 9. Migration Phases
 
 ### Phase 1: Code Changes (Week 1-2)
 - [ ] Update `main.py` to assemble `partition_key`
