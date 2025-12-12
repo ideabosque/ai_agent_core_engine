@@ -221,10 +221,6 @@ def get_prompt_template_type(
     try:
         prompt_dict: Dict = prompt_template.__dict__["attribute_values"]
 
-        # Keep the raw references for nested resolvers
-        prompt_dict["mcp_server_refs"] = prompt_template.mcp_servers
-        prompt_dict["ui_component_refs"] = prompt_template.ui_components
-
         return PromptTemplateType(**Utility.json_normalize(prompt_dict))
     except Exception as e:
         log = traceback.format_exc()

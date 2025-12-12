@@ -25,11 +25,6 @@ class PromptTemplateBaseType(ObjectType):
     prompt_description = String()
     template_context = String()
     variables = List(JSON)
-    # Store raw list for mcp_servers and ui_components
-    mcp_server_refs = List(JSON)  # List of {mcp_server_uuid: ...}
-    ui_component_refs = List(
-        JSON
-    )  # List of {ui_component_type: ..., ui_component_uuid: ...}
     status = String()
     updated_by = String()
     created_at = DateTime()
@@ -37,52 +32,69 @@ class PromptTemplateBaseType(ObjectType):
 
 
 class PromptTemplateType(PromptTemplateBaseType):
+    mcp_servers = List(JSON)  # List of {mcp_server_uuid: ...}
+    ui_components = List(
+        JSON
+    )  # List of {ui_component_type: ..., ui_component_uuid: ...}
 
-    # Nested resolvers with DataLoader batch fetching for efficient database access
-    mcp_servers = List(lambda: MCPServerType)
-    ui_components = List(lambda: UIComponentType)
-
+    # Override mcp_servers and ui_components to return full entity data via DataLoader
     def resolve_mcp_servers(parent, info):
-        # Case 1: Already embedded (backward compatibility)
-        existing = getattr(parent, "mcp_servers", None)
-        if isinstance(existing, list):
-            return [server for server in existing]
+        # Get the MCP server references from the model
+        mcp_server_refs = getattr(parent, "mcp_servers", None)
 
-        # Case 2: Load via DataLoader using mcp_server_refs
-        mcp_server_refs = getattr(parent, "mcp_server_refs", None)
         if not mcp_server_refs:
             return []
 
+        # Check if refs are already full objects (have more than just uuid)
+        # If they already have full data (e.g., mcp_label, headers, tools), return them
+        if isinstance(mcp_server_refs, list) and len(mcp_server_refs) > 0:
+            first_ref = mcp_server_refs[0]
+            if isinstance(first_ref, dict) and len(first_ref) > 1:
+                # Has more than just mcp_server_uuid, likely full data
+                return [normalize_to_json(server) for server in mcp_server_refs]
+
+        # Otherwise, load via DataLoader to get full entity data
         from ..models.batch_loaders import get_loaders
 
         partition_key = parent.partition_key
         loaders = get_loaders(info.context)
 
         promises = [
-            loaders.mcp_server_loader.load((partition_key, ref["mcp_server_uuid"]))
+            loaders.mcp_server_loader.load(
+                (
+                    partition_key,
+                    ref["mcp_server_uuid"] if isinstance(ref, dict) else ref,
+                )
+            )
             for ref in mcp_server_refs
-            if "mcp_server_uuid" in ref
+            if (isinstance(ref, dict) and "mcp_server_uuid" in ref)
+            or isinstance(ref, str)
         ]
 
         return Promise.all(promises).then(
             lambda mcp_server_dicts: [
-                MCPServerType(**mcp_dict)
+                normalize_to_json(mcp_dict)
                 for mcp_dict in mcp_server_dicts
                 if mcp_dict is not None
             ]
         )
 
     def resolve_ui_components(parent, info):
-        # Case 1: Already embedded (backward compatibility)
-        existing = getattr(parent, "ui_components", None)
-        if isinstance(existing, list):
-            return [ui_comp for ui_comp in existing]
+        # Get the UI component references from the model
+        ui_component_refs = getattr(parent, "ui_components", None)
 
-        # Case 2: Load via DataLoader using ui_component_refs
-        ui_component_refs = getattr(parent, "ui_component_refs", None)
         if not ui_component_refs:
             return []
 
+        # Check if refs are already full objects (have more than just type and uuid)
+        # If they already have full data (e.g., tag_name, parameters, wait_for), return them
+        if isinstance(ui_component_refs, list) and len(ui_component_refs) > 0:
+            first_ref = ui_component_refs[0]
+            if isinstance(first_ref, dict) and len(first_ref) > 2:
+                # Has more than just ui_component_type and ui_component_uuid, likely full data
+                return [normalize_to_json(ui_comp) for ui_comp in ui_component_refs]
+
+        # Otherwise, load via DataLoader to get full entity data
         from ..models.batch_loaders import get_loaders
 
         loaders = get_loaders(info.context)
@@ -92,12 +104,14 @@ class PromptTemplateType(PromptTemplateBaseType):
                 (ref["ui_component_type"], ref["ui_component_uuid"])
             )
             for ref in ui_component_refs
-            if "ui_component_type" in ref and "ui_component_uuid" in ref
+            if isinstance(ref, dict)
+            and "ui_component_type" in ref
+            and "ui_component_uuid" in ref
         ]
 
         return Promise.all(promises).then(
             lambda ui_component_dicts: [
-                UIComponentType(**ui_comp_dict)
+                normalize_to_json(ui_comp_dict)
                 for ui_comp_dict in ui_component_dicts
                 if ui_comp_dict is not None
             ]
