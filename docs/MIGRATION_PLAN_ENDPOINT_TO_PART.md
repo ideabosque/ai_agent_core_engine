@@ -390,26 +390,25 @@ ai_agent_handler.connection_id = connection_id
 
 **After:**
 ```python
-# Extract both from context
+# Extract both endpoint_id and part_id from context
 endpoint_id = info.context.get("endpoint_id")
-partition_key = info.context.get("partition_key")
+part_id = info.context.get("part_id")  # NEW
 
 ai_agent_handler = ai_agent_handler_class(
     info.context.get("logger"),
     agent.__dict__,
     **info.context.get("setting", {}),
 )
-ai_agent_handler.endpoint_id = endpoint_id        # Keep for backward compatibility
-ai_agent_handler.partition_key = partition_key    # NEW: Add partition_key
+ai_agent_handler.endpoint_id = endpoint_id  # Platform identifier
+ai_agent_handler.part_id = part_id          # NEW: Business partition
 ai_agent_handler.run = run.__dict__
 ai_agent_handler.connection_id = connection_id
 ```
 
-**Changes:** 
-- Extract both `endpoint_id` and `partition_key` from context
+**Changes:**
+- Extract both `endpoint_id` and `part_id` from context
 - Set both on handler instance
-- `endpoint_id` for backward compatibility and non-DB operations
-- `partition_key` for database operations
+- Handlers will construct `partition_key` internally when needed for DB operations
 
 ### 7.3 Handler Database Operations
 
@@ -432,23 +431,29 @@ class OpenAIHandler:
 class OpenAIHandler:
     def save_run_data(self, run_data: dict):
         from ..models.run import RunModel
-        
+
+        # Construct partition_key from endpoint_id and part_id
+        partition_key = f"{self.endpoint_id}#{self.part_id}"
+
         run_model = RunModel()
-        run_model.partition_key = self.partition_key  # CHANGED: Use partition_key for DB
+        run_model.partition_key = partition_key       # Composite key for DB
+        run_model.endpoint_id = self.endpoint_id      # Denormalized
+        run_model.part_id = self.part_id              # Denormalized
         run_model.run_uuid = run_data["run_uuid"]
         run_model.save()
-        
-        # endpoint_id still available if needed for logging
+
+        # endpoint_id still available for logging
         self.logger.info(f"Saved run for endpoint {self.endpoint_id}")
 ```
 
-**Changes:** 
-- Use `self.partition_key` for database operations
-- `self.endpoint_id` still available for logging, external APIs, etc.
+**Changes:**
+- Construct `partition_key` from `self.endpoint_id` and `self.part_id`
+- Set all three fields: `partition_key`, `endpoint_id`, `part_id`
+- `endpoint_id` available for logging, external APIs, etc.
 
 ### 7.4 Handler Usage Pattern
 
-Handlers receive both `endpoint_id` and `partition_key`:
+Handlers receive both `endpoint_id` and `part_id`:
 
 ```python
 class OpenAIHandler:
@@ -456,17 +461,26 @@ class OpenAIHandler:
         self.logger = logger
         self.agent = agent_dict
         # Set after instantiation:
-        self.endpoint_id = None      # Platform identifier (for non-DB operations)
-        self.partition_key = None    # Composite key (for DB operations)
+        self.endpoint_id = None  # Platform identifier
+        self.part_id = None      # Business partition
         self.run = None
         self.connection_id = None
-    
+
+    def _make_partition_key(self) -> str:
+        """Helper to construct partition_key from components."""
+        return f"{self.endpoint_id}#{self.part_id}"
+
     def save_to_database(self, data: dict):
-        """Use partition_key for database operations."""
+        """Save data to database with all required fields."""
+        partition_key = self._make_partition_key()
+
         model = SomeModel()
-        model.partition_key = self.partition_key  # Use partition_key
+        model.partition_key = partition_key       # Composite key
+        model.endpoint_id = self.endpoint_id      # Denormalized
+        model.part_id = self.part_id              # Denormalized
+        # ... set other fields
         model.save()
-    
+
     def call_external_api(self):
         """Use endpoint_id for external API calls if needed."""
         api_url = f"https://api.example.com/{self.endpoint_id}/resource"
@@ -474,9 +488,10 @@ class OpenAIHandler:
 ```
 
 **Key Points:**
-- Use `partition_key` for all database operations
+- Handlers store `endpoint_id` and `part_id` separately
+- Construct `partition_key` when needed for DB operations using helper method
+- Set all three fields (`partition_key`, `endpoint_id`, `part_id`) when saving to DB
 - Use `endpoint_id` for external APIs, logging, or backward compatibility
-- Both values available in handler
 
 ### 7.5 Files to Update
 
@@ -663,6 +678,7 @@ def test_agent_crud_with_partition_key():
 |---------|------|---------|
 | 2.0 | 2025-12-11 | Minimal changes approach with partition_key assembly in main.py |
 | 2.1 | 2025-12-11 | Added denormalized endpoint_id/part_id attributes with LSI indexes for better query flexibility |
+| 2.2 | 2025-12-11 | Updated handler pattern to use endpoint_id and part_id separately, constructing partition_key internally for DB operations |
 
 ---
 
