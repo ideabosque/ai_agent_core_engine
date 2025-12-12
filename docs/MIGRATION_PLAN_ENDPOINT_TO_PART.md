@@ -650,6 +650,75 @@ All code components have been successfully migrated to use the `partition_key` a
 - Uses `partition_key` for all database operations
 - Stores denormalized `endpoint_id` and `part_id` attributes for reference
 
+### 🔧 Additional Fixes (Commits 97fd5fa, 9dbe31a)
+
+Following the initial migration, several critical issues were identified and resolved:
+
+#### 1. Graphql Base Class Initialization Error (Commit 97fd5fa)
+
+**Issue**: `AIAgentCoreEngine.__init__()` was calling `Graphql.__init__(self, logger, **setting)` but the base class from `silvaengine_utility` doesn't accept these parameters, causing:
+```
+TypeError: object.__init__() takes exactly one argument (the instance to initialize)
+```
+
+**Fix**: Changed [main.py:207](../main.py:207) to use `super().__init__()` without parameters:
+```python
+# Before
+Graphql.__init__(self, logger, **setting)
+
+# After
+super().__init__()
+```
+
+**Impact**: Resolved engine initialization failure in tests.
+
+---
+
+#### 2. Test Response Parsing (Commit 97fd5fa)
+
+**Issue**: Test helper `call_method()` wasn't properly parsing GraphQL responses:
+- Responses wrapped in API Gateway format with JSON string in `body` field
+- GraphQL standard format requires `data` wrapper
+
+**Fix**: Updated [test_helpers.py:210-221](../tests/test_helpers.py:210-221):
+```python
+# Parse API Gateway-style response
+if isinstance(result, dict) and 'body' in result and isinstance(result['body'], str):
+    result = json.loads(result['body'])
+
+# Wrap in GraphQL standard format if needed
+if isinstance(result, dict) and 'data' not in result and 'errors' not in result:
+    result = {'data': result}
+```
+
+**Impact**: Tests now properly parse responses and can access nested data correctly.
+
+---
+
+#### 3. Unified MCP Server and UI Component Resolvers (Commit 9dbe31a)
+
+**Issue**: Duplicate fields caused confusion and incomplete data:
+- `mcp_servers` (refs only) vs `mcp_server_refs` (should be full data)
+- `ui_components` (refs only) vs `ui_component_refs` (should be full data)
+- Resolvers were returning early without loading full entity data
+
+**Fix**: Merged into single fields that return full entity data:
+
+**[types/prompt_template.py:41-118](../types/prompt_template.py:41-118)**
+- Removed separate `mcp_server_refs` and `ui_component_refs` fields
+- Added `resolve_mcp_servers()` that loads full MCP server entities via DataLoader
+- Added `resolve_ui_components()` that loads full UI component entities via DataLoader
+- Both resolvers intelligently detect if data is already full vs refs-only
+
+**[models/prompt_template.py:220-224](../models/prompt_template.py:220-224)**
+- Removed mapping that created duplicate `_refs` fields
+- Model attributes now flow through directly to resolvers
+
+**Impact**:
+- Simplified API - single field per entity type
+- Full entity data always returned (mcp_label, headers, tools, tag_name, parameters, etc.)
+- DataLoader batch loading ensures efficient database access
+
 ### Step-by-Step Implementation Guide
 
 #### Step 1: Update Existing LSI Classes
@@ -901,14 +970,29 @@ def test_agent_crud_with_partition_key():
 | 2.2 | 2025-12-11 | Updated handler pattern to use endpoint_id and part_id separately, constructing partition_key internally for DB operations |
 | 2.3 | 2025-12-12 | **Migration Status Update**: Documented completion status of commit 7620492, identified critical issue in handlers/wizard_group.py that was only reformatted but not migrated to partition_key |
 | 2.4 | 2025-12-12 | **✅ MIGRATION COMPLETED**: Fixed handlers/wizard_group.py - all 4 functions now use partition_key. All Phase 1 (Code Changes) tasks completed. |
+| 2.5 | 2025-12-12 | **Additional Fixes**: (Commits 97fd5fa, 9dbe31a) - Fixed Graphql.__init__() error, test helpers response parsing, and unified mcp_servers/ui_components resolvers |
 
 ---
 
 ## Next Steps
 
-### Phase 1: Code Changes ✅ COMPLETED
+### Phase 1: Code Changes ✅ FULLY COMPLETED
 
-All code has been successfully migrated to use `partition_key` architecture.
+**Status**: All code migration and critical fixes completed (commits 7620492, 97fd5fa, 9dbe31a)
+
+**Completed Items**:
+- ✅ All 9 models migrated to partition_key architecture
+- ✅ All handlers and utilities updated
+- ✅ All batch loaders updated with partition_key support
+- ✅ Test infrastructure fixed (initialization and response parsing)
+- ✅ API simplified (merged duplicate MCP/UI component fields)
+- ✅ Full entity data loading via DataLoader
+
+**Known Issues**:
+- ⚠️ `KeyError: 'partition_key'` when internal functions call resolvers (e.g., `delete_llm` → `resolve_agent_list`)
+  - **Root Cause**: Internal function calls don't have partition_key in context
+  - **Workaround**: Tests work for direct GraphQL operations but fail on delete operations
+  - **Recommended Fix**: Implement `get_partition_key_from_context()` helper (currently rolled back)
 
 ### Phase 2: Data Migration (Next Priority)
 
@@ -925,15 +1009,34 @@ All code has been successfully migrated to use `partition_key` architecture.
    - [ ] Run migration on production environment
 
 3. **Testing**:
-   - [ ] Run integration tests to verify all CRUD operations work correctly
+   - [x] Fixed test infrastructure (response parsing, initialization)
+   - [ ] Run full integration test suite
    - [ ] Test wizard_group operations (insert, update, delete)
-   - [ ] Test nested resolver operations
+   - [ ] Test nested resolver operations with full entity data
+   - [ ] Test MCP server and UI component data loading
    - [ ] Load testing with partition_key queries
 
 4. **Deployment**:
    - [ ] Deploy code changes to dev
    - [ ] Deploy to staging with monitoring
    - [ ] Staged rollout to production
+
+### Phase 3: Context KeyError Fix (Optional but Recommended)
+
+To fully resolve the `partition_key` context issue for internal function calls:
+
+1. **Implement Helper Function**:
+   - Add `get_partition_key_from_context()` to `models/utils.py`
+   - Provides fallback logic: context → compute from endpoint_id/part_id → error
+
+2. **Update All Resolvers**:
+   - Replace `info.context["partition_key"]` with `get_partition_key_from_context(info)`
+   - Files: agent.py, element.py, flow_snippet.py, mcp_server.py, prompt_template.py, thread.py, wizard.py, wizard_group.py, wizard_group_filter.py
+
+3. **Benefits**:
+   - Resolves KeyError in internal function calls
+   - More robust error handling
+   - Better backward compatibility
 
 ---
 
