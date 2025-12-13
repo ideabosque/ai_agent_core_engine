@@ -21,7 +21,7 @@ from .tool_calls_by_thread_loader import ToolCallsByThreadLoader
 from .ui_component_loader import UIComponentLoader
 from .wizard_group_loader import WizardGroupLoader
 from .wizard_loader import WizardLoader
-from ...handlers.config import Config
+
 
 
 class RequestLoaders:
@@ -78,18 +78,18 @@ class RequestLoaders:
                 self.llm_loader.cache.delete(cache_key)
         elif entity_type == "mcp_server" and "mcp_server_uuid" in entity_keys:
             cache_key = (
-                f"{entity_keys.get('endpoint_id')}:{entity_keys['mcp_server_uuid']}"
+                f"{entity_keys.get('partition_key')}:{entity_keys['mcp_server_uuid']}"
             )
             if hasattr(self.mcp_server_loader, "cache"):
                 self.mcp_server_loader.cache.delete(cache_key)
         elif entity_type == "agent" and "agent_version_uuid" in entity_keys:
             cache_key = (
-                f"{entity_keys.get('endpoint_id')}:{entity_keys['agent_version_uuid']}"
+                f"{entity_keys.get('partition_key')}:{entity_keys['agent_version_uuid']}"
             )
             if hasattr(self.agent_loader, "cache"):
                 self.agent_loader.cache.delete(cache_key)
         elif entity_type == "thread" and "thread_uuid" in entity_keys:
-            cache_key = f"{entity_keys.get('endpoint_id')}:{entity_keys['thread_uuid']}"
+            cache_key = f"{entity_keys.get('partition_key')}:{entity_keys['thread_uuid']}"
             if hasattr(self.thread_loader, "cache"):
                 self.thread_loader.cache.delete(cache_key)
         elif entity_type == "run" and "run_uuid" in entity_keys:
@@ -99,20 +99,32 @@ class RequestLoaders:
         elif entity_type == "prompt_template":
             prompt_uuid = entity_keys.get("prompt_uuid")
             prompt_version_uuid = entity_keys.get("prompt_version_uuid")
-            endpoint_id = entity_keys.get("endpoint_id")
+            partition_key = entity_keys.get("partition_key")
             # Prefer clearing by prompt_uuid (active lookup path)
-            if prompt_uuid and endpoint_id and hasattr(self.prompt_template_loader, "cache"):
-                self.prompt_template_loader.cache.delete(f"{endpoint_id}:{prompt_uuid}")
-            elif prompt_version_uuid and endpoint_id and hasattr(self.prompt_template_loader, "cache"):
+            if prompt_uuid and partition_key and hasattr(self.prompt_template_loader, "cache"):
+                self.prompt_template_loader.cache.delete(f"{partition_key}:{prompt_uuid}")
+            elif prompt_version_uuid and partition_key and hasattr(self.prompt_template_loader, "cache"):
                 self.prompt_template_loader.cache.delete(
-                    f"{endpoint_id}:{prompt_version_uuid}"
+                    f"{partition_key}:{prompt_version_uuid}"
                 )
         elif (
             entity_type == "flow_snippet" and "flow_snippet_version_uuid" in entity_keys
         ):
-            cache_key = f"{entity_keys.get('endpoint_id')}:{entity_keys['flow_snippet_version_uuid']}"
+            cache_key = f"{entity_keys.get('partition_key')}:{entity_keys['flow_snippet_version_uuid']}"
             if hasattr(self.flow_snippet_loader, "cache"):
                 self.flow_snippet_loader.cache.delete(cache_key)
+        elif entity_type == "element" and "element_uuid" in entity_keys:
+            cache_key = f"{entity_keys.get('partition_key')}:{entity_keys['element_uuid']}"
+            if hasattr(self.element_loader, "cache"):
+                self.element_loader.cache.delete(cache_key)
+        elif entity_type == "wizard" and "wizard_uuid" in entity_keys:
+            cache_key = f"{entity_keys.get('partition_key')}:{entity_keys['wizard_uuid']}"
+            if hasattr(self.wizard_loader, "cache"):
+                self.wizard_loader.cache.delete(cache_key)
+        elif entity_type == "wizard_group" and "wizard_group_uuid" in entity_keys:
+            cache_key = f"{entity_keys.get('partition_key')}:{entity_keys['wizard_group_uuid']}"
+            if hasattr(self.wizard_group_loader, "cache"):
+                self.wizard_group_loader.cache.delete(cache_key)
 
 
 def get_loaders(context: Dict[str, Any]) -> RequestLoaders:
@@ -122,6 +134,7 @@ def get_loaders(context: Dict[str, Any]) -> RequestLoaders:
 
     loaders = context.get("batch_loaders")
     if not loaders:
+        from ...handlers.config import Config
         cache_enabled = Config.is_cache_enabled()
         loaders = RequestLoaders(context, cache_enabled=cache_enabled)
         context["batch_loaders"] = loaders

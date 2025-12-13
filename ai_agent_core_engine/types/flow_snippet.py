@@ -11,7 +11,9 @@ from .prompt_template import PromptTemplateType
 
 
 class FlowSnippetBaseType(ObjectType):
+    partition_key = String()
     endpoint_id = String()
+    part_id = String()
     flow_snippet_version_uuid = String()
     flow_snippet_uuid = String()
     prompt_uuid = String()
@@ -43,15 +45,15 @@ class FlowSnippetType(FlowSnippetBaseType):
             return existing
 
         # Case 1: need to fetch using DataLoader
-        endpoint_id = getattr(parent, "endpoint_id", None) or info.context.get(
-            "endpoint_id"
+        partition_key = getattr(parent, "partition_key", None) or info.context.get(
+            "partition_key"
         )
         prompt_uuid = getattr(parent, "prompt_uuid", None)
-        if not endpoint_id or not prompt_uuid:
+        if not partition_key or not prompt_uuid:
             return None
 
         loaders = get_loaders(info.context)
-        return loaders.prompt_template_loader.load((endpoint_id, prompt_uuid)).then(
+        return loaders.prompt_template_loader.load((partition_key, prompt_uuid)).then(
             lambda prompt_dict: (
                 PromptTemplateType(**prompt_dict) if prompt_dict else None
             )

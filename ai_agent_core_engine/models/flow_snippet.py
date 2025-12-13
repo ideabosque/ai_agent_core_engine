@@ -41,7 +41,7 @@ class FlowSnippetUuidIndex(LocalSecondaryIndex):
         projection = AllProjection()
         index_name = "flow_snippet_uuid-index"
 
-    endpoint_id = UnicodeAttribute(hash_key=True)
+    partition_key = UnicodeAttribute(hash_key=True)
     flow_snippet_uuid = UnicodeAttribute(range_key=True)
 
 
@@ -52,7 +52,7 @@ class PromptUuidIndex(LocalSecondaryIndex):
         projection = AllProjection()
         index_name = "prompt_uuid-index"
 
-    endpoint_id = UnicodeAttribute(hash_key=True)
+    partition_key = UnicodeAttribute(hash_key=True)
     prompt_uuid = UnicodeAttribute(range_key=True)
 
 
@@ -67,7 +67,7 @@ class UpdatedAtIndex(LocalSecondaryIndex):
         projection = AllProjection()
         index_name = "updated_at-index"
 
-    endpoint_id = UnicodeAttribute(hash_key=True)
+    partition_key = UnicodeAttribute(hash_key=True)
     updated_at = UnicodeAttribute(range_key=True)
 
 
@@ -75,8 +75,10 @@ class FlowSnippetModel(BaseModel):
     class Meta(BaseModel.Meta):
         table_name = "aace-flow_snippets"
 
-    endpoint_id = UnicodeAttribute(hash_key=True)
+    partition_key = UnicodeAttribute(hash_key=True)
     flow_snippet_version_uuid = UnicodeAttribute(range_key=True)
+    endpoint_id = UnicodeAttribute()
+    part_id = UnicodeAttribute()
     flow_snippet_uuid = UnicodeAttribute()
     prompt_uuid = UnicodeAttribute()
     flow_name = UnicodeAttribute()
@@ -104,8 +106,8 @@ def purge_cache():
                 except Exception as e:
                     flow_snippet = None
 
-                endpoint_id = args[0].context.get("endpoint_id") or kwargs.get(
-                    "endpoint_id"
+                partition_key = args[0].context.get("partition_key") or kwargs.get(
+                    "partition_key"
                 )
                 entity_keys = {}
                 if kwargs.get("flow_snippet_version_uuid"):
@@ -118,7 +120,9 @@ def purge_cache():
                 result = purge_entity_cascading_cache(
                     args[0].context.get("logger"),
                     entity_type="flow_snippet",
-                    context_keys={"endpoint_id": endpoint_id} if endpoint_id else None,
+                    context_keys=(
+                        {"partition_key": partition_key} if partition_key else None
+                    ),
                     entity_keys=entity_keys if entity_keys else None,
                     cascade_depth=3,
                 )
@@ -164,9 +168,9 @@ def create_flow_snippet_table(logger: logging.Logger) -> bool:
     cache_name=Config.get_cache_name("models", "flow_snippet"),
 )
 def get_flow_snippet(
-    endpoint_id: str, flow_snippet_version_uuid: str
+    partition_key: str, flow_snippet_version_uuid: str
 ) -> FlowSnippetModel:
-    return FlowSnippetModel.get(endpoint_id, flow_snippet_version_uuid)
+    return FlowSnippetModel.get(partition_key, flow_snippet_version_uuid)
 
 
 @retry(
@@ -179,11 +183,11 @@ def get_flow_snippet(
     cache_name=Config.get_cache_name("models", "active_flow_snippet"),
 )
 def _get_active_flow_snippet(
-    endpoint_id: str, flow_snippet_uuid: str
+    partition_key: str, flow_snippet_uuid: str
 ) -> FlowSnippetModel | None:
     try:
         results = FlowSnippetModel.flow_snippet_uuid_index.query(
-            endpoint_id,
+            partition_key,
             FlowSnippetModel.flow_snippet_uuid == flow_snippet_uuid,
             filter_condition=(FlowSnippetModel.status == "active"),
             scan_index_forward=False,
@@ -195,9 +199,9 @@ def _get_active_flow_snippet(
         return None
 
 
-def get_flow_snippet_count(endpoint_id: str, flow_snippet_version_uuid: str) -> int:
+def get_flow_snippet_count(partition_key: str, flow_snippet_version_uuid: str) -> int:
     return FlowSnippetModel.count(
-        endpoint_id,
+        partition_key,
         FlowSnippetModel.flow_snippet_version_uuid == flow_snippet_version_uuid,
     )
 
@@ -247,12 +251,12 @@ def resolve_flow_snippet(
         return get_flow_snippet_type(
             info,
             _get_active_flow_snippet(
-                info.context["endpoint_id"], kwargs["flow_snippet_uuid"]
+                info.context["partition_key"], kwargs["flow_snippet_uuid"]
             ),
         )
 
     count = get_flow_snippet_count(
-        info.context["endpoint_id"], kwargs["flow_snippet_version_uuid"]
+        info.context["partition_key"], kwargs["flow_snippet_version_uuid"]
     )
     if count == 0:
         return None
@@ -260,19 +264,23 @@ def resolve_flow_snippet(
     return get_flow_snippet_type(
         info,
         get_flow_snippet(
-            info.context["endpoint_id"], kwargs["flow_snippet_version_uuid"]
+            info.context["partition_key"], kwargs["flow_snippet_version_uuid"]
         ),
     )
 
 
 @monitor_decorator
 @resolve_list_decorator(
-    attributes_to_get=["endpoint_id", "flow_snippet_version_uuid", "flow_snippet_uuid"],
+    attributes_to_get=[
+        "partition_key",
+        "flow_snippet_version_uuid",
+        "flow_snippet_uuid",
+    ],
     list_type_class=FlowSnippetListType,
     type_funct=get_flow_snippet_list_type,
 )
 def resolve_flow_snippet_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
-    endpoint_id = info.context["endpoint_id"]
+    partition_key = info.context["partition_key"]
     flow_snippet_uuid = kwargs.get("flow_snippet_uuid")
     prompt_uuid = kwargs.get("prompt_uuid")
     flow_name = kwargs.get("flow_name")
@@ -284,7 +292,7 @@ def resolve_flow_snippet_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> An
     inquiry_funct = FlowSnippetModel.scan
     count_funct = FlowSnippetModel.count
     range_key_condition = None
-    if endpoint_id:
+    if partition_key:
         # Build range key condition for updated_at when using updated_at_index
         if updated_at_gt is not None and updated_at_lt is not None:
             range_key_condition = FlowSnippetModel.updated_at.between(
@@ -295,7 +303,7 @@ def resolve_flow_snippet_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> An
         elif updated_at_lt is not None:
             range_key_condition = FlowSnippetModel.updated_at < updated_at_lt
 
-        args = [endpoint_id, range_key_condition]
+        args = [partition_key, range_key_condition]
         inquiry_funct = FlowSnippetModel.updated_at_index.query
         count_funct = FlowSnippetModel.updated_at_index.count
 
@@ -325,12 +333,12 @@ def resolve_flow_snippet_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> An
 
 
 def _inactivate_flow_snippets(
-    info: ResolveInfo, endpoint_id: str, flow_snippet_uuid: str
+    info: ResolveInfo, partition_key: str, flow_snippet_uuid: str
 ) -> None:
     try:
-        endpoint_id = endpoint_id or info.context.get("endpoint_id")
+        partition_key = partition_key or info.context.get("partition_key")
         flow_snippets = FlowSnippetModel.flow_snippet_uuid_index.query(
-            endpoint_id,
+            partition_key,
             FlowSnippetModel.flow_snippet_uuid == flow_snippet_uuid,
             filter_condition=FlowSnippetModel.status == "active",
         )
@@ -347,7 +355,7 @@ def _inactivate_flow_snippets(
 @purge_cache()
 @insert_update_decorator(
     keys={
-        "hash_key": "endpoint_id",
+        "hash_key": "partition_key",
         "range_key": "flow_snippet_version_uuid",
     },
     model_funct=get_flow_snippet,
@@ -355,7 +363,7 @@ def _inactivate_flow_snippets(
     type_funct=get_flow_snippet_type,
 )
 def insert_update_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
-    endpoint_id = kwargs.get("endpoint_id")
+    partition_key = kwargs.get("partition_key")
     flow_snippet_version_uuid = kwargs.get("flow_snippet_version_uuid")
     duplicate = kwargs.get("duplicate", False)
 
@@ -369,11 +377,13 @@ def insert_update_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> A
         active_flow_snippet = None
         if "flow_snippet_uuid" in kwargs:
             active_flow_snippet = _get_active_flow_snippet(
-                endpoint_id, kwargs["flow_snippet_uuid"]
+                partition_key, kwargs["flow_snippet_uuid"]
             )
         if active_flow_snippet:
             excluded_fields = {
+                "partition_key",
                 "endpoint_id",
+                "part_id",
                 "flow_snippet_version_uuid",
                 "status",
                 "updated_by",
@@ -396,7 +406,7 @@ def insert_update_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> A
             else:
                 # Deactivate previous versions before creating new one
                 _inactivate_flow_snippets(
-                    info, endpoint_id, kwargs["flow_snippet_uuid"]
+                    info, partition_key, kwargs["flow_snippet_uuid"]
                 )
         else:
             timestamp = pendulum.now("UTC").int_timestamp
@@ -416,8 +426,11 @@ def insert_update_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> A
                 else:
                     cols[key] = kwargs[key]
 
+        cols["endpoint_id"] = info.context.get("endpoint_id")
+        cols["part_id"] = info.context.get("part_id")
+
         FlowSnippetModel(
-            endpoint_id,
+            partition_key,
             flow_snippet_version_uuid,
             **convert_decimal_to_number(cols),
         ).save()
@@ -439,7 +452,7 @@ def insert_update_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> A
     if "status" in kwargs and (
         kwargs["status"] == "active" and flow_snippet.status == "inactive"
     ):
-        _inactivate_flow_snippets(info, endpoint_id, flow_snippet.flow_snippet_uuid)
+        _inactivate_flow_snippets(info, partition_key, flow_snippet.flow_snippet_uuid)
 
     field_map = {
         "prompt_uuid": FlowSnippetModel.prompt_uuid,
@@ -466,7 +479,7 @@ def insert_update_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> A
 @purge_cache()
 @delete_decorator(
     keys={
-        "hash_key": "endpoint_id",
+        "hash_key": "partition_key",
         "range_key": "flow_snippet_version_uuid",
     },
     model_funct=get_flow_snippet,
@@ -475,7 +488,7 @@ def delete_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
 
     if kwargs["entity"].status == "active":
         results = FlowSnippetModel.flow_snippet_uuid_index.query(
-            kwargs["entity"].endpoint_id,
+            kwargs["entity"].partition_key,
             FlowSnippetModel.flow_snippet_uuid == kwargs["entity"].flow_snippet_uuid,
             filter_condition=(FlowSnippetModel.status == "inactive"),
         )

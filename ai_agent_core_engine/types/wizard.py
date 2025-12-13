@@ -14,7 +14,9 @@ from ..utils.normalization import normalize_to_json
 
 
 class WizardType(ObjectType):
+    partition_key = String()
     endpoint_id = String()
+    part_id = String()
     wizard_uuid = String()
     wizard_title = String()
     wizard_description = String()
@@ -82,11 +84,11 @@ class WizardType(ObjectType):
         if not wizard_element_refs:
             return []
 
-        endpoint_id = parent.endpoint_id
+        partition_key = parent.partition_key
         loaders = get_loaders(info.context)
 
         promises = [
-            loaders.element_loader.load((endpoint_id, ref["element_uuid"]))
+            loaders.element_loader.load((partition_key, ref["element_uuid"]))
             for ref in wizard_element_refs
             if "element_uuid" in ref
         ]

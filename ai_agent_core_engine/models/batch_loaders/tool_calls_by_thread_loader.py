@@ -64,9 +64,7 @@ class ToolCallsByThreadLoader(SafeDataLoader):
                         )
                     )
 
-                    normalized_tool_calls = [
-                        normalize_model(tc) for tc in tool_calls
-                    ]
+                    normalized_tool_calls = [normalize_model(tc) for tc in tool_calls]
 
                     key_map[thread_uuid] = normalized_tool_calls
 

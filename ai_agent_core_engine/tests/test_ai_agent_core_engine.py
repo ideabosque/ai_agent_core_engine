@@ -67,6 +67,7 @@ ASYNC_TASK_TEST_DATA = _TEST_DATA.get("async_tasks", [])
 
 @pytest.mark.integration
 @pytest.mark.graphql
+@log_test_result
 def test_graphql_ping(ai_agent_core_engine: Any, schema: Any) -> None:
     """Test GraphQL ping operation."""
     query = Utility.generate_graphql_operation("ping", "Query", schema)
@@ -147,7 +148,7 @@ def test_llm_lifecycle_flow(
     )
     assert error is None, f"Update LLM failed: {error}"
 
-    if not os.getenv("full_lifecycle_flow", False):
+    if not int(os.getenv("full_lifecycle_flow", "0")):
         return
     # 5. Delete
     delete_query = Utility.generate_graphql_operation("deleteLlm", "Mutation", schema)
@@ -222,7 +223,7 @@ def test_agent_lifecycle_flow(
     agent_list = result.get("data", {}).get("agentList", {}).get("agentList")
     assert agent_list and len(agent_list) > 0, "Agent list empty or missing"
 
-    if not os.getenv("full_lifecycle_flow", False):
+    if not int(os.getenv("full_lifecycle_flow", "0")):
         return
     # 4. Delete
     delete_query = Utility.generate_graphql_operation("deleteAgent", "Mutation", schema)
@@ -292,7 +293,7 @@ def test_thread_lifecycle_flow(
     thread_list = result.get("data", {}).get("threadList", {}).get("threadList")
     assert thread_list and len(thread_list) > 0, "Thread list empty or missing"
 
-    if not os.getenv("full_lifecycle_flow", False):
+    if not int(os.getenv("full_lifecycle_flow", "0")):
         return
     # 4. Delete
     delete_query = Utility.generate_graphql_operation(
@@ -365,7 +366,7 @@ def test_run_lifecycle_flow(
     run_list = result.get("data", {}).get("runList", {}).get("runList")
     assert run_list and len(run_list) > 0, "Run list empty or missing"
 
-    if not os.getenv("full_lifecycle_flow", False):
+    if not int(os.getenv("full_lifecycle_flow", "0")):
         return
     # 4. Delete
     delete_query = Utility.generate_graphql_operation("deleteRun", "Mutation", schema)
@@ -427,7 +428,7 @@ def test_message_lifecycle_flow(
     assert error is None, f"Get Message failed: {error}"
     assert result.get("data", {}).get("message"), "Message not found after insertion"
 
-    if not os.getenv("full_lifecycle_flow", False):
+    if not int(os.getenv("full_lifecycle_flow", "0")):
         return
     # 3. Delete
     delete_query = Utility.generate_graphql_operation(
@@ -486,7 +487,7 @@ def test_tool_call_lifecycle_flow(
     assert error is None, f"Get Tool Call failed: {error}"
     assert result.get("data", {}).get("toolCall"), "Tool Call not found after insertion"
 
-    if not os.getenv("full_lifecycle_flow", False):
+    if not int(os.getenv("full_lifecycle_flow", "0")):
         return
     # 3. Delete
     delete_query = Utility.generate_graphql_operation(
@@ -548,7 +549,7 @@ def test_fine_tuning_message_lifecycle_flow(
         "fineTuningMessage"
     ), "Fine Tuning Message not found after insertion"
 
-    if not os.getenv("full_lifecycle_flow", False):
+    if not int(os.getenv("full_lifecycle_flow", "0")):
         return
     # 3. Delete
     delete_query = Utility.generate_graphql_operation(
@@ -610,7 +611,7 @@ def test_async_task_lifecycle_flow(
         "asyncTask"
     ), "Async Task not found after insertion"
 
-    if not os.getenv("full_lifecycle_flow", False):
+    if not int(os.getenv("full_lifecycle_flow", "0")):
         return
     # 3. Delete
     delete_query = Utility.generate_graphql_operation(
@@ -667,7 +668,7 @@ def test_element_lifecycle_flow(
     assert error is None, f"Get Element failed: {error}"
     assert result.get("data", {}).get("element"), "Element not found after insertion"
 
-    if not os.getenv("full_lifecycle_flow", False):
+    if not int(os.getenv("full_lifecycle_flow", "0")):
         return
     # 3. Delete
     delete_query = Utility.generate_graphql_operation(
@@ -723,7 +724,7 @@ def test_wizard_lifecycle_flow(
     assert error is None, f"Get Wizard failed: {error}"
     assert result.get("data", {}).get("wizard"), "Wizard not found after insertion"
 
-    if not os.getenv("full_lifecycle_flow", False):
+    if not int(os.getenv("full_lifecycle_flow", "0")):
         return
     # 3. Delete
     delete_query = Utility.generate_graphql_operation(
@@ -790,7 +791,7 @@ def test_wizard_schema_lifecycle_flow(
         "wizardSchema"
     ), "Wizard Schema not found after insertion"
 
-    if not os.getenv("full_lifecycle_flow", False):
+    if not int(os.getenv("full_lifecycle_flow", "0")):
         return
     # 3. Delete
     delete_query = Utility.generate_graphql_operation(
@@ -853,7 +854,7 @@ def test_wizard_group_lifecycle_flow(
         "wizardGroup"
     ), "Wizard Group not found after insertion"
 
-    if not os.getenv("full_lifecycle_flow", False):
+    if not int(os.getenv("full_lifecycle_flow", "0")):
         return
     # 3. Delete
     delete_query = Utility.generate_graphql_operation(
@@ -917,7 +918,7 @@ def test_wizard_group_filter_lifecycle_flow(
         "wizardGroupFilter"
     ), "Wizard Group Filter not found after insertion"
 
-    if not os.getenv("full_lifecycle_flow", False):
+    if not int(os.getenv("full_lifecycle_flow", "0")):
         return
     # 3. Delete
     delete_query = Utility.generate_graphql_operation(
@@ -982,7 +983,7 @@ def test_ui_component_lifecycle_flow(
         "uiComponent"
     ), "UI Component not found after insertion"
 
-    if not os.getenv("full_lifecycle_flow", False):
+    if not int(os.getenv("full_lifecycle_flow", "0")):
         return
     # 3. Delete
     delete_query = Utility.generate_graphql_operation(
@@ -1045,7 +1046,7 @@ def test_mcp_server_lifecycle_flow(
         "mcpServer"
     ), "MCP Server not found after insertion"
 
-    if not os.getenv("full_lifecycle_flow", False):
+    if not int(os.getenv("full_lifecycle_flow", "0")):
         return
     # 3. Delete
     delete_query = Utility.generate_graphql_operation(
@@ -1113,7 +1114,7 @@ def test_prompt_template_lifecycle_flow(
         "promptTemplate"
     ), "Prompt Template not found after insertion"
 
-    if not os.getenv("full_lifecycle_flow", False):
+    if not int(os.getenv("full_lifecycle_flow", "0")):
         return
     # 3. Delete
     delete_query = Utility.generate_graphql_operation(
@@ -1193,7 +1194,7 @@ def test_flow_snippet_lifecycle_flow(
     flow_list = result.get("data", {}).get("flowSnippetList", {}).get("flowSnippetList")
     assert flow_list and len(flow_list) > 0, "Flow Snippet list empty or missing"
 
-    if not os.getenv("full_lifecycle_flow", False):
+    if not int(os.getenv("full_lifecycle_flow", "0")):
         return
     # 3. Delete
     delete_query = Utility.generate_graphql_operation(

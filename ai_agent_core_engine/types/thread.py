@@ -13,7 +13,9 @@ from ..utils.normalization import normalize_to_json
 
 
 class ThreadType(ObjectType):
+    partition_key = String()
     endpoint_id = String()
+    part_id = String()
     thread_uuid = String()
     agent_uuid = String()
     user_id = String()
@@ -39,15 +41,15 @@ class ThreadType(ObjectType):
             return existing
 
         # Case 1: need to fetch using DataLoader
-        endpoint_id = getattr(parent, "endpoint_id", None) or info.context.get(
-            "endpoint_id"
+        partition_key = getattr(parent, "partition_key", None) or info.context.get(
+            "partition_key"
         )
         agent_uuid = getattr(parent, "agent_uuid", None)
-        if not endpoint_id or not agent_uuid:
+        if not partition_key or not agent_uuid:
             return None
 
         loaders = get_loaders(info.context)
-        return loaders.agent_loader.load((endpoint_id, agent_uuid)).then(
+        return loaders.agent_loader.load((partition_key, agent_uuid)).then(
             lambda agent_dict: AgentType(**agent_dict) if agent_dict else None
         )
 
@@ -68,11 +70,11 @@ class ThreadType(ObjectType):
             return []
 
         # Get agent to determine tool_call_role
-        endpoint_id = getattr(parent, "endpoint_id", None) or info.context.get(
-            "endpoint_id"
+        partition_key = getattr(parent, "partition_key", None) or info.context.get(
+            "partition_key"
         )
         agent_uuid = getattr(parent, "agent_uuid", None)
-        if not endpoint_id or not agent_uuid:
+        if not partition_key or not agent_uuid:
             return []
 
         loaders = get_loaders(info.context)
@@ -160,7 +162,7 @@ class ThreadType(ObjectType):
         # Load agent, messages, and tool calls in parallel using batch loaders
         return Promise.all(
             [
-                loaders.agent_loader.load((endpoint_id, agent_uuid)),
+                loaders.agent_loader.load((partition_key, agent_uuid)),
                 loaders.messages_by_thread_loader.load(thread_uuid),
                 loaders.tool_calls_by_thread_loader.load(thread_uuid),
             ]

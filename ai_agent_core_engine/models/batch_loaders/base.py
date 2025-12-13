@@ -11,7 +11,6 @@ from silvaengine_utility import Utility
 
 from ...handlers.config import Config
 
-
 KeyMap = Dict[Any, Any]
 
 

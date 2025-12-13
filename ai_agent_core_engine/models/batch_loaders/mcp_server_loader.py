@@ -17,7 +17,7 @@ Key = Tuple[str, str]
 
 
 class McpServerLoader(SafeDataLoader):
-    """Batch loader for McpServerModel keyed by (endpoint_id, mcp_server_uuid)."""
+    """Batch loader for McpServerModel keyed by (partition_key, mcp_server_uuid)."""
 
     def __init__(self, logger=None, cache_enabled=True, **kwargs):
         super(McpServerLoader, self).__init__(
@@ -36,7 +36,7 @@ class McpServerLoader(SafeDataLoader):
         # Check cache first if enabled
         if self.cache_enabled:
             for key in unique_keys:
-                cache_key = f"{key[0]}:{key[1]}"  # endpoint_id:mcp_server_uuid
+                cache_key = f"{key[0]}:{key[1]}"  # partition_key:mcp_server_uuid
                 cached_item = self.cache.get(cache_key)
                 if cached_item:
                     key_map[key] = cached_item
@@ -50,7 +50,7 @@ class McpServerLoader(SafeDataLoader):
             try:
                 for mcp in MCPServerModel.batch_get(uncached_keys):
                     normalized = normalize_model(mcp)
-                    key = (mcp.endpoint_id, mcp.mcp_server_uuid)
+                    key = (mcp.partition_key, mcp.mcp_server_uuid)
                     key_map[key] = normalized
 
                     # Cache the result if enabled

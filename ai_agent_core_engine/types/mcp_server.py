@@ -10,7 +10,9 @@ from silvaengine_utility import JSON
 
 
 class MCPServerType(ObjectType):
+    partition_key = String()
     endpoint_id = String()
+    part_id = String()
     mcp_server_uuid = String()
     mcp_label = String()
     mcp_server_url = String()

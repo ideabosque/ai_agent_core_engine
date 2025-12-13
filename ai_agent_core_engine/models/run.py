@@ -51,7 +51,7 @@ class RunModel(BaseModel):
     thread_uuid = UnicodeAttribute(hash_key=True)
     run_uuid = UnicodeAttribute(range_key=True)
     run_id = UnicodeAttribute(null=True)
-    endpoint_id = UnicodeAttribute()
+    partition_key = UnicodeAttribute()
     completion_tokens = NumberAttribute(default=0)
     prompt_tokens = NumberAttribute(default=0)
     total_tokens = NumberAttribute(default=0)
@@ -79,7 +79,7 @@ def purge_cache():
                 result = purge_entity_cascading_cache(
                     args[0].context.get("logger"),
                     entity_type="run",
-                    context_keys=None,  # Runs don't use endpoint_id directly
+                    context_keys=None,  # Runs don't use partition_key directly
                     entity_keys=entity_keys if entity_keys else None,
                     cascade_depth=3,
                 )
@@ -158,7 +158,7 @@ def resolve_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> RunType | None:
 def resolve_run_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     thread_uuid = kwargs.get("thread_uuid")
     run_id = kwargs.get("run_id")
-    endpoint_id = info.context["endpoint_id"]
+    partition_key = info.context["partition_key"]
     token_type = kwargs.get("token_type")
     great_token = kwargs.get("great_token")
     less_token = kwargs.get("less_token")
@@ -186,8 +186,8 @@ def resolve_run_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
         count_funct = RunModel.updated_at_index.count
 
     the_filters = None  # We can add filters for the query.
-    if endpoint_id:
-        the_filters &= RunModel.endpoint_id == endpoint_id
+    if partition_key:
+        the_filters &= RunModel.partition_key == partition_key
     if run_id:
         the_filters &= RunModel.run_id.exists()
         the_filters &= RunModel.run_id == run_id
@@ -230,7 +230,7 @@ def insert_update_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     run_uuid = kwargs.get("run_uuid")
     if kwargs.get("entity") is None:
         cols = {
-            "endpoint_id": info.context["endpoint_id"],
+            "partition_key": info.context["partition_key"],
             "updated_by": kwargs["updated_by"],
             "created_at": pendulum.now("UTC"),
             "updated_at": pendulum.now("UTC"),

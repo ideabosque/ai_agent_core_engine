@@ -6,6 +6,8 @@ from __future__ import print_function
 
 import json
 import logging
+import os
+import sys
 import time
 import uuid
 from functools import wraps
@@ -13,6 +15,15 @@ from typing import Any, Dict, List, Optional, Tuple
 from unittest.mock import MagicMock
 
 import pendulum
+
+# Add parent directory to path to allow imports when running directly
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
+sys.path.insert(
+    0,
+    os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "../../../silvaengine_utility")
+    ),
+)
 from silvaengine_utility import Utility
 
 logger = logging.getLogger("test_ai_agent_core_engine")
@@ -195,6 +206,20 @@ def call_method(
                 result = json.loads(result)
             except ValueError:
                 pass
+
+        # Handle API Gateway-style response format
+        if isinstance(result, dict) and 'body' in result and isinstance(result['body'], str):
+            try:
+                result = json.loads(result['body'])
+            except (ValueError, TypeError):
+                pass
+
+        # Wrap GraphQL response in standard format if not already wrapped
+        # GraphQL standard format has a "data" key at the top level
+        if isinstance(result, dict) and 'data' not in result and 'errors' not in result:
+            # If the result looks like GraphQL data (has query/mutation names), wrap it
+            result = {'data': result}
+
         elapsed_ms = round((time.perf_counter() - t0) * 1000, 2)
 
         logger.info(

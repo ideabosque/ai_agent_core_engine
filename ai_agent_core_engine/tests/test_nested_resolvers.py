@@ -81,6 +81,8 @@ def context_and_loaders(test_data):
     ctx: Dict[str, Any] = {
         "logger": MagicMock(),
         "endpoint_id": endpoint_id,
+        "part_id": endpoint_id,
+        "partition_key": f"{endpoint_id}#{endpoint_id}",
         "registry": {},  # For looking up mock objects by ID
     }
     # Enable cache to ensure deduplication works
@@ -109,7 +111,7 @@ def _stub_batch_loader(
 # ---------------------------------------------------------------------------
 
 
-def setup_llm(test_data, endpoint_id):
+def setup_llm(test_data, partition_key):
     llm_a = test_data["llms"][0]
     llm_b = test_data["llms"][1]
     key_a = (llm_a["llmProvider"], llm_a["llmName"])
@@ -133,28 +135,30 @@ def setup_llm(test_data, endpoint_id):
     }
 
 
-def setup_mcp(test_data, endpoint_id):
+def setup_mcp(test_data, partition_key):
     mcp_a = test_data["mcp_servers"][0]
     mcp_a_uuid = mcp_a.get("mcpServerUuid", "70825090807816536192")
     mcp_b_uuid = "mcp-second-uuid"
 
     results = {
-        (endpoint_id, mcp_a_uuid): {
+        (partition_key, mcp_a_uuid): {
             "mcp_server_uuid": mcp_a_uuid,
             "mcp_label": mcp_a["mcpLabel"],
         },
-        (endpoint_id, mcp_b_uuid): {
+        (partition_key, mcp_b_uuid): {
             "mcp_server_uuid": mcp_b_uuid,
             "mcp_label": "Second MCP",
         },
     }
 
-    obj_a = AgentType(endpoint_id=endpoint_id, mcp_server_uuids=[mcp_a_uuid])
-    obj_b = AgentType(endpoint_id=endpoint_id, mcp_server_uuids=[mcp_b_uuid])
+    obj_a = AgentType(mcp_server_uuids=[mcp_a_uuid])
+    obj_a.partition_key = partition_key
+    obj_b = AgentType(mcp_server_uuids=[mcp_b_uuid])
+    obj_b.partition_key = partition_key
 
     return {
         "results": results,
-        "keys": [(endpoint_id, mcp_a_uuid), (endpoint_id, mcp_b_uuid)],
+        "keys": [(partition_key, mcp_a_uuid), (partition_key, mcp_b_uuid)],
         "obj_a": obj_a,
         "obj_b": obj_b,
         "val_a": mcp_a["mcpLabel"],
@@ -162,28 +166,30 @@ def setup_mcp(test_data, endpoint_id):
     }
 
 
-def setup_flow(test_data, endpoint_id):
+def setup_flow(test_data, partition_key):
     flow_a = test_data["flow_snippets"][0]
     flow_a_uuid = flow_a.get("flowSnippetVersionUuid", "fs-1")
     flow_b_uuid = "fs-2"
 
     results = {
-        (endpoint_id, flow_a_uuid): {
+        (partition_key, flow_a_uuid): {
             "flow_snippet_version_uuid": flow_a_uuid,
             "flow_name": flow_a["flowName"],
         },
-        (endpoint_id, flow_b_uuid): {
+        (partition_key, flow_b_uuid): {
             "flow_snippet_version_uuid": flow_b_uuid,
             "flow_name": "Second Flow",
         },
     }
 
-    obj_a = AgentType(endpoint_id=endpoint_id, flow_snippet_version_uuid=flow_a_uuid)
-    obj_b = AgentType(endpoint_id=endpoint_id, flow_snippet_version_uuid=flow_b_uuid)
+    obj_a = AgentType(flow_snippet_version_uuid=flow_a_uuid)
+    obj_a.partition_key = partition_key
+    obj_b = AgentType(flow_snippet_version_uuid=flow_b_uuid)
+    obj_b.partition_key = partition_key
 
     return {
         "results": results,
-        "keys": [(endpoint_id, flow_a_uuid), (endpoint_id, flow_b_uuid)],
+        "keys": [(partition_key, flow_a_uuid), (partition_key, flow_b_uuid)],
         "obj_a": obj_a,
         "obj_b": obj_b,
         "val_a": flow_a["flowName"],
@@ -191,28 +197,30 @@ def setup_flow(test_data, endpoint_id):
     }
 
 
-def setup_wizard(test_data, endpoint_id):
+def setup_wizard(test_data, partition_key):
     wizard = test_data["wizards"][0]
     wizard_uuid_a = wizard.get("wizardUuid", "83684635492349919360")
     wizard_uuid_b = "wizard-second-uuid"
 
     results = {
-        (endpoint_id, wizard_uuid_a): {
+        (partition_key, wizard_uuid_a): {
             "wizard_uuid": wizard_uuid_a,
             "wizard_title": wizard["wizardTitle"],
         },
-        (endpoint_id, wizard_uuid_b): {
+        (partition_key, wizard_uuid_b): {
             "wizard_uuid": wizard_uuid_b,
             "wizard_title": "Second Wizard",
         },
     }
 
-    obj_a = WizardGroupType(endpoint_id=endpoint_id, wizard_uuids=[wizard_uuid_a])
-    obj_b = WizardGroupType(endpoint_id=endpoint_id, wizard_uuids=[wizard_uuid_b])
+    obj_a = WizardGroupType(wizard_uuids=[wizard_uuid_a])
+    obj_a.partition_key = partition_key
+    obj_b = WizardGroupType(wizard_uuids=[wizard_uuid_b])
+    obj_b.partition_key = partition_key
 
     return {
         "results": results,
-        "keys": [(endpoint_id, wizard_uuid_a), (endpoint_id, wizard_uuid_b)],
+        "keys": [(partition_key, wizard_uuid_a), (partition_key, wizard_uuid_b)],
         "obj_a": obj_a,
         "obj_b": obj_b,
         "val_a": wizard["wizardTitle"],
@@ -282,9 +290,10 @@ def test_nested_resolver_batching(schema, context_and_loaders, test_data, config
     ctx, loaders = context_and_loaders
     seen = []
     endpoint_id = ctx["endpoint_id"]
+    partition_key = ctx["partition_key"]
 
     # 1. Setup specific test data
-    setup_data = config["setup_fn"](test_data, endpoint_id)
+    setup_data = config["setup_fn"](test_data, partition_key)
     target_loader = getattr(loaders, config["loader_attr"])
 
     # 2. Stub the loader
@@ -343,6 +352,7 @@ def test_graphql_mixed_nested_resolvers(schema, context_and_loaders, test_data):
     ctx, loaders = context_and_loaders
     llm_seen, mcp_seen, flow_seen = [], [], []
     endpoint_id = ctx["endpoint_id"]
+    partition_key = ctx["partition_key"]
 
     llm_a = test_data["llms"][0]
     mcp = test_data["mcp_servers"][0]
@@ -350,9 +360,9 @@ def test_graphql_mixed_nested_resolvers(schema, context_and_loaders, test_data):
 
     llm_key = (llm_a["llmProvider"], llm_a["llmName"])
     mcp_uuid = mcp.get("mcpServerUuid", "70825090807816536192")
-    mcp_key = (endpoint_id, mcp_uuid)
+    mcp_key = (partition_key, mcp_uuid)
     flow_uuid = flow.get("flowSnippetVersionUuid", "fs-1")
-    flow_key = (endpoint_id, flow_uuid)
+    flow_key = (partition_key, flow_uuid)
 
     _stub_batch_loader(
         loaders.llm_loader,
@@ -381,12 +391,13 @@ def test_graphql_mixed_nested_resolvers(schema, context_and_loaders, test_data):
     )
 
     agent = AgentType(
-        endpoint_id=endpoint_id,
         llm_provider=llm_a["llmProvider"],
         llm_name=llm_a["llmName"],
         mcp_server_uuids=[mcp_uuid],
         flow_snippet_version_uuid=flow_uuid,
     )
+    agent.partition_key = partition_key
+    agent.endpoint_id = endpoint_id
 
     ctx["registry"]["agent:mix"] = agent
 

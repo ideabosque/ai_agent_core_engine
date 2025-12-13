@@ -4,6 +4,8 @@ from __future__ import print_function
 __author__ = "bibow"
 
 import logging
+import sys
+import traceback
 from typing import Any, Dict, List
 
 import boto3
@@ -44,14 +46,14 @@ class Config:
             "model_class": "AgentModel",
             "getter": "get_agent",
             "list_resolver": "ai_agent_core_engine.queries.agent.resolve_agent_list",
-            "cache_keys": ["context:endpoint_id", "key:agent_version_uuid"],
+            "cache_keys": ["context:partition_key", "key:agent_version_uuid"],
         },
         "thread": {
             "module": "ai_agent_core_engine.models.thread",
             "model_class": "ThreadModel",
             "getter": "get_thread",
             "list_resolver": "ai_agent_core_engine.queries.thread.resolve_thread_list",
-            "cache_keys": ["context:endpoint_id", "key:thread_uuid"],
+            "cache_keys": ["context:partition_key", "key:thread_uuid"],
         },
         "run": {
             "module": "ai_agent_core_engine.models.run",
@@ -86,14 +88,14 @@ class Config:
             "model_class": "FlowSnippetModel",
             "getter": "get_flow_snippet",
             "list_resolver": "ai_agent_core_engine.queries.flow_snippet.resolve_flow_snippet_list",
-            "cache_keys": ["context:endpoint_id", "key:flow_snippet_version_uuid"],
+            "cache_keys": ["context:partition_key", "key:flow_snippet_version_uuid"],
         },
         "mcp_server": {
             "module": "ai_agent_core_engine.models.mcp_server",
             "model_class": "MCPServerModel",
             "getter": "get_mcp_server",
             "list_resolver": "ai_agent_core_engine.queries.mcp_server.resolve_mcp_server_list",
-            "cache_keys": ["context:endpoint_id", "key:mcp_server_uuid"],
+            "cache_keys": ["context:partition_key", "key:mcp_server_uuid"],
         },
         "fine_tuning_message": {
             "module": "ai_agent_core_engine.models.fine_tuning_message",
@@ -114,35 +116,35 @@ class Config:
             "model_class": "ElementModel",
             "getter": "get_element",
             "list_resolver": "ai_agent_core_engine.queries.element.resolve_element_list",
-            "cache_keys": ["context:endpoint_id", "key:element_uuid"],
+            "cache_keys": ["context:partition_key", "key:element_uuid"],
         },
         "wizard": {
             "module": "ai_agent_core_engine.models.wizard",
             "model_class": "WizardModel",
             "getter": "get_wizard",
             "list_resolver": "ai_agent_core_engine.queries.wizard.resolve_wizard_list",
-            "cache_keys": ["context:endpoint_id", "key:wizard_uuid"],
+            "cache_keys": ["context:partition_key", "key:wizard_uuid"],
         },
         "wizard_group": {
             "module": "ai_agent_core_engine.models.wizard_group",
             "model_class": "WizardGroupModel",
             "getter": "get_wizard_group",
             "list_resolver": "ai_agent_core_engine.queries.wizard_group.resolve_wizard_group_list",
-            "cache_keys": ["context:endpoint_id", "key:wizard_group_uuid"],
+            "cache_keys": ["context:partition_key", "key:wizard_group_uuid"],
         },
         "wizard_group_filter": {
             "module": "ai_agent_core_engine.models.wizard_group_filter",
             "model_class": "WizardGroupFilterModel",
             "getter": "get_wizard_group_filter",
             "list_resolver": "ai_agent_core_engine.queries.wizard_group_filter.resolve_wizard_group_filter_list",
-            "cache_keys": ["context:endpoint_id", "key:wizard_group_filter_uuid"],
+            "cache_keys": ["context:partition_key", "key:wizard_group_filter_uuid"],
         },
         "prompt_template": {
             "module": "ai_agent_core_engine.models.prompt_template",
             "model_class": "PromptTemplateModel",
             "getter": "get_prompt_template",
             "list_resolver": "ai_agent_core_engine.queries.prompt_template.resolve_prompt_template_list",
-            "cache_keys": ["context:endpoint_id", "key:prompt_version_uuid"],
+            "cache_keys": ["context:partition_key", "key:prompt_version_uuid"],
         },
         "ui_component": {
             "module": "ai_agent_core_engine.models.ui_component",
@@ -294,6 +296,8 @@ class Config:
                 cls._initialize_tables(logger)
             logger.info("Configuration initialized successfully.")
         except Exception as e:
+            sys.stderr.write(f"Config Initialize Error: {e}\n")
+            traceback.print_exc(file=sys.stderr)
             logger.exception("Failed to initialize configuration.")
             raise e
 
@@ -470,7 +474,9 @@ class Config:
         return Config.schemas[function_name]
 
     @classmethod
-    def get_internal_mcp(cls, endpoint_id: str) -> Dict[str, Any] | None:
+    def get_internal_mcp(
+        cls, endpoint_id: str, part_id: str = None
+    ) -> Dict[str, Any] | None:
         """Get internal MCP server configuration."""
         if cls.internal_mcp is None:
             return cls.internal_mcp
@@ -479,4 +485,6 @@ class Config:
         internal_mcp["base_url"] = internal_mcp["base_url"].format(
             endpoint_id=endpoint_id
         )
+        if part_id and "headers" in internal_mcp:
+            internal_mcp["headers"]["Part-ID"] = part_id
         return internal_mcp

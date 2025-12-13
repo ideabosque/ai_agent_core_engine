@@ -46,9 +46,8 @@ sys.path.insert(
     ),
 )
 
-from silvaengine_utility import Utility
-
 from ai_agent_core_engine import AIAgentCoreEngine
+from silvaengine_utility import Utility
 
 # Test data file path
 TEST_DATA_FILE = os.path.join(os.path.dirname(__file__), "test_data.json")
@@ -101,7 +100,8 @@ SETTING = {
     },
     "connection_id": os.getenv("connection_id"),
     "endpoint_id": os.getenv("endpoint_id"),
-    "execute_mode": os.getenv("execute_mode", "local"),
+    "part_id": os.getenv("part_id"),
+    "execute_mode": os.getenv("execute_mode", "local_for_all"),
     "initialize_tables": int(os.getenv("initialize_tables", "0")),
 }
 
@@ -127,7 +127,17 @@ def ai_agent_core_engine():
         logger.info("AIAgentCoreEngine initialized successfully")
         return engine
     except Exception as ex:
-        logger.warning(f"AIAgentCoreEngine initialization failed: {ex}")
+        import sys
+        import traceback
+
+        error_file = (
+            r"c:\Users\bibo7\gitrepo\silvaengine\ai_agent_core_engine\error.log"
+        )
+        with open(error_file, "w") as f:
+            traceback.print_exc(file=f)
+        sys.stderr.write("Exception in fixture:\n")
+        traceback.print_exc(file=sys.stderr)
+        logger.exception(f"AIAgentCoreEngine initialization failed: {ex}")
         pytest.skip(f"AIAgentCoreEngine not available: {ex}")
 
 

@@ -18,8 +18,6 @@ from pynamodb.attributes import (
     UTCDateTimeAttribute,
 )
 from pynamodb.indexes import AllProjection, LocalSecondaryIndex
-from tenacity import retry, stop_after_attempt, wait_exponential
-
 from silvaengine_dynamodb_base import (
     BaseModel,
     delete_decorator,
@@ -28,12 +26,10 @@ from silvaengine_dynamodb_base import (
     resolve_list_decorator,
 )
 from silvaengine_utility import Utility, method_cache
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
-from ..types.wizard_group_filter import (
-    WizardGroupFilterListType,
-    WizardGroupFilterType,
-)
+from ..types.wizard_group_filter import WizardGroupFilterListType, WizardGroupFilterType
 
 
 class UpdatedAtIndex(LocalSecondaryIndex):
@@ -47,7 +43,7 @@ class UpdatedAtIndex(LocalSecondaryIndex):
         projection = AllProjection()
         index_name = "updated_at-index"
 
-    endpoint_id = UnicodeAttribute(hash_key=True)
+    partition_key = UnicodeAttribute(hash_key=True)
     updated_at = UnicodeAttribute(range_key=True)
 
 
@@ -55,8 +51,10 @@ class WizardGroupFilterModel(BaseModel):
     class Meta(BaseModel.Meta):
         table_name = "aace-wizard_group_filters"
 
-    endpoint_id = UnicodeAttribute(hash_key=True)
+    partition_key = UnicodeAttribute(hash_key=True)
     wizard_group_filter_uuid = UnicodeAttribute(range_key=True)
+    endpoint_id = UnicodeAttribute()
+    part_id = UnicodeAttribute()
     wizard_group_filter_name = UnicodeAttribute()
     wizard_group_filter_description = UnicodeAttribute(null=True)
     region = UnicodeAttribute()
@@ -82,8 +80,8 @@ def purge_cache():
                 except Exception as e:
                     wizard_group_filter = None
 
-                endpoint_id = args[0].context.get("endpoint_id") or kwargs.get(
-                    "endpoint_id"
+                partition_key = args[0].context.get("partition_key") or kwargs.get(
+                    "partition_key"
                 )
                 entity_keys = {}
                 if kwargs.get("wizard_group_filter_uuid"):
@@ -98,7 +96,9 @@ def purge_cache():
                 result = purge_entity_cascading_cache(
                     args[0].context.get("logger"),
                     entity_type="wizard_group_filter",
-                    context_keys={"endpoint_id": endpoint_id} if endpoint_id else None,
+                    context_keys=(
+                        {"partition_key": partition_key} if partition_key else None
+                    ),
                     entity_keys=entity_keys if entity_keys else None,
                     cascade_depth=3,
                 )
@@ -136,9 +136,9 @@ def create_wizard_group_filter_table(logger: logging.Logger) -> bool:
     cache_name=Config.get_cache_name("models", "wizard_group_filter"),
 )
 def get_wizard_group_filter(
-    endpoint_id: str, wizard_group_filter_uuid: str
+    partition_key: str, wizard_group_filter_uuid: str
 ) -> WizardGroupFilterModel:
-    return WizardGroupFilterModel.get(endpoint_id, wizard_group_filter_uuid)
+    return WizardGroupFilterModel.get(partition_key, wizard_group_filter_uuid)
 
 
 @retry(
@@ -147,16 +147,16 @@ def get_wizard_group_filter(
     stop=stop_after_attempt(5),
 )
 def _get_wizard_group_filter(
-    endpoint_id: str, wizard_group_filter_uuid: str
+    partition_key: str, wizard_group_filter_uuid: str
 ) -> WizardGroupFilterModel:
-    return WizardGroupFilterModel.get(endpoint_id, wizard_group_filter_uuid)
+    return WizardGroupFilterModel.get(partition_key, wizard_group_filter_uuid)
 
 
 def get_wizard_group_filter_count(
-    endpoint_id: str, wizard_group_filter_uuid: str
+    partition_key: str, wizard_group_filter_uuid: str
 ) -> int:
     return WizardGroupFilterModel.count(
-        endpoint_id,
+        partition_key,
         WizardGroupFilterModel.wizard_group_filter_uuid == wizard_group_filter_uuid,
     )
 
@@ -171,7 +171,9 @@ def get_wizard_group_filter_type(
     - This is resolved lazily by WizardGroupFilterType.resolve_wizard_group.
     """
     try:
-        wizard_group_filter_dict: Dict = wizard_group_filter.__dict__["attribute_values"]
+        wizard_group_filter_dict: Dict = wizard_group_filter.__dict__[
+            "attribute_values"
+        ]
         return WizardGroupFilterType(**Utility.json_normalize(wizard_group_filter_dict))
     except Exception as e:
         log = traceback.format_exc()
@@ -183,7 +185,7 @@ def resolve_wizard_group_filter(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> WizardGroupFilterType | None:
     count = get_wizard_group_filter_count(
-        info.context["endpoint_id"], kwargs["wizard_group_filter_uuid"]
+        info.context["partition_key"], kwargs["wizard_group_filter_uuid"]
     )
     if count == 0:
         return None
@@ -191,14 +193,14 @@ def resolve_wizard_group_filter(
     return get_wizard_group_filter_type(
         info,
         get_wizard_group_filter(
-            info.context["endpoint_id"], kwargs["wizard_group_filter_uuid"]
+            info.context["partition_key"], kwargs["wizard_group_filter_uuid"]
         ),
     )
 
 
 @monitor_decorator
 @resolve_list_decorator(
-    attributes_to_get=["endpoint_id", "wizard_group_filter_uuid", "updated_at"],
+    attributes_to_get=["partition_key", "wizard_group_filter_uuid", "updated_at"],
     list_type_class=WizardGroupFilterListType,
     type_funct=get_wizard_group_filter_type,
     scan_index_forward=False,
@@ -206,7 +208,7 @@ def resolve_wizard_group_filter(
 def resolve_wizard_group_filter_list(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> Any:
-    endpoint_id = info.context["endpoint_id"]
+    partition_key = info.context["partition_key"]
     wizard_group_filter_name = kwargs.get("wizard_group_filter_name")
     region = kwargs.get("region")
     wizard_group_uuid = kwargs.get("wizard_group_uuid")
@@ -217,7 +219,7 @@ def resolve_wizard_group_filter_list(
     inquiry_funct = WizardGroupFilterModel.scan
     count_funct = WizardGroupFilterModel.count
     range_key_condition = None
-    if endpoint_id:
+    if partition_key:
         # Build range key condition for updated_at when using updated_at_index
         if updated_at_gt is not None and updated_at_lt is not None:
             range_key_condition = WizardGroupFilterModel.updated_at.between(
@@ -228,7 +230,7 @@ def resolve_wizard_group_filter_list(
         elif updated_at_lt is not None:
             range_key_condition = WizardGroupFilterModel.updated_at < updated_at_lt
 
-        args = [endpoint_id, range_key_condition]
+        args = [partition_key, range_key_condition]
         inquiry_funct = WizardGroupFilterModel.updated_at_index.query
         count_funct = WizardGroupFilterModel.updated_at_index.count
 
@@ -250,7 +252,7 @@ def resolve_wizard_group_filter_list(
 @purge_cache()
 @insert_update_decorator(
     keys={
-        "hash_key": "endpoint_id",
+        "hash_key": "partition_key",
         "range_key": "wizard_group_filter_uuid",
     },
     model_funct=_get_wizard_group_filter,
@@ -260,8 +262,7 @@ def resolve_wizard_group_filter_list(
 def insert_update_wizard_group_filter(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> Any:
-
-    endpoint_id = kwargs.get("endpoint_id")
+    partition_key = kwargs.get("partition_key")
     wizard_group_filter_uuid = kwargs.get("wizard_group_filter_uuid")
 
     if kwargs.get("entity") is None:
@@ -278,8 +279,10 @@ def insert_update_wizard_group_filter(
             "created_at": pendulum.now("UTC"),
             "updated_at": pendulum.now("UTC"),
         }
+        cols["endpoint_id"] = info.context.get("endpoint_id")
+        cols["part_id"] = info.context.get("part_id")
         WizardGroupFilterModel(
-            endpoint_id,
+            partition_key,
             wizard_group_filter_uuid,
             **cols,
         ).save()
@@ -312,7 +315,7 @@ def insert_update_wizard_group_filter(
 @purge_cache()
 @delete_decorator(
     keys={
-        "hash_key": "endpoint_id",
+        "hash_key": "partition_key",
         "range_key": "wizard_group_filter_uuid",
     },
     model_funct=get_wizard_group_filter,
