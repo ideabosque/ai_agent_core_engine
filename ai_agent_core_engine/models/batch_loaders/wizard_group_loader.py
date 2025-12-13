@@ -17,7 +17,7 @@ Key = Tuple[str, str]
 
 
 class WizardGroupLoader(SafeDataLoader):
-    """Batch loader for WizardGroupModel keyed by (endpoint_id, wizard_group_uuid)."""
+    """Batch loader for WizardGroupModel keyed by (partition_key, wizard_group_uuid)."""
 
     def __init__(self, logger=None, cache_enabled=True, **kwargs):
         super(WizardGroupLoader, self).__init__(
@@ -36,7 +36,7 @@ class WizardGroupLoader(SafeDataLoader):
         # Check cache first if enabled
         if self.cache_enabled:
             for key in unique_keys:
-                cache_key = f"{key[0]}:{key[1]}"  # endpoint_id:wizard_group_uuid
+                cache_key = f"{key[0]}:{key[1]}"  # partition_key:wizard_group_uuid
                 cached_item = self.cache.get(cache_key)
                 if cached_item:
                     key_map[key] = cached_item
@@ -50,7 +50,7 @@ class WizardGroupLoader(SafeDataLoader):
             try:
                 for wizard_group in WizardGroupModel.batch_get(uncached_keys):
                     normalized = normalize_model(wizard_group)
-                    key = (wizard_group.endpoint_id, wizard_group.wizard_group_uuid)
+                    key = (wizard_group.partition_key, wizard_group.wizard_group_uuid)
                     key_map[key] = normalized
 
                     # Cache the result if enabled

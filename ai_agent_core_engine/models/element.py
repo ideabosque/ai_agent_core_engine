@@ -19,8 +19,6 @@ from pynamodb.attributes import (
     UTCDateTimeAttribute,
 )
 from pynamodb.indexes import AllProjection, LocalSecondaryIndex
-from tenacity import retry, stop_after_attempt, wait_exponential
-
 from silvaengine_dynamodb_base import (
     BaseModel,
     delete_decorator,
@@ -29,6 +27,7 @@ from silvaengine_dynamodb_base import (
     resolve_list_decorator,
 )
 from silvaengine_utility import Utility, method_cache
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
 from ..types.element import ElementListType, ElementType
@@ -45,7 +44,7 @@ class DataTypeIndex(LocalSecondaryIndex):
         projection = AllProjection()
         index_name = "data_type-index"
 
-    endpoint_id = UnicodeAttribute(hash_key=True)
+    partition_key = UnicodeAttribute(hash_key=True)
     data_type = UnicodeAttribute(range_key=True)
 
 
@@ -60,7 +59,7 @@ class UpdatedAtIndex(LocalSecondaryIndex):
         projection = AllProjection()
         index_name = "updated_at-index"
 
-    endpoint_id = UnicodeAttribute(hash_key=True)
+    partition_key = UnicodeAttribute(hash_key=True)
     updated_at = UnicodeAttribute(range_key=True)
 
 
@@ -68,8 +67,10 @@ class ElementModel(BaseModel):
     class Meta(BaseModel.Meta):
         table_name = "aace-elements"
 
-    endpoint_id = UnicodeAttribute(hash_key=True)
+    partition_key = UnicodeAttribute(hash_key=True)
     element_uuid = UnicodeAttribute(range_key=True)
+    endpoint_id = UnicodeAttribute()
+    part_id = UnicodeAttribute()
     data_type = UnicodeAttribute()
     element_title = UnicodeAttribute()
     priority = NumberAttribute(default=0)
@@ -93,8 +94,8 @@ def purge_cache():
                 # Use cascading cache purging for elements
                 from ..models.cache import purge_entity_cascading_cache
 
-                endpoint_id = args[0].context.get("endpoint_id") or kwargs.get(
-                    "endpoint_id"
+                partition_key = args[0].context.get("partition_key") or kwargs.get(
+                    "partition_key"
                 )
                 entity_keys = {}
                 if kwargs.get("element_uuid"):
@@ -103,7 +104,9 @@ def purge_cache():
                 result = purge_entity_cascading_cache(
                     args[0].context.get("logger"),
                     entity_type="element",
-                    context_keys={"endpoint_id": endpoint_id} if endpoint_id else None,
+                    context_keys=(
+                        {"partition_key": partition_key} if partition_key else None
+                    ),
                     entity_keys=entity_keys if entity_keys else None,
                     cascade_depth=3,
                 )
@@ -139,45 +142,52 @@ def create_element_table(logger: logging.Logger) -> bool:
 @method_cache(
     ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name("models", "element")
 )
-def get_element(endpoint_id: str, element_uuid: str) -> ElementModel:
-    return ElementModel.get(endpoint_id, element_uuid)
+def get_element(partition_key: str, element_uuid: str) -> ElementModel:
+    return ElementModel.get(partition_key, element_uuid)
+
 
 @retry(
     reraise=True,
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
 )
-def _get_element(endpoint_id: str, element_uuid: str) -> ElementModel:
-    return ElementModel.get(endpoint_id, element_uuid)
+def _get_element(partition_key: str, element_uuid: str) -> ElementModel:
+    return ElementModel.get(partition_key, element_uuid)
 
-def get_element_count(endpoint_id: str, element_uuid: str) -> int:
-    return ElementModel.count(endpoint_id, ElementModel.element_uuid == element_uuid)
+
+def get_element_count(partition_key: str, element_uuid: str) -> int:
+    return ElementModel.count(partition_key, ElementModel.element_uuid == element_uuid)
 
 
 def get_element_type(info: ResolveInfo, element: ElementModel) -> ElementType:
-    element = element.__dict__["attribute_values"]
-    return ElementType(**Utility.json_normalize(element))
+    try:
+        element_dict = element.__dict__["attribute_values"]
+    except Exception as e:
+        log = traceback.format_exc()
+        info.context.get("logger").exception(log)
+        raise e
+    return ElementType(**Utility.json_normalize(element_dict))
 
 
 def resolve_element(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ElementType | None:
-    count = get_element_count(info.context["endpoint_id"], kwargs["element_uuid"])
+    count = get_element_count(info.context["partition_key"], kwargs["element_uuid"])
     if count == 0:
         return None
 
     return get_element_type(
-        info, get_element(info.context["endpoint_id"], kwargs["element_uuid"])
+        info, get_element(info.context["partition_key"], kwargs["element_uuid"])
     )
 
 
 @monitor_decorator
 @resolve_list_decorator(
-    attributes_to_get=["endpoint_id", "element_uuid", "updated_at"],
+    attributes_to_get=["partition_key", "element_uuid", "updated_at"],
     list_type_class=ElementListType,
     type_funct=get_element_type,
     scan_index_forward=False,
 )
 def resolve_element_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
-    endpoint_id = info.context["endpoint_id"]
+    partition_key = info.context["partition_key"]
     data_type = kwargs.get("data_type")
     attribute_name = kwargs.get("attribute_name")
     updated_at_gt = kwargs.get("updated_at_gt")
@@ -187,7 +197,7 @@ def resolve_element_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     inquiry_funct = ElementModel.scan
     count_funct = ElementModel.count
     range_key_condition = None
-    if endpoint_id:
+    if partition_key:
         # Build range key condition for updated_at when using updated_at_index
         if updated_at_gt is not None and updated_at_lt is not None:
             range_key_condition = ElementModel.updated_at.between(
@@ -198,7 +208,7 @@ def resolve_element_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
         elif updated_at_lt is not None:
             range_key_condition = ElementModel.updated_at < updated_at_lt
 
-        args = [endpoint_id, range_key_condition]
+        args = [partition_key, range_key_condition]
         inquiry_funct = ElementModel.updated_at_index.query
         count_funct = ElementModel.updated_at_index.count
 
@@ -221,7 +231,7 @@ def resolve_element_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
 @purge_cache()
 @insert_update_decorator(
     keys={
-        "hash_key": "endpoint_id",
+        "hash_key": "partition_key",
         "range_key": "element_uuid",
     },
     model_funct=_get_element,
@@ -229,8 +239,7 @@ def resolve_element_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     type_funct=get_element_type,
 )
 def insert_update_element(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
-
-    endpoint_id = kwargs.get("endpoint_id")
+    partition_key = kwargs.get("partition_key")
     element_uuid = kwargs.get("element_uuid")
 
     if kwargs.get("entity") is None:
@@ -247,8 +256,10 @@ def insert_update_element(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
             "created_at": pendulum.now("UTC"),
             "updated_at": pendulum.now("UTC"),
         }
+        cols["endpoint_id"] = info.context.get("endpoint_id")
+        cols["part_id"] = info.context.get("part_id")
         ElementModel(
-            endpoint_id,
+            partition_key,
             element_uuid,
             **cols,
         ).save()
@@ -283,7 +294,7 @@ def insert_update_element(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
 @purge_cache()
 @delete_decorator(
     keys={
-        "hash_key": "endpoint_id",
+        "hash_key": "partition_key",
         "range_key": "element_uuid",
     },
     model_funct=get_element,

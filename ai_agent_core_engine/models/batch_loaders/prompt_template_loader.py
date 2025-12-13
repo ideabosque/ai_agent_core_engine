@@ -17,7 +17,7 @@ Key = Tuple[str, str]
 
 
 class PromptTemplateLoader(SafeDataLoader):
-    """Batch loader for PromptTemplateModel keyed by (endpoint_id, prompt_uuid) returning the active version."""
+    """Batch loader for PromptTemplateModel keyed by (partition_key, prompt_uuid) returning the active version."""
 
     def __init__(self, logger=None, cache_enabled=True, **kwargs):
         super(PromptTemplateLoader, self).__init__(
@@ -36,7 +36,7 @@ class PromptTemplateLoader(SafeDataLoader):
         # Check cache first if enabled
         if self.cache_enabled:
             for key in unique_keys:
-                cache_key = f"{key[0]}:{key[1]}"  # endpoint_id:prompt_uuid
+                cache_key = f"{key[0]}:{key[1]}"  # partition_key:prompt_uuid
                 cached_item = self.cache.get(cache_key)
                 if cached_item:
                     key_map[key] = cached_item
@@ -48,9 +48,9 @@ class PromptTemplateLoader(SafeDataLoader):
         # Fetch uncached items via prompt_uuid_index for the active version
         if uncached_keys:
             try:
-                for endpoint_id, prompt_uuid in uncached_keys:
+                for partition_key, prompt_uuid in uncached_keys:
                     results = PromptTemplateModel.prompt_uuid_index.query(
-                        endpoint_id,
+                        partition_key,
                         PromptTemplateModel.prompt_uuid == prompt_uuid,
                         filter_condition=(PromptTemplateModel.status == "active"),
                         scan_index_forward=False,
@@ -63,10 +63,10 @@ class PromptTemplateLoader(SafeDataLoader):
 
                     if prompt_template:
                         normalized = normalize_model(prompt_template)
-                        key_map[(endpoint_id, prompt_uuid)] = normalized
+                        key_map[(partition_key, prompt_uuid)] = normalized
 
                         if self.cache_enabled:
-                            cache_key = f"{endpoint_id}:{prompt_uuid}"
+                            cache_key = f"{partition_key}:{prompt_uuid}"
                             self.cache.set(
                                 cache_key, normalized, ttl=Config.get_cache_ttl()
                             )

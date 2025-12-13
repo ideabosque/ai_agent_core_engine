@@ -30,7 +30,6 @@ except (
 ):  # Optional dependency; only needed for Claude token counting
     anthropic = None
 from graphene import ResolveInfo
-
 from silvaengine_utility import Utility
 
 from ..models.async_task import insert_update_async_task
@@ -79,7 +78,7 @@ def start_async_task(
     Creates a task record in the database and invokes an AWS Lambda function asynchronously.
 
     Args:
-        info: GraphQL resolver context containing logger, endpoint_id, connectionId and settings
+        info: GraphQL resolver context containing logger, endpoint_id, connection_id and settings
         function_name: Name of the Lambda function to invoke
         **arguments: Task parameters including thread_uuid, run_uuid, agent_uuid, user_query etc.
 
@@ -106,8 +105,8 @@ def start_async_task(
         "async_task_uuid": async_task.async_task_uuid,
         "arguments": arguments,
     }
-    if info.context.get("connectionId"):
-        params["connection_id"] = info.context.get("connectionId")
+    if info.context.get("connection_id"):
+        params["connection_id"] = info.context.get("connection_id")
 
     # Invoke Lambda function asynchronously
     Utility.invoke_funct_on_aws_lambda(

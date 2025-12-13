@@ -11,7 +11,9 @@ from silvaengine_utility import JSON
 
 
 class ElementType(ObjectType):
+    partition_key = String()
     endpoint_id = String()
+    part_id = String()
     element_uuid = String()
     data_type = String()
     element_title = String()

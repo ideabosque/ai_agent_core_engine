@@ -17,7 +17,7 @@ Key = Tuple[str, str]
 
 
 class ThreadLoader(SafeDataLoader):
-    """Batch loader for ThreadModel keyed by (endpoint_id, thread_uuid)."""
+    """Batch loader for ThreadModel keyed by (partition_key, thread_uuid)."""
 
     def __init__(self, logger=None, cache_enabled=True, **kwargs):
         super(ThreadLoader, self).__init__(
@@ -34,7 +34,7 @@ class ThreadLoader(SafeDataLoader):
         # Check cache first if enabled
         if self.cache_enabled:
             for key in unique_keys:
-                cache_key = f"{key[0]}:{key[1]}"  # endpoint_id:thread_uuid
+                cache_key = f"{key[0]}:{key[1]}"  # partition_key:thread_uuid
                 cached_item = self.cache.get(cache_key)
                 if cached_item:
                     key_map[key] = cached_item
@@ -48,7 +48,7 @@ class ThreadLoader(SafeDataLoader):
             try:
                 for thread in ThreadModel.batch_get(uncached_keys):
                     normalized = normalize_model(thread)
-                    key = (thread.endpoint_id, thread.thread_uuid)
+                    key = (thread.partition_key, thread.thread_uuid)
                     key_map[key] = normalized
 
                     # Cache the result if enabled

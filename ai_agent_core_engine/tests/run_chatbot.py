@@ -45,6 +45,12 @@ sys.path.insert(
         os.path.join(os.path.dirname(__file__), "../../../mcp_http_client")
     ),
 )
+sys.path.insert(
+    0,
+    os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "../../../silvaengine_utility")
+    ),
+)
 
 # Setup logging
 logging.basicConfig(
@@ -55,8 +61,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger()
 
-from ai_agent_core_engine import AIAgentCoreEngine
 from silvaengine_utility import Utility
+
+from ai_agent_core_engine import AIAgentCoreEngine
 
 
 class ChatbotRunner:
@@ -111,6 +118,7 @@ class ChatbotRunner:
             },
             "connection_id": os.getenv("connection_id"),
             "endpoint_id": os.getenv("endpoint_id"),
+            "part_id": os.getenv("part_id"),
             "execute_mode": os.getenv("execute_mode"),
             "initialize_tables": int(os.getenv("initialize_tables", "0")),
         }
@@ -163,12 +171,11 @@ class ChatbotRunner:
                     "updatedBy": self.updated_by,
                 },
             }
-            response = Utility.json_loads(
-                self.ai_agent_core_engine.ai_agent_core_graphql(**payload)
-            )
+            response = self.ai_agent_core_engine.ai_agent_core_graphql(**payload)
+            response = Utility.json_loads(response["body"])
 
-            if response["data"]["askModel"]["threadUuid"] is not None:
-                thread_uuid = response["data"]["askModel"]["threadUuid"]
+            if response["askModel"]["threadUuid"] is not None:
+                thread_uuid = response["askModel"]["threadUuid"]
 
             query = Utility.generate_graphql_operation(
                 "asyncTask", "Query", self.schema
@@ -178,16 +185,15 @@ class ChatbotRunner:
                 "query": query,
                 "variables": {
                     "functionName": "async_execute_ask_model",
-                    "asyncTaskUuid": response["data"]["askModel"]["asyncTaskUuid"],
+                    "asyncTaskUuid": response["askModel"]["asyncTaskUuid"],
                 },
             }
 
-            response = Utility.json_loads(
-                self.ai_agent_core_engine.ai_agent_core_graphql(**payload)
-            )
+            response = self.ai_agent_core_engine.ai_agent_core_graphql(**payload)
+            response = Utility.json_loads(response["body"])
 
             # Print response to user
-            print(f"Chatbot: {response['data']['asyncTask']['result']}\n")
+            print(f"Chatbot: {response['asyncTask']['result']}\n")
 
     def run_chatbot_by_request(self):
         """Run chatbot test by request mode."""

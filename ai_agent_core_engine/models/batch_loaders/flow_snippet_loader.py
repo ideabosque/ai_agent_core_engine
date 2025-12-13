@@ -17,7 +17,7 @@ Key = Tuple[str, str]
 
 
 class FlowSnippetLoader(SafeDataLoader):
-    """Batch loader for FlowSnippetModel keyed by (endpoint_id, flow_snippet_version_uuid)."""
+    """Batch loader for FlowSnippetModel keyed by (partition_key, flow_snippet_version_uuid)."""
 
     def __init__(self, logger=None, cache_enabled=True, **kwargs):
         super(FlowSnippetLoader, self).__init__(
@@ -36,7 +36,9 @@ class FlowSnippetLoader(SafeDataLoader):
         # Check cache first if enabled
         if self.cache_enabled:
             for key in unique_keys:
-                cache_key = f"{key[0]}:{key[1]}"  # endpoint_id:flow_snippet_version_uuid
+                cache_key = (
+                    f"{key[0]}:{key[1]}"  # partition_key:flow_snippet_version_uuid
+                )
                 cached_item = self.cache.get(cache_key)
                 if cached_item:
                     key_map[key] = cached_item
@@ -51,7 +53,7 @@ class FlowSnippetLoader(SafeDataLoader):
                 for flow_snippet in FlowSnippetModel.batch_get(uncached_keys):
                     normalized = normalize_model(flow_snippet)
                     key = (
-                        flow_snippet.endpoint_id,
+                        flow_snippet.partition_key,
                         flow_snippet.flow_snippet_version_uuid,
                     )
                     key_map[key] = normalized

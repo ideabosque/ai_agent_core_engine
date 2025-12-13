@@ -128,7 +128,15 @@ def _get_mcp_servers(
         {
             k: v
             for k, v in mcp_server.__dict__.items()
-            if k not in ["endpoint_id", "updated_by", "created_at", "updated_at"]
+            if k
+            not in [
+                "partition_key",
+                "endpoint_id",
+                "part_id",
+                "updated_by",
+                "created_at",
+                "updated_at",
+            ]
         }
         for mcp_server in mcp_servers
         if mcp_server is not None

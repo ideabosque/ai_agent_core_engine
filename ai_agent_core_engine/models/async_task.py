@@ -34,7 +34,7 @@ from ..handlers.config import Config
 from ..types.async_task import AsyncTaskListType, AsyncTaskType
 
 
-class EndpointIdUpdatedAtIndex(GlobalSecondaryIndex):
+class PartitionKeyUpdatedAtIndex(GlobalSecondaryIndex):
     """
     This class represents a local secondary index
     """
@@ -43,9 +43,9 @@ class EndpointIdUpdatedAtIndex(GlobalSecondaryIndex):
         billing_mode = "PAY_PER_REQUEST"
         # All attributes are projected
         projection = AllProjection()
-        index_name = "endpoint_id-updated_at-index"
+        index_name = "partition_key-updated_at-index"
 
-    endpoint_id = UnicodeAttribute(hash_key=True)
+    partition_key = UnicodeAttribute(hash_key=True)
     updated_at = UnicodeAttribute(range_key=True)
 
 
@@ -55,7 +55,7 @@ class AsyncTaskModel(BaseModel):
 
     function_name = UnicodeAttribute(hash_key=True)
     async_task_uuid = UnicodeAttribute(range_key=True)
-    endpoint_id = UnicodeAttribute()
+    partition_key = UnicodeAttribute()
     arguments = MapAttribute(null=True)
     result = UnicodeAttribute(null=True)
     output_files = ListAttribute(of=MapAttribute)
@@ -65,7 +65,7 @@ class AsyncTaskModel(BaseModel):
     updated_by = UnicodeAttribute()
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()
-    endpoint_id_updated_at_index = EndpointIdUpdatedAtIndex()
+    partition_key_updated_at_index = PartitionKeyUpdatedAtIndex()
 
 
 def purge_cache():
@@ -85,7 +85,7 @@ def purge_cache():
                 result = purge_entity_cascading_cache(
                     args[0].context.get("logger"),
                     entity_type="async_task",
-                    context_keys=None,  # Async tasks don't use endpoint_id directly
+                    context_keys=None,  # Async tasks don't use partition_key directly
                     entity_keys=entity_keys if entity_keys else None,
                     cascade_depth=3,
                 )
@@ -126,9 +126,9 @@ def get_async_task(function_name: str, async_task_uuid: str) -> AsyncTaskModel:
     return async_task
 
 
-def get_async_task_count(endpoint_id: str, async_task_uuid: str) -> int:
+def get_async_task_count(partition_key: str, async_task_uuid: str) -> int:
     return AsyncTaskModel.count(
-        endpoint_id, AsyncTaskModel.async_task_uuid == async_task_uuid
+        partition_key, AsyncTaskModel.async_task_uuid == async_task_uuid
     )
 
 
@@ -137,7 +137,9 @@ def get_async_task_type(info: ResolveInfo, async_task: AsyncTaskModel) -> AsyncT
     return AsyncTaskType(**Utility.json_normalize(async_task))
 
 
-def resolve_async_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTaskType | None:
+def resolve_async_task(
+    info: ResolveInfo, **kwargs: Dict[str, Any]
+) -> AsyncTaskType | None:
     count = get_async_task_count(kwargs["function_name"], kwargs["async_task_uuid"])
     if count == 0:
         return None
@@ -150,26 +152,31 @@ def resolve_async_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AsyncTask
 
 @monitor_decorator
 @resolve_list_decorator(
-    attributes_to_get=["endpoint_id", "function_name", "async_task_uuid", "updated_at"],
+    attributes_to_get=[
+        "partition_key",
+        "function_name",
+        "async_task_uuid",
+        "updated_at",
+    ],
     list_type_class=AsyncTaskListType,
     type_funct=get_async_task_type,
     scan_index_forward=False,
 )
 def resolve_async_task_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     function_name = kwargs.get("function_name")
-    endpoint_id = info.context["endpoint_id"]
+    partition_key = info.context["partition_key"]
     statuses = kwargs.get("statuses")
 
-    args = [endpoint_id, None]
-    inquiry_funct = AsyncTaskModel.endpoint_id_updated_at_index.query
-    count_funct = AsyncTaskModel.endpoint_id_updated_at_index.count
+    args = [partition_key, None]
+    inquiry_funct = AsyncTaskModel.partition_key_updated_at_index.query
+    count_funct = AsyncTaskModel.partition_key_updated_at_index.count
     if function_name:
         args = [function_name, None]
         inquiry_funct = AsyncTaskModel.query
 
     the_filters = None
-    if endpoint_id and function_name:
-        the_filters &= AsyncTaskModel.endpoint_id == endpoint_id
+    if partition_key and function_name:
+        the_filters &= AsyncTaskModel.partition_key == partition_key
     if statuses:
         the_filters &= AsyncTaskModel.status.is_in(*statuses)
     if the_filters is not None:
@@ -200,7 +207,7 @@ def insert_update_async_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any
 
     if kwargs.get("entity") is None:
         cols = {
-            "endpoint_id": info.context["endpoint_id"],
+            "partition_key": info.context["partition_key"],
             "output_files": [],
             "updated_by": kwargs["updated_by"],
             "created_at": pendulum.now("UTC"),
@@ -225,8 +232,8 @@ def insert_update_async_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any
 
     async_task = kwargs.get("entity")
     if "status" in kwargs and kwargs["status"] == "completed":
-        kwargs["time_spent"] = (
-            int(pendulum.now("UTC").diff(async_task.created_at).in_seconds() * 1000)
+        kwargs["time_spent"] = int(
+            pendulum.now("UTC").diff(async_task.created_at).in_seconds() * 1000
         )
     actions = [
         AsyncTaskModel.updated_by.set(kwargs["updated_by"]),
@@ -234,7 +241,7 @@ def insert_update_async_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any
     ]
     # Map of potential keys in kwargs to AsyncTaskModel attributes
     field_map = {
-        "endpoint_id": AsyncTaskModel.endpoint_id,
+        "partition_key": AsyncTaskModel.partition_key,
         "arguments": AsyncTaskModel.arguments,
         "result": AsyncTaskModel.result,
         "output_files": AsyncTaskModel.output_files,
