@@ -49,7 +49,7 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
             f"endpoint_id: {info.context.get('endpoint_id')}"
         )
         info.context.get("logger").info(
-            f"connection_id: {info.context.get('connectionId')}"
+            f"connection_id: {info.context.get('connection_id')}"
         )
 
         thread = _get_thread(info, **kwargs)
@@ -203,10 +203,10 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
             f"endpoint_id: {info.context.get('endpoint_id')}"
         )
         info.context.get("logger").info(
-            f"connection_id: {info.context.get('connectionId')}"
+            f"connection_id: {info.context.get('connection_id')}"
         )
         endpoint_id = info.context.get("endpoint_id")
-        connection_id = info.context.get("connectionId")
+        connection_id = info.context.get("connection_id")
         async_task_uuid = kwargs["async_task_uuid"]
         arguments = kwargs["arguments"]
 

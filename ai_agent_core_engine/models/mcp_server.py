@@ -171,8 +171,14 @@ def get_mcp_server_type(
     try:
         tools = asyncio.run(_run_list_tools(info, mcp_server))
     except Exception as e:
+        mcp_server_uuid = "internal_mcp"
+        if isinstance(mcp_server, MCPServerModel):
+            if hasattr(mcp_server, "mcp_server_uuid"):
+                mcp_server_uuid = mcp_server.mcp_server_uuid
+        elif "mcp_server_uuid" in mcp_server:
+            mcp_server_uuid = mcp_server["mcp_server_uuid"]
         info.context["logger"].error(
-            f"Failed to list tools from MCP server {mcp_server.mcp_server_uuid if isinstance(mcp_server, MCPServerModel) else mcp_server['mcp_server_uuid']}: {str(e)}"
+            f"Failed to list tools from MCP server {mcp_server_uuid}: {str(e)}"
         )
         tools = []
     if isinstance(mcp_server, MCPServerModel):

@@ -61,8 +61,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger()
 
-from ai_agent_core_engine import AIAgentCoreEngine
 from silvaengine_utility import Utility
+
+from ai_agent_core_engine import AIAgentCoreEngine
 
 
 class ChatbotRunner:
@@ -117,6 +118,7 @@ class ChatbotRunner:
             },
             "connection_id": os.getenv("connection_id"),
             "endpoint_id": os.getenv("endpoint_id"),
+            "part_id": os.getenv("part_id"),
             "execute_mode": os.getenv("execute_mode"),
             "initialize_tables": int(os.getenv("initialize_tables", "0")),
         }
