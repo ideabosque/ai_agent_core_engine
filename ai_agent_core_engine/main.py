@@ -8,7 +8,6 @@ import logging
 from typing import Any, Dict, List
 
 from graphene import Schema
-
 from silvaengine_dynamodb_base import BaseModel
 from silvaengine_utility import Graphql, Utility
 
@@ -244,7 +243,10 @@ class AIAgentCoreEngine(Graphql):
             }
         )
 
-    def async_execute_ask_model(self, **params: Dict[str, Any]) -> Any:
+    def _apply_partition_defaults(self, params: Dict[str, Any]) -> None:
+        """
+        Ensure endpoint_id/part_id defaults and assemble partition_key.
+        """
         ## Test the waters 🧪 before diving in!
         ##<--Testing Data-->##
         if params.get("endpoint_id") is None:
@@ -253,33 +255,18 @@ class AIAgentCoreEngine(Graphql):
             params["part_id"] = self.setting.get("part_id")
         ##<--Testing Data-->##
 
-        # NEW: Extract part_id and assemble partition_key
         endpoint_id = params.get("endpoint_id")
-        part_id = params.get("part_id")  # From JWT, header, or request body
+        part_id = params.get("part_id")
+        params["partition_key"] = f"{endpoint_id}#{part_id}"
 
-        # Assemble composite partition_key ONCE here
-        partition_key = f"{endpoint_id}#{part_id}"
-        params["partition_key"] = partition_key  # Add to params
+    def async_execute_ask_model(self, **params: Dict[str, Any]) -> Any:
+        self._apply_partition_defaults(params)
 
         at_agent_listener.async_execute_ask_model(self.logger, self.setting, **params)
         return
 
     def async_insert_update_tool_call(self, **params: Dict[str, Any]) -> Any:
-        ## Test the waters 🧪 before diving in!
-        ##<--Testing Data-->##
-        if params.get("endpoint_id") is None:
-            params["endpoint_id"] = self.setting.get("endpoint_id")
-        if params.get("part_id") is None:
-            params["part_id"] = self.setting.get("part_id")
-        ##<--Testing Data-->##
-
-        # NEW: Extract part_id and assemble partition_key
-        endpoint_id = params.get("endpoint_id")
-        part_id = params.get("part_id")  # From JWT, header, or request body
-
-        # Assemble composite partition_key ONCE here
-        partition_key = f"{endpoint_id}#{part_id}"
-        params["partition_key"] = partition_key  # Add to params
+        self._apply_partition_defaults(params)
 
         at_agent_listener.async_insert_update_tool_call(
             self.logger, self.setting, **params
@@ -295,19 +282,9 @@ class AIAgentCoreEngine(Graphql):
         ##<--Testing Data-->##
         if params.get("connection_id") is None:
             params["connection_id"] = self.setting.get("connection_id")
-        if params.get("endpoint_id") is None:
-            params["endpoint_id"] = self.setting.get("endpoint_id")
-        if params.get("part_id") is None:
-            params["part_id"] = self.setting.get("part_id")
         ##<--Testing Data-->##
 
-        # NEW: Extract part_id and assemble partition_key
-        endpoint_id = params.get("endpoint_id")
-        part_id = params.get("part_id")  # From JWT, header, or request body
-
-        # Assemble composite partition_key ONCE here
-        partition_key = f"{endpoint_id}#{part_id}"
-        params["partition_key"] = partition_key  # Add to params
+        self._apply_partition_defaults(params)
 
         schema = Schema(
             query=Query,

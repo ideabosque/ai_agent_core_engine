@@ -61,9 +61,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger()
 
-from silvaengine_utility import Utility
-
 from ai_agent_core_engine import AIAgentCoreEngine
+from silvaengine_utility import Utility
 
 
 class ChatbotRunner:
@@ -124,13 +123,14 @@ class ChatbotRunner:
         }
 
         self.ai_agent_core_engine = AIAgentCoreEngine(logger, **self.setting)
-        endpoint_id = self.setting.get("endpoint_id")
+        context = {
+            "endpoint_id": self.setting.get("endpoint_id"),
+            "setting": self.setting,
+            "logger": logger,
+        }
         self.schema = Utility.fetch_graphql_schema(
-            logger,
-            endpoint_id,
+            context,
             "ai_agent_core_graphql",
-            setting=self.setting,
-            execute_mode=self.setting["execute_mode"],
         )
 
         # Set default parameters or use provided ones

@@ -30,6 +30,7 @@ except (
 ):  # Optional dependency; only needed for Claude token counting
     anthropic = None
 from graphene import ResolveInfo
+
 from silvaengine_utility import Utility
 
 from ..models.async_task import insert_update_async_task
@@ -110,12 +111,9 @@ def start_async_task(
 
     # Invoke Lambda function asynchronously
     Utility.invoke_funct_on_aws_lambda(
-        info.context["logger"],
-        info.context["endpoint_id"],
+        info.context,
         function_name,
         params=params,
-        setting=info.context["setting"],
-        execute_mode=info.context["setting"].get("execute_mode"),
         aws_lambda=Config.aws_lambda,
         invocation_type="Event",
     )
