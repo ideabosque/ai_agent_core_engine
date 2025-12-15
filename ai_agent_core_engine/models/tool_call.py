@@ -22,7 +22,7 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility, method_cache
+from silvaengine_utility import Serializer, method_cache
 
 from ..handlers.config import Config
 from ..types.tool_call import ToolCallListType, ToolCallType
@@ -157,7 +157,7 @@ def get_tool_call_type(info: ResolveInfo, tool_call: ToolCallModel) -> ToolCallT
         log = traceback.format_exc()
         info.context.get("logger").exception(log)
         raise e
-    return ToolCallType(**Utility.json_normalize(tool_call_dict))
+    return ToolCallType(**Serializer.json_normalize(tool_call_dict))
 
 
 def resolve_tool_call(
@@ -314,3 +314,38 @@ def delete_tool_call(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
 
     kwargs.get("entity").delete()
     return True
+
+@retry(
+    reraise=True,
+    wait=wait_exponential(multiplier=1, max=60),
+    stop=stop_after_attempt(5),
+)
+@method_cache(
+    ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name("models", "tool_call")
+)
+def get_tool_calls_by_run(run_uuid: str) -> Any:
+    tool_calls = []
+    for tool_call in ToolCallModel.run_uuid_index.query(
+        ToolCallModel.run_uuid == run_uuid
+    ):
+        tool_calls.append(tool_call)
+    return tool_calls
+
+@retry(
+    reraise=True,
+    wait=wait_exponential(multiplier=1, max=60),
+    stop=stop_after_attempt(5),
+)
+@method_cache(
+    ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name("models", "tool_call")
+)
+def get_tool_calls_by_thread(thread_uuid: str) -> Any:
+    # Only retrieve tool calls from the past 24 hours
+    updated_at_gt = pendulum.now("UTC").subtract(hours=24)
+    tool_calls = []
+    for tool_call in ToolCallModel.updated_at_index.query(
+        thread_uuid,
+        ToolCallModel.updated_at > updated_at_gt,
+    ):
+        tool_calls.append(tool_call)
+    return tool_calls

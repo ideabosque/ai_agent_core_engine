@@ -1322,7 +1322,7 @@ This script provides a unified test harness for validating AI agent orchestratio
 - API test setup: `api_url`, `api_key`, `endpoint_id`
 
 🧩 **Key Integrations**:
-- SilvaEngine GraphQL schema loader (`Utility.fetch_graphql_schema`)
+- SilvaEngine GraphQL schema loader (`Graphql.fetch_graphql_schema`)
 - AIAgentCoreEngine task dispatcher and resolver
 - Support for multiple LLM backends (OpenAI, Gemini, Anthropic, Ollama) via handler system
 
@@ -1349,7 +1349,7 @@ sys.path.insert(6, f"{os.getenv('base_dir')}/anthropic_agent_handler")
 sys.path.insert(7, f"{os.getenv('base_dir')}/ollama_agent_handler")
 
 from ai_agent_core_engine import AIAgentCoreEngine
-from silvaengine_utility import Utility
+from silvaengine_utility import Serializer, Graphql
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
@@ -1367,7 +1367,7 @@ class GenericChatbotTest(unittest.TestCase):
     def setUp(self):
         self.ai_agent_core_engine = AIAgentCoreEngine(logger, **setting)
         self.endpoint_id = setting.get("endpoint_id")
-        self.schema = Utility.fetch_graphql_schema(
+        self.schema = Graphql.fetch_graphql_schema(
             logger,
             self.endpoint_id,
             "ai_agent_core_graphql",
@@ -1385,7 +1385,7 @@ class GenericChatbotTest(unittest.TestCase):
                 print("Chatbot: Goodbye!")
                 break
 
-            ask_query = Utility.generate_graphql_operation("askModel", "Query", self.schema)
+            ask_query = Graphql.generate_graphql_operation("askModel", "Query", self.schema)
             ask_payload = {
                 "query": ask_query,
                 "variables": {
@@ -1397,10 +1397,10 @@ class GenericChatbotTest(unittest.TestCase):
                     "updatedBy": "test_user",
                 },
             }
-            ask_response = Utility.json_loads(self.ai_agent_core_engine.ai_agent_core_graphql(**ask_payload))
+            ask_response = Serializer.json_loads(self.ai_agent_core_engine.ai_agent_core_graphql(**ask_payload))
             thread_uuid = ask_response["data"]["askModel"]["threadUuid"]
 
-            task_query = Utility.generate_graphql_operation("asyncTask", "Query", self.schema)
+            task_query = Graphql.generate_graphql_operation("asyncTask", "Query", self.schema)
             task_payload = {
                 "query": task_query,
                 "variables": {
@@ -1408,7 +1408,7 @@ class GenericChatbotTest(unittest.TestCase):
                     "asyncTaskUuid": ask_response["data"]["askModel"]["asyncTaskUuid"],
                 },
             }
-            task_response = Utility.json_loads(self.ai_agent_core_engine.ai_agent_core_graphql(**task_payload))
+            task_response = Serializer.json_loads(self.ai_agent_core_engine.ai_agent_core_graphql(**task_payload))
             print("Chatbot:", task_response["data"]["asyncTask"]["result"])
 
     def test_run_chatbot_loop_by_request(self):

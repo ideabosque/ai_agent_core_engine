@@ -11,7 +11,7 @@ from typing import Any, Dict, List
 import pendulum
 from graphene import ResolveInfo
 
-from silvaengine_utility import Utility
+from silvaengine_utility import Serializer
 
 from ..models.agent import resolve_agent
 from ..models.async_task import insert_update_async_task
@@ -449,7 +449,7 @@ def _update_user_message_with_files(
         **{
             "thread_uuid": user_message.run["thread"]["thread_uuid"],
             "message_uuid": user_message.message_uuid,
-            "message": Utility.json_dumps(message_content),
+            "message": Serializer.json_dumps(message_content),
             "updated_by": updated_by,
         },
     )

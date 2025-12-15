@@ -28,7 +28,7 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility, method_cache
+from silvaengine_utility import Serializer, method_cache
 
 from ..handlers.config import Config
 from ..types.async_task import AsyncTaskListType, AsyncTaskType
@@ -134,7 +134,7 @@ def get_async_task_count(partition_key: str, async_task_uuid: str) -> int:
 
 def get_async_task_type(info: ResolveInfo, async_task: AsyncTaskModel) -> AsyncTaskType:
     async_task = async_task.__dict__["attribute_values"]
-    return AsyncTaskType(**Utility.json_normalize(async_task))
+    return AsyncTaskType(**Serializer.json_normalize(async_task))
 
 
 def resolve_async_task(

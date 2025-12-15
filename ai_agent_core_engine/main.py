@@ -9,7 +9,7 @@ from typing import Any, Dict, List
 
 from graphene import Schema
 from silvaengine_dynamodb_base import BaseModel
-from silvaengine_utility import Graphql, Utility
+from silvaengine_utility import Graphql, Serializer
 
 from .handlers import at_agent_listener
 from .handlers.config import Config
@@ -233,11 +233,11 @@ class AIAgentCoreEngine(Graphql):
             params.get("function_name"),
             setting=self.setting,
         )
-        return Utility.json_dumps(
+        return Serializer.json_dumps(
             {
                 "operation_name": params.get("operation_name"),
                 "operation_type": params.get("operation_type"),
-                "query": Utility.generate_graphql_operation(
+                "query": Graphql.generate_graphql_operation(
                     params.get("operation_name"), params.get("operation_type"), schema
                 ),
             }

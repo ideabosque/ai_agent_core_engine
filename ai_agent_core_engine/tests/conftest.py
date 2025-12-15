@@ -47,7 +47,7 @@ sys.path.insert(
 )
 
 from ai_agent_core_engine import AIAgentCoreEngine
-from silvaengine_utility import Utility
+from silvaengine_utility import Graphql
 
 # Test data file path
 TEST_DATA_FILE = os.path.join(os.path.dirname(__file__), "test_data.json")
@@ -151,7 +151,7 @@ def schema(ai_agent_core_engine):
 
     try:
         logger.info("Fetching GraphQL schema...")
-        schema = Utility.fetch_graphql_schema(
+        schema = Graphql.fetch_graphql_schema(
             logger,
             endpoint_id,
             "ai_agent_core_graphql",

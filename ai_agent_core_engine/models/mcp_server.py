@@ -27,7 +27,7 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility, method_cache
+from silvaengine_utility import Serializer, method_cache
 
 from ..handlers.config import Config
 from ..types.mcp_server import MCPServerListType, MCPServerType
@@ -191,7 +191,7 @@ def get_mcp_server_type(
         }
         for tool in tools
     ]
-    return MCPServerType(**Utility.json_normalize(mcp_server))
+    return MCPServerType(**Serializer.json_normalize(mcp_server))
 
 
 def resolve_mcp_server(

@@ -27,7 +27,7 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility, convert_decimal_to_number, method_cache
+from silvaengine_utility import Serializer, convert_decimal_to_number, method_cache
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
@@ -248,7 +248,7 @@ def get_agent_type(info: ResolveInfo, agent: AgentModel) -> AgentType:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)
         raise e
-    return AgentType(**Utility.json_normalize(agent_dict))
+    return AgentType(**Serializer.json_normalize(agent_dict))
 
 
 def resolve_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AgentType | None:

@@ -55,7 +55,7 @@ class ThreadType(ObjectType):
 
     def resolve_messages(parent, info):
         """Resolve nested Messages for this thread as JSON-friendly list."""
-        from silvaengine_utility import Utility
+        from silvaengine_utility import Serializer
 
         from ..models.batch_loaders import get_loaders
 
@@ -136,7 +136,7 @@ class ThreadType(ObjectType):
                     {
                         "message": {
                             "role": tool_call_role,
-                            "content": Utility.json_dumps(
+                            "content": Serializer.json_dumps(
                                 {
                                     "tool": {
                                         "tool_call_id": tool_call_dict.get(

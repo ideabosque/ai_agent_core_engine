@@ -20,7 +20,7 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility, method_cache
+from silvaengine_utility import Serializer, method_cache
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
@@ -137,7 +137,7 @@ def get_run_type(info: ResolveInfo, run: RunModel) -> RunType:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)
         raise e
-    return RunType(**Utility.json_normalize(run_dict))
+    return RunType(**Serializer.json_normalize(run_dict))
 
 
 def resolve_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> RunType | None:
@@ -308,3 +308,18 @@ def delete_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
 
     kwargs["entity"].delete()
     return True
+
+
+@retry(
+    reraise=True,
+    wait=wait_exponential(multiplier=1, max=60),
+    stop=stop_after_attempt(5),
+)
+@method_cache(
+    ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name("models", "run")
+)
+def get_runs_by_thread(thread_uuid: str) -> Any:
+    runs = []
+    for run in RunModel.query(thread_uuid):
+        runs.append(run)
+    return runs

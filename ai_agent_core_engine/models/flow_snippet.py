@@ -21,7 +21,7 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility, convert_decimal_to_number, method_cache
+from silvaengine_utility import Serializer, convert_decimal_to_number, method_cache
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.ai_agent_utility import convert_flow_snippet_xml
@@ -217,7 +217,7 @@ def get_flow_snippet_type(
     """
     try:
         flow_snippet_dict: Dict = flow_snippet.__dict__["attribute_values"]
-        return FlowSnippetType(**Utility.json_normalize(flow_snippet_dict))
+        return FlowSnippetType(**Serializer.json_normalize(flow_snippet_dict))
     except Exception as e:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)
@@ -237,7 +237,7 @@ def get_flow_snippet_list_type(
         # Remove detailed fields for list view
         flow_snippet_dict.pop("flow_context", None)
         flow_snippet_dict.pop("flow_relationship", None)
-        return FlowSnippetBaseType(**Utility.json_normalize(flow_snippet_dict))
+        return FlowSnippetBaseType(**Serializer.json_normalize(flow_snippet_dict))
     except Exception as e:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)

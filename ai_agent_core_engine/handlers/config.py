@@ -9,7 +9,7 @@ import traceback
 from typing import Any, Dict, List
 
 import boto3
-from silvaengine_utility import Utility
+from silvaengine_utility import Graphql
 
 from ..models import utils
 
@@ -463,7 +463,7 @@ class Config:
         """
         # Check if schema exists in cache, if not fetch and store it
         if Config.schemas.get(function_name) is None:
-            Config.schemas[function_name] = Utility.fetch_graphql_schema(
+            Config.schemas[function_name] = Graphql.fetch_graphql_schema(
                 logger,
                 endpoint_id,
                 function_name,

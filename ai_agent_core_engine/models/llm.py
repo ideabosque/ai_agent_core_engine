@@ -22,7 +22,7 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility, method_cache
+from silvaengine_utility import Serializer, method_cache
 
 from ..handlers.config import Config
 from ..types.llm import LlmListType, LlmType
@@ -122,7 +122,7 @@ def get_llm_count(llm_provider: str, llm_name: str) -> int:
 
 def get_llm_type(info: ResolveInfo, llm: LlmModel) -> LlmType:
     llm = llm.__dict__["attribute_values"]
-    return LlmType(**Utility.json_normalize(llm))
+    return LlmType(**Serializer.json_normalize(llm))
 
 
 def resolve_llm(info: ResolveInfo, **kwargs: Dict[str, Any]) -> LlmType | None:

@@ -22,7 +22,7 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility, method_cache
+from silvaengine_utility import Serializer, method_cache
 
 from ..handlers.config import Config
 from ..types.message import MessageListType, MessageType
@@ -157,7 +157,7 @@ def get_message_type(info: ResolveInfo, message: MessageModel) -> MessageType:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)
         raise e
-    return MessageType(**Utility.json_normalize(message_dict))
+    return MessageType(**Serializer.json_normalize(message_dict))
 
 
 def resolve_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> MessageType | None:
@@ -291,3 +291,24 @@ def delete_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
 
     kwargs.get("entity").delete()
     return True
+
+
+@retry(
+    reraise=True,
+    wait=wait_exponential(multiplier=1, max=60),
+    stop=stop_after_attempt(5),
+)
+@method_cache(
+    ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name("models", "message")
+)
+def get_messages_by_thread(thread_uuid: str) -> Any:
+    messages = []
+    # Only retrieve messages from the past 24 hours
+    updated_at_gt = pendulum.now("UTC").subtract(hours=24)
+
+    for message in MessageModel.updated_at_index.query(
+        thread_uuid,
+        MessageModel.updated_at > updated_at_gt,
+    ):
+        messages.append(message)
+    return messages

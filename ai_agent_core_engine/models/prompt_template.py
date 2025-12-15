@@ -26,7 +26,7 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility, method_cache
+from silvaengine_utility import Serializer, method_cache
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
@@ -221,7 +221,7 @@ def get_prompt_template_type(
     try:
         prompt_dict: Dict = prompt_template.__dict__["attribute_values"]
 
-        return PromptTemplateType(**Utility.json_normalize(prompt_dict))
+        return PromptTemplateType(**Serializer.json_normalize(prompt_dict))
     except Exception as e:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)

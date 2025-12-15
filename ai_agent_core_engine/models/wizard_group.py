@@ -25,7 +25,7 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility, method_cache
+from silvaengine_utility import Serializer, method_cache
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
@@ -161,7 +161,7 @@ def get_wizard_group_type(
     """
     try:
         wizard_group_dict: Dict = wizard_group.__dict__["attribute_values"]
-        return WizardGroupType(**Utility.json_normalize(wizard_group_dict))
+        return WizardGroupType(**Serializer.json_normalize(wizard_group_dict))
     except Exception as e:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)
@@ -178,7 +178,7 @@ def get_wizard_group_list_type(
     """
     try:
         wizard_group_dict: Dict = wizard_group.__dict__["attribute_values"]
-        return WizardGroupType(**Utility.json_normalize(wizard_group_dict))
+        return WizardGroupType(**Serializer.json_normalize(wizard_group_dict))
     except Exception as e:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)

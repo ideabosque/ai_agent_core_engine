@@ -49,7 +49,7 @@ def load_test_data():
 TEST_DATA = load_test_data()
 
 from graphene import Schema
-from silvaengine_utility import Utility
+from silvaengine_utility import Graphql
 
 from ai_agent_core_engine import AIAgentCoreEngine
 from ai_agent_core_engine.handlers.config import Config
@@ -322,7 +322,7 @@ class TestCachePerformance:
             ) as mock_get_active_agent:
 
                 # Query for agent (this should cache the result)
-                query = Utility.generate_graphql_operation("agent", "Query", schema)
+                query = Graphql.generate_graphql_operation("agent", "Query", schema)
                 payload = {
                     "query": query,
                     "variables": {
@@ -366,7 +366,7 @@ class TestCachePerformance:
 
                 # Test cache invalidation by updating the agent
                 logger.info("Testing cache invalidation...")
-                update_query = Utility.generate_graphql_operation(
+                update_query = Graphql.generate_graphql_operation(
                     "insertUpdateAgent", "Mutation", schema
                 )
                 update_payload = {
@@ -456,7 +456,7 @@ class TestCachePerformance:
             ) as mock_get_active_agent:
 
                 # Query
-                query = Utility.generate_graphql_operation("agent", "Query", schema)
+                query = Graphql.generate_graphql_operation("agent", "Query", schema)
                 payload = {
                     "query": query,
                     "variables": {
@@ -491,7 +491,7 @@ class TestCachePerformance:
                 MockAgentModel.get.return_value = mock_agent_updated
                 mock_get_active_agent.return_value = mock_agent_updated
 
-                update_query = Utility.generate_graphql_operation(
+                update_query = Graphql.generate_graphql_operation(
                     "insertUpdateAgent", "Mutation", schema
                 )
                 update_payload = {
@@ -536,7 +536,7 @@ class TestCachePerformance:
 
         # Perform some agent queries to generate cache activity
         test_agent_uuid = "agent-1759120093-6b0d64ad"
-        query = Utility.generate_graphql_operation("agent", "Query", schema)
+        query = Graphql.generate_graphql_operation("agent", "Query", schema)
         payload = {
             "query": query,
             "variables": {
@@ -564,7 +564,7 @@ class TestCachePerformance:
         logger.info("Testing agent list cache performance...")
 
         # Query for agent list (this should cache the result)
-        query = Utility.generate_graphql_operation("agentList", "Query", schema)
+        query = Graphql.generate_graphql_operation("agentList", "Query", schema)
         payload = {
             "query": query,
             "variables": {
@@ -605,7 +605,7 @@ class TestCachePerformance:
 
         # Test cache invalidation by creating a new agent
         logger.info("Testing cache invalidation with new agent...")
-        create_query = Utility.generate_graphql_operation(
+        create_query = Graphql.generate_graphql_operation(
             "insertUpdateAgent", "Mutation", schema
         )
         create_payload = {

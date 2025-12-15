@@ -29,7 +29,7 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility, method_cache
+from silvaengine_utility import Serializer, method_cache
 
 from ..handlers.config import Config
 from ..types.wizard_schema import WizardSchemaListType, WizardSchemaType
@@ -172,7 +172,7 @@ def get_wizard_schema_type(
 ) -> WizardSchemaType:
     try:
         wizard_schema_dict = wizard_schema.__dict__["attribute_values"]
-        return WizardSchemaType(**Utility.json_normalize(wizard_schema_dict))
+        return WizardSchemaType(**Serializer.json_normalize(wizard_schema_dict))
     except Exception as e:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)

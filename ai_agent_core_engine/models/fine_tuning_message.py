@@ -29,7 +29,7 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility, method_cache
+from silvaengine_utility import Serializer, method_cache
 
 from ..handlers.config import Config
 from ..types.fine_tuning_message import FineTuningMessageListType, FineTuningMessageType
@@ -158,7 +158,7 @@ def get_fine_tuning_message_type(
     info: ResolveInfo, fine_tuning_message: FineTuningMessageModel
 ) -> FineTuningMessageType:
     fine_tuning_message = fine_tuning_message.__dict__["attribute_values"]
-    return FineTuningMessageType(**Utility.json_normalize(fine_tuning_message))
+    return FineTuningMessageType(**Serializer.json_normalize(fine_tuning_message))
 
 
 def resolve_fine_tuning_message(

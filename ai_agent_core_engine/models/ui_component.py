@@ -28,7 +28,7 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility, method_cache
+from silvaengine_utility import Serializer, method_cache
 
 from ..handlers.config import Config
 from ..types.ui_component import UIComponentListType, UIComponentType
@@ -134,7 +134,7 @@ def get_ui_component_type(
     info: ResolveInfo, ui_component: UIComponentModel
 ) -> UIComponentType:
     ui_component = ui_component.__dict__["attribute_values"]
-    return UIComponentType(**Utility.json_normalize(ui_component))
+    return UIComponentType(**Serializer.json_normalize(ui_component))
 
 
 def resolve_ui_component(
