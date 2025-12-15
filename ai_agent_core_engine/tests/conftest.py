@@ -151,12 +151,15 @@ def schema(ai_agent_core_engine):
 
     try:
         logger.info("Fetching GraphQL schema...")
+
+        context = {
+            "endpoint_id": endpoint_id,
+            "setting": SETTING,
+            "logger": logger,
+        }
         schema = Graphql.fetch_graphql_schema(
-            logger,
-            endpoint_id,
+            context,
             "ai_agent_core_graphql",
-            setting=SETTING,
-            execute_mode=SETTING["execute_mode"],
         )
         logger.info("GraphQL schema fetched successfully")
         return schema
