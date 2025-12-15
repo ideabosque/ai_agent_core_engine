@@ -69,25 +69,42 @@ def purge_cache():
         @functools.wraps(original_function)
         def wrapper_function(*args, **kwargs):
             try:
-                # Use cascading cache purging for ui components
+                # Execute original function first
+                result = original_function(*args, **kwargs)
+
+                # Then purge cache after successful operation
                 from ..models.cache import purge_entity_cascading_cache
 
+                # Get entity keys from kwargs or entity parameter
                 entity_keys = {}
-                if kwargs.get("ui_component_type"):
+
+                # Try to get from entity parameter first (for updates)
+                entity = kwargs.get("entity")
+                if entity:
+                    entity_keys["ui_component_type"] = getattr(
+                        entity, "ui_component_type", None
+                    )
+                    entity_keys["ui_component_uuid"] = getattr(
+                        entity, "ui_component_uuid", None
+                    )
+
+                # Fallback to kwargs (for creates/deletes)
+                if not entity_keys.get("ui_component_type"):
                     entity_keys["ui_component_type"] = kwargs.get("ui_component_type")
-                if kwargs.get("ui_component_uuid"):
+                if not entity_keys.get("ui_component_uuid"):
                     entity_keys["ui_component_uuid"] = kwargs.get("ui_component_uuid")
 
-                result = purge_entity_cascading_cache(
-                    args[0].context.get("logger"),
-                    entity_type="ui_component",
-                    context_keys=None,  # UI components don't use endpoint_id directly
-                    entity_keys=entity_keys if entity_keys else None,
-                    cascade_depth=3,
-                )
-
-                ## Original function.
-                result = original_function(*args, **kwargs)
+                # Only purge if we have the required keys
+                if entity_keys.get("ui_component_type") and entity_keys.get(
+                    "ui_component_uuid"
+                ):
+                    purge_entity_cascading_cache(
+                        args[0].context.get("logger"),
+                        entity_type="ui_component",
+                        context_keys=None,  # UI components don't use partition_key
+                        entity_keys=entity_keys,
+                        cascade_depth=3,
+                    )
 
                 return result
             except Exception as e:
@@ -191,7 +208,6 @@ def resolve_ui_component_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> An
     return inquiry_funct, count_funct, args
 
 
-@purge_cache()
 @insert_update_decorator(
     keys={
         "hash_key": "ui_component_type",
@@ -201,6 +217,7 @@ def resolve_ui_component_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> An
     count_funct=get_ui_component_count,
     type_funct=get_ui_component_type,
 )
+@purge_cache()
 def insert_update_ui_component(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
 
     ui_component_type = kwargs.get("ui_component_type")
@@ -243,7 +260,6 @@ def insert_update_ui_component(info: ResolveInfo, **kwargs: Dict[str, Any]) -> A
     return
 
 
-@purge_cache()
 @delete_decorator(
     keys={
         "hash_key": "ui_component_type",
@@ -251,6 +267,7 @@ def insert_update_ui_component(info: ResolveInfo, **kwargs: Dict[str, Any]) -> A
     },
     model_funct=get_ui_component,
 )
+@purge_cache()
 def delete_ui_component(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
 
     kwargs["entity"].delete()

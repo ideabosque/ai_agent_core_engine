@@ -72,39 +72,47 @@ def purge_cache():
         @functools.wraps(original_function)
         def wrapper_function(*args, **kwargs):
             try:
-                # Use cascading cache purging for wizard group filters
+                # Execute original function first
+                result = original_function(*args, **kwargs)
+
+                # Then purge cache after successful operation
                 from ..models.cache import purge_entity_cascading_cache
 
-                try:
-                    wizard_group_filter = resolve_wizard_group_filter(args[0], **kwargs)
-                except Exception as e:
-                    wizard_group_filter = None
-
-                partition_key = args[0].context.get("partition_key") or kwargs.get(
-                    "partition_key"
-                )
+                # Get entity keys from kwargs or entity parameter
                 entity_keys = {}
-                if kwargs.get("wizard_group_filter_uuid"):
+
+                # Try to get from entity parameter first (for updates)
+                entity = kwargs.get("entity")
+                if entity:
+                    entity_keys["wizard_group_filter_uuid"] = getattr(
+                        entity, "wizard_group_filter_uuid", None
+                    )
+                    entity_keys["wizard_group_uuid"] = getattr(
+                        entity, "wizard_group_uuid", None
+                    )
+
+                # Fallback to kwargs (for creates/deletes)
+                if not entity_keys.get("wizard_group_filter_uuid"):
                     entity_keys["wizard_group_filter_uuid"] = kwargs.get(
                         "wizard_group_filter_uuid"
                     )
-                if wizard_group_filter and wizard_group_filter.wizard_group_uuid:
-                    entity_keys["wizard_group_uuid"] = (
-                        wizard_group_filter.wizard_group_uuid
-                    )
 
-                result = purge_entity_cascading_cache(
-                    args[0].context.get("logger"),
-                    entity_type="wizard_group_filter",
-                    context_keys=(
-                        {"partition_key": partition_key} if partition_key else None
-                    ),
-                    entity_keys=entity_keys if entity_keys else None,
-                    cascade_depth=3,
+                # Get partition_key from context or kwargs
+                partition_key = args[0].context.get("partition_key") or kwargs.get(
+                    "partition_key"
                 )
 
-                ## Original function.
-                result = original_function(*args, **kwargs)
+                # Only purge if we have the required keys
+                if entity_keys.get("wizard_group_filter_uuid"):
+                    purge_entity_cascading_cache(
+                        args[0].context.get("logger"),
+                        entity_type="wizard_group_filter",
+                        context_keys=(
+                            {"partition_key": partition_key} if partition_key else None
+                        ),
+                        entity_keys=entity_keys,
+                        cascade_depth=3,
+                    )
 
                 return result
             except Exception as e:
@@ -249,7 +257,6 @@ def resolve_wizard_group_filter_list(
     return inquiry_funct, count_funct, args
 
 
-@purge_cache()
 @insert_update_decorator(
     keys={
         "hash_key": "partition_key",
@@ -259,6 +266,7 @@ def resolve_wizard_group_filter_list(
     count_funct=get_wizard_group_filter_count,
     type_funct=get_wizard_group_filter_type,
 )
+@purge_cache()
 def insert_update_wizard_group_filter(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> Any:
@@ -312,7 +320,6 @@ def insert_update_wizard_group_filter(
     return
 
 
-@purge_cache()
 @delete_decorator(
     keys={
         "hash_key": "partition_key",
@@ -320,6 +327,7 @@ def insert_update_wizard_group_filter(
     },
     model_funct=get_wizard_group_filter,
 )
+@purge_cache()
 def delete_wizard_group_filter(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
 
     kwargs["entity"].delete()

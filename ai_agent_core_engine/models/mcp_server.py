@@ -70,25 +70,42 @@ def purge_cache():
         @functools.wraps(original_function)
         def wrapper_function(*args, **kwargs):
             try:
-                # Use cascading cache purging for mcp servers
+                # Execute original function first
+                result = original_function(*args, **kwargs)
+
+                # Then purge cache after successful operation
                 from ..models.cache import purge_entity_cascading_cache
 
+                # Get entity keys from kwargs or entity parameter
+                entity_keys = {}
+
+                # Try to get from entity parameter first (for updates)
+                entity = kwargs.get("entity")
+                if entity:
+                    entity_keys["mcp_server_uuid"] = getattr(
+                        entity, "mcp_server_uuid", None
+                    )
+
+                # Fallback to kwargs (for creates/deletes)
+                if not entity_keys.get("mcp_server_uuid"):
+                    entity_keys["mcp_server_uuid"] = kwargs.get("mcp_server_uuid")
+
+                # Get partition_key from context or kwargs
                 partition_key = args[0].context.get("partition_key") or kwargs.get(
                     "partition_key"
                 )
-                entity_keys = {}
-                if kwargs.get("mcp_server_uuid"):
-                    entity_keys["mcp_server_uuid"] = kwargs.get("mcp_server_uuid")
 
-                result = purge_entity_cascading_cache(
-                    args[0].context.get("logger"),
-                    entity_type="mcp_server",
-                    context_keys=(
-                        {"partition_key": partition_key} if partition_key else None
-                    ),
-                    entity_keys=entity_keys if entity_keys else None,
-                    cascade_depth=3,
-                )
+                # Only purge if we have the required keys
+                if entity_keys.get("mcp_server_uuid"):
+                    purge_entity_cascading_cache(
+                        args[0].context.get("logger"),
+                        entity_type="mcp_server",
+                        context_keys=(
+                            {"partition_key": partition_key} if partition_key else None
+                        ),
+                        entity_keys=entity_keys,
+                        cascade_depth=3,
+                    )
 
                 # Also purge mcp_server_tools cache
                 from silvaengine_utility.cache import HybridCacheEngine
@@ -97,9 +114,6 @@ def purge_cache():
                     Config.get_cache_name("models", "mcp_server_tools")
                 )
                 tools_cache.clear()
-
-                ## Original function.
-                result = original_function(*args, **kwargs)
 
                 return result
             except Exception as e:
@@ -248,7 +262,6 @@ def resolve_mcp_server_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     return inquiry_funct, count_funct, args
 
 
-@purge_cache()
 @insert_update_decorator(
     keys={
         "hash_key": "partition_key",
@@ -258,6 +271,7 @@ def resolve_mcp_server_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     count_funct=get_mcp_server_count,
     type_funct=get_mcp_server_type,
 )
+@purge_cache()
 def insert_update_mcp_server(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     partition_key = kwargs.get("partition_key")
     mcp_server_uuid = kwargs.get("mcp_server_uuid")
@@ -301,7 +315,6 @@ def insert_update_mcp_server(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any
     return
 
 
-@purge_cache()
 @delete_decorator(
     keys={
         "hash_key": "partition_key",
@@ -309,6 +322,7 @@ def insert_update_mcp_server(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any
     },
     model_funct=get_mcp_server,
 )
+@purge_cache()
 def delete_mcp_server(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
     kwargs["entity"].delete()
     return True

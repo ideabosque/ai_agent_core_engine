@@ -98,34 +98,49 @@ def purge_cache():
         @functools.wraps(original_function)
         def wrapper_function(*args, **kwargs):
             try:
-                # Use cascading cache purging for flow snippets
+                # Execute original function first
+                result = original_function(*args, **kwargs)
+
+                # Then purge cache after successful operation
                 from ..models.cache import purge_entity_cascading_cache
 
-                try:
-                    flow_snippet = resolve_flow_snippet(args[0], **kwargs)
-                except Exception as e:
-                    flow_snippet = None
-
-                partition_key = args[0].context.get("partition_key") or kwargs.get(
-                    "partition_key"
-                )
+                # Get entity keys from kwargs or entity parameter
                 entity_keys = {}
-                if kwargs.get("flow_snippet_version_uuid"):
+
+                # Try to get from entity parameter first (for updates)
+                entity = kwargs.get("entity")
+                if entity:
+                    entity_keys["flow_snippet_version_uuid"] = getattr(
+                        entity, "flow_snippet_version_uuid", None
+                    )
+                    entity_keys["flow_snippet_uuid"] = getattr(
+                        entity, "flow_snippet_uuid", None
+                    )
+
+                # Fallback to kwargs (for creates/deletes)
+                if not entity_keys.get("flow_snippet_version_uuid"):
                     entity_keys["flow_snippet_version_uuid"] = kwargs.get(
                         "flow_snippet_version_uuid"
                     )
-                if flow_snippet:
-                    entity_keys["flow_snippet_uuid"] = flow_snippet.flow_snippet_uuid
+                if not entity_keys.get("flow_snippet_uuid"):
+                    entity_keys["flow_snippet_uuid"] = kwargs.get("flow_snippet_uuid")
 
-                result = purge_entity_cascading_cache(
-                    args[0].context.get("logger"),
-                    entity_type="flow_snippet",
-                    context_keys=(
-                        {"partition_key": partition_key} if partition_key else None
-                    ),
-                    entity_keys=entity_keys if entity_keys else None,
-                    cascade_depth=3,
+                # Get partition_key from context or kwargs
+                partition_key = args[0].context.get("partition_key") or kwargs.get(
+                    "partition_key"
                 )
+
+                # Only purge if we have the required keys
+                if entity_keys.get("flow_snippet_version_uuid"):
+                    purge_entity_cascading_cache(
+                        args[0].context.get("logger"),
+                        entity_type="flow_snippet",
+                        context_keys=(
+                            {"partition_key": partition_key} if partition_key else None
+                        ),
+                        entity_keys=entity_keys,
+                        cascade_depth=3,
+                    )
 
                 # Also purge active_flow_snippet cache
                 from silvaengine_utility.cache import HybridCacheEngine
@@ -134,9 +149,6 @@ def purge_cache():
                     Config.get_cache_name("models", "active_flow_snippet")
                 )
                 active_cache.clear()
-
-                ## Original function.
-                result = original_function(*args, **kwargs)
 
                 return result
             except Exception as e:
@@ -352,7 +364,6 @@ def _inactivate_flow_snippets(
         raise e
 
 
-@purge_cache()
 @insert_update_decorator(
     keys={
         "hash_key": "partition_key",
@@ -362,6 +373,7 @@ def _inactivate_flow_snippets(
     count_funct=get_flow_snippet_count,
     type_funct=get_flow_snippet_type,
 )
+@purge_cache()
 def insert_update_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     partition_key = kwargs.get("partition_key")
     flow_snippet_version_uuid = kwargs.get("flow_snippet_version_uuid")
@@ -476,7 +488,6 @@ def insert_update_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> A
     return
 
 
-@purge_cache()
 @delete_decorator(
     keys={
         "hash_key": "partition_key",
@@ -484,6 +495,7 @@ def insert_update_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> A
     },
     model_funct=get_flow_snippet,
 )
+@purge_cache()
 def delete_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
 
     if kwargs["entity"].status == "active":

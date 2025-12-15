@@ -70,37 +70,45 @@ def purge_cache():
         @functools.wraps(original_function)
         def wrapper_function(*args, **kwargs):
             try:
-                # Use cascading cache purging for wizard groups
+                # Execute original function first
+                result = original_function(*args, **kwargs)
+
+                # Then purge cache after successful operation
                 from ..models.cache import purge_entity_cascading_cache
 
-                try:
-                    wizard_group = resolve_wizard_group(args[0], **kwargs)
-                except Exception as e:
-                    wizard_group = None
+                # Get entity keys from kwargs or entity parameter
+                entity_keys = {}
 
+                # Try to get from entity parameter first (for updates)
+                entity = kwargs.get("entity")
+                if entity:
+                    entity_keys["wizard_group_uuid"] = getattr(
+                        entity, "wizard_group_uuid", None
+                    )
+                    wizard_uuids = getattr(entity, "wizard_uuids", None)
+                    if wizard_uuids:
+                        entity_keys["wizard_uuids"] = wizard_uuids
+
+                # Fallback to kwargs (for creates/deletes)
+                if not entity_keys.get("wizard_group_uuid"):
+                    entity_keys["wizard_group_uuid"] = kwargs.get("wizard_group_uuid")
+
+                # Get partition_key from context or kwargs
                 partition_key = args[0].context.get("partition_key") or kwargs.get(
                     "partition_key"
                 )
-                entity_keys = {}
-                if kwargs.get("wizard_group_uuid"):
-                    entity_keys["wizard_group_uuid"] = kwargs.get("wizard_group_uuid")
-                if wizard_group and wizard_group.wizards:
-                    entity_keys["wizard_uuids"] = [
-                        wizard["wizard_uuid"] for wizard in wizard_group.wizards
-                    ]
 
-                result = purge_entity_cascading_cache(
-                    args[0].context.get("logger"),
-                    entity_type="wizard_group",
-                    context_keys=(
-                        {"partition_key": partition_key} if partition_key else None
-                    ),
-                    entity_keys=entity_keys if entity_keys else None,
-                    cascade_depth=3,
-                )
-
-                ## Original function.
-                result = original_function(*args, **kwargs)
+                # Only purge if we have the required keys
+                if entity_keys.get("wizard_group_uuid"):
+                    purge_entity_cascading_cache(
+                        args[0].context.get("logger"),
+                        entity_type="wizard_group",
+                        context_keys=(
+                            {"partition_key": partition_key} if partition_key else None
+                        ),
+                        entity_keys=entity_keys,
+                        cascade_depth=3,
+                    )
 
                 return result
             except Exception as e:
@@ -241,7 +249,6 @@ def resolve_wizard_group_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> An
     return inquiry_funct, count_funct, args
 
 
-@purge_cache()
 @insert_update_decorator(
     keys={
         "hash_key": "partition_key",
@@ -251,6 +258,7 @@ def resolve_wizard_group_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> An
     count_funct=get_wizard_group_count,
     type_funct=get_wizard_group_type,
 )
+@purge_cache()
 def insert_update_wizard_group(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     partition_key = kwargs.get("partition_key")
     wizard_group_uuid = kwargs.get("wizard_group_uuid")
@@ -296,7 +304,6 @@ def insert_update_wizard_group(info: ResolveInfo, **kwargs: Dict[str, Any]) -> A
     return
 
 
-@purge_cache()
 @delete_decorator(
     keys={
         "hash_key": "partition_key",
@@ -304,6 +311,7 @@ def insert_update_wizard_group(info: ResolveInfo, **kwargs: Dict[str, Any]) -> A
     },
     model_funct=get_wizard_group,
 )
+@purge_cache()
 def delete_wizard_group(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
 
     kwargs["entity"].delete()

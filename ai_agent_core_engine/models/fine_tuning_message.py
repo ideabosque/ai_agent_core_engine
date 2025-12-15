@@ -91,27 +91,39 @@ def purge_cache():
         @functools.wraps(original_function)
         def wrapper_function(*args, **kwargs):
             try:
-                # Use cascading cache purging for fine tuning messages
+                # Execute original function first
+                result = original_function(*args, **kwargs)
+
+                # Then purge cache after successful operation
                 from ..models.cache import purge_entity_cascading_cache
 
+                # Get entity keys from kwargs or entity parameter
                 entity_keys = {}
-                if kwargs.get("agent_uuid"):
+
+                # Try to get from entity parameter first (for updates)
+                entity = kwargs.get("entity")
+                if entity:
+                    entity_keys["agent_uuid"] = getattr(entity, "agent_uuid", None)
+                    entity_keys["thread_uuid"] = getattr(entity, "thread_uuid", None)
+                    entity_keys["message_uuid"] = getattr(entity, "message_uuid", None)
+
+                # Fallback to kwargs (for creates/deletes)
+                if not entity_keys.get("agent_uuid"):
                     entity_keys["agent_uuid"] = kwargs.get("agent_uuid")
-                if kwargs.get("thread_uuid"):
+                if not entity_keys.get("thread_uuid"):
                     entity_keys["thread_uuid"] = kwargs.get("thread_uuid")
-                if kwargs.get("message_uuid"):
+                if not entity_keys.get("message_uuid"):
                     entity_keys["message_uuid"] = kwargs.get("message_uuid")
 
-                result = purge_entity_cascading_cache(
-                    args[0].context.get("logger"),
-                    entity_type="fine_tuning_message",
-                    context_keys=None,  # Fine tuning messages don't use endpoint_id directly
-                    entity_keys=entity_keys if entity_keys else None,
-                    cascade_depth=3,
-                )
-
-                ## Original function.
-                result = original_function(*args, **kwargs)
+                # Only purge if we have the required keys
+                if entity_keys.get("agent_uuid") and entity_keys.get("thread_uuid") and entity_keys.get("message_uuid"):
+                    purge_entity_cascading_cache(
+                        args[0].context.get("logger"),
+                        entity_type="fine_tuning_message",
+                        context_keys=None,  # Fine tuning messages don't use partition_key
+                        entity_keys=entity_keys,
+                        cascade_depth=3,
+                    )
 
                 return result
             except Exception as e:
@@ -237,7 +249,6 @@ def resolve_fine_tuning_message_list(
     return inquiry_funct, count_funct, args
 
 
-@purge_cache()
 @insert_update_decorator(
     keys={
         "hash_key": "agent_uuid",
@@ -248,6 +259,7 @@ def resolve_fine_tuning_message_list(
     count_funct=get_fine_tuning_message_count,
     type_funct=get_fine_tuning_message_type,
 )
+@purge_cache()
 def insert_update_fine_tuning_message(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> Any:
@@ -299,7 +311,6 @@ def insert_update_fine_tuning_message(
     return
 
 
-@purge_cache()
 @delete_decorator(
     keys={
         "hash_key": "agent_uuid",
@@ -307,6 +318,7 @@ def insert_update_fine_tuning_message(
     },
     model_funct=get_fine_tuning_message,
 )
+@purge_cache()
 def delete_fine_tuning_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
 
     kwargs.get("entity").delete()

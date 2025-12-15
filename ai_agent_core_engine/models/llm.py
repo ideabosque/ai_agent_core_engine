@@ -64,25 +64,36 @@ def purge_cache():
         @functools.wraps(original_function)
         def wrapper_function(*args, **kwargs):
             try:
-                # Use cascading cache purging for llms
+                # Execute original function first
+                result = original_function(*args, **kwargs)
+
+                # Then purge cache after successful operation
                 from ..models.cache import purge_entity_cascading_cache
 
+                # Get entity keys from kwargs or entity parameter
                 entity_keys = {}
-                if kwargs.get("llm_provider"):
+
+                # Try to get from entity parameter first (for updates)
+                entity = kwargs.get("entity")
+                if entity:
+                    entity_keys["llm_provider"] = getattr(entity, "llm_provider", None)
+                    entity_keys["llm_name"] = getattr(entity, "llm_name", None)
+
+                # Fallback to kwargs (for creates/deletes)
+                if not entity_keys.get("llm_provider"):
                     entity_keys["llm_provider"] = kwargs.get("llm_provider")
-                if kwargs.get("llm_name"):
+                if not entity_keys.get("llm_name"):
                     entity_keys["llm_name"] = kwargs.get("llm_name")
 
-                result = purge_entity_cascading_cache(
-                    args[0].context.get("logger"),
-                    entity_type="llm",
-                    context_keys=None,  # LLMs don't use endpoint_id directly
-                    entity_keys=entity_keys if entity_keys else None,
-                    cascade_depth=3,
-                )
-
-                ## Original function.
-                result = original_function(*args, **kwargs)
+                # Only purge if we have the required keys
+                if entity_keys.get("llm_provider") and entity_keys.get("llm_name"):
+                    purge_entity_cascading_cache(
+                        args[0].context.get("logger"),
+                        entity_type="llm",
+                        context_keys=None,  # LLMs don't use partition_key
+                        entity_keys=entity_keys,
+                        cascade_depth=3,
+                    )
 
                 return result
             except Exception as e:
@@ -176,7 +187,6 @@ def resolve_llm_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     return inquiry_funct, count_funct, args
 
 
-@purge_cache()
 @insert_update_decorator(
     keys={
         "hash_key": "llm_provider",
@@ -189,6 +199,7 @@ def resolve_llm_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     # data_attributes_except_for_data_diff=["created_at", "updated_at"],
     # activity_history_funct=None,
 )
+@purge_cache()
 def insert_update_llm(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
 
     llm_provider = kwargs.get("llm_provider")
@@ -232,7 +243,6 @@ def insert_update_llm(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     return
 
 
-@purge_cache()
 @delete_decorator(
     keys={
         "hash_key": "llm_provider",
@@ -240,6 +250,7 @@ def insert_update_llm(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     },
     model_funct=get_llm,
 )
+@purge_cache()
 def delete_llm(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
 
     agent_list = resolve_agent_list(
