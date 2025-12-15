@@ -51,6 +51,12 @@ sys.path.insert(
         os.path.join(os.path.dirname(__file__), "../../../silvaengine_utility")
     ),
 )
+sys.path.insert(
+    0,
+    os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "../../../silvaengine_dynamodb_base")
+    ),
+)
 
 # Setup logging
 logging.basicConfig(
@@ -61,8 +67,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger()
 
-from ai_agent_core_engine import AIAgentCoreEngine
 from silvaengine_utility import Graphql, Serializer
+
+from ai_agent_core_engine import AIAgentCoreEngine
 
 
 class ChatbotRunner:
