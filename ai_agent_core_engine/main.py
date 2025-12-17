@@ -220,18 +220,18 @@ class AIAgentCoreEngine(Graphql):
         Config.initialize(logger, **setting)
 
     def ai_agent_build_graphql_query(self, **params: Dict[str, Any]):
-        endpoint_id = params.get("endpoint_id")
-        ## Test the waters 🧪 before diving in!
-        ##<--Testing Data-->##
-        if endpoint_id is None:
-            endpoint_id = self.setting.get("endpoint_id")
-        ##<--Testing Data-->##
+
+        self._apply_partition_defaults(params)
+
+        context = {
+            "endpoint_id": params.get("endpoint_id"),
+            "setting": self.setting,
+            "logger": self.logger,
+        }
 
         schema = Config.fetch_graphql_schema(
-            self.logger,
-            endpoint_id,
+            context,
             params.get("function_name"),
-            setting=self.setting,
         )
         return Serializer.json_dumps(
             {
