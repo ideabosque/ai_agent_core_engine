@@ -51,6 +51,12 @@ sys.path.insert(
         os.path.join(os.path.dirname(__file__), "../../../silvaengine_utility")
     ),
 )
+sys.path.insert(
+    0,
+    os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "../../../silvaengine_dynamodb_base")
+    ),
+)
 
 # Setup logging
 logging.basicConfig(
@@ -61,7 +67,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger()
 
-from silvaengine_utility import Utility
+from silvaengine_utility import Graphql, Serializer
 
 from ai_agent_core_engine import AIAgentCoreEngine
 
@@ -124,13 +130,14 @@ class ChatbotRunner:
         }
 
         self.ai_agent_core_engine = AIAgentCoreEngine(logger, **self.setting)
-        endpoint_id = self.setting.get("endpoint_id")
-        self.schema = Utility.fetch_graphql_schema(
-            logger,
-            endpoint_id,
+        context = {
+            "endpoint_id": self.setting.get("endpoint_id"),
+            "setting": self.setting,
+            "logger": logger,
+        }
+        self.schema = Graphql.fetch_graphql_schema(
+            context,
             "ai_agent_core_graphql",
-            setting=self.setting,
-            execute_mode=self.setting["execute_mode"],
         )
 
         # Set default parameters or use provided ones
@@ -158,7 +165,7 @@ class ChatbotRunner:
                 print("Chatbot: Goodbye!")
                 break
 
-            query = Utility.generate_graphql_operation("askModel", "Query", self.schema)
+            query = Graphql.generate_graphql_operation("askModel", "Query", self.schema)
             logger.info(f"Query: {query}")
             payload = {
                 "query": query,
@@ -172,12 +179,12 @@ class ChatbotRunner:
                 },
             }
             response = self.ai_agent_core_engine.ai_agent_core_graphql(**payload)
-            response = Utility.json_loads(response["body"])
+            response = Serializer.json_loads(response["body"])
 
             if response["askModel"]["threadUuid"] is not None:
                 thread_uuid = response["askModel"]["threadUuid"]
 
-            query = Utility.generate_graphql_operation(
+            query = Graphql.generate_graphql_operation(
                 "asyncTask", "Query", self.schema
             )
             logger.info(f"Query: {query}")
@@ -190,7 +197,7 @@ class ChatbotRunner:
             }
 
             response = self.ai_agent_core_engine.ai_agent_core_graphql(**payload)
-            response = Utility.json_loads(response["body"])
+            response = Serializer.json_loads(response["body"])
 
             # Print response to user
             print(f"Chatbot: {response['asyncTask']['result']}\n")

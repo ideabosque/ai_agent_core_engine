@@ -28,7 +28,7 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility, method_cache
+from silvaengine_utility import Serializer, method_cache
 
 from ..handlers.config import Config
 from ..types.async_task import AsyncTaskListType, AsyncTaskType
@@ -73,25 +73,36 @@ def purge_cache():
         @functools.wraps(original_function)
         def wrapper_function(*args, **kwargs):
             try:
-                # Use cascading cache purging for async tasks
+                # Execute original function first
+                result = original_function(*args, **kwargs)
+
+                # Then purge cache after successful operation
                 from ..models.cache import purge_entity_cascading_cache
 
+                # Get entity keys from kwargs or entity parameter
                 entity_keys = {}
-                if kwargs.get("function_name"):
+
+                # Try to get from entity parameter first (for updates)
+                entity = kwargs.get("entity")
+                if entity:
+                    entity_keys["function_name"] = getattr(entity, "function_name", None)
+                    entity_keys["async_task_uuid"] = getattr(entity, "async_task_uuid", None)
+
+                # Fallback to kwargs (for creates/deletes)
+                if not entity_keys.get("function_name"):
                     entity_keys["function_name"] = kwargs.get("function_name")
-                if kwargs.get("async_task_uuid"):
+                if not entity_keys.get("async_task_uuid"):
                     entity_keys["async_task_uuid"] = kwargs.get("async_task_uuid")
 
-                result = purge_entity_cascading_cache(
-                    args[0].context.get("logger"),
-                    entity_type="async_task",
-                    context_keys=None,  # Async tasks don't use partition_key directly
-                    entity_keys=entity_keys if entity_keys else None,
-                    cascade_depth=3,
-                )
-
-                ## Original function.
-                result = original_function(*args, **kwargs)
+                # Only purge if we have the required keys
+                if entity_keys.get("function_name") and entity_keys.get("async_task_uuid"):
+                    purge_entity_cascading_cache(
+                        args[0].context.get("logger"),
+                        entity_type="async_task",
+                        context_keys=None,  # Async tasks don't use partition_key
+                        entity_keys=entity_keys,
+                        cascade_depth=3,
+                    )
 
                 return result
             except Exception as e:
@@ -134,7 +145,7 @@ def get_async_task_count(partition_key: str, async_task_uuid: str) -> int:
 
 def get_async_task_type(info: ResolveInfo, async_task: AsyncTaskModel) -> AsyncTaskType:
     async_task = async_task.__dict__["attribute_values"]
-    return AsyncTaskType(**Utility.json_normalize(async_task))
+    return AsyncTaskType(**Serializer.json_normalize(async_task))
 
 
 def resolve_async_task(
@@ -185,7 +196,6 @@ def resolve_async_task_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     return inquiry_funct, count_funct, args
 
 
-@purge_cache()
 @insert_update_decorator(
     keys={
         "hash_key": "function_name",
@@ -197,6 +207,7 @@ def resolve_async_task_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     # data_attributes_except_for_data_diff=["created_at", "updated_at"],
     # activity_history_funct=None,
 )
+@purge_cache()
 def insert_update_async_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
 
     function_name = kwargs.get("function_name")
@@ -261,7 +272,6 @@ def insert_update_async_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any
     return
 
 
-@purge_cache()
 @delete_decorator(
     keys={
         "hash_key": "function_name",
@@ -269,6 +279,7 @@ def insert_update_async_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any
     },
     model_funct=get_async_task,
 )
+@purge_cache()
 def delete_async_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
 
     kwargs.get("entity").delete()

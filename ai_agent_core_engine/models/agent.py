@@ -27,7 +27,7 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility, convert_decimal_to_number, method_cache
+from silvaengine_utility import Serializer, convert_decimal_to_number, method_cache
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
@@ -138,32 +138,45 @@ def purge_cache():
         @functools.wraps(original_function)
         def wrapper_function(*args, **kwargs):
             try:
-                # Use cascading cache purging for agents
+                # Execute original function first
+                result = original_function(*args, **kwargs)
+
+                # Then purge cache after successful operation
                 from ..models.cache import purge_entity_cascading_cache
 
-                try:
-                    agent = resolve_agent(args[0], **kwargs)
-                except Exception as e:
-                    agent = None
+                # Get entity keys from kwargs or entity parameter
+                entity_keys = {}
 
+                # Try to get from entity parameter first (for updates)
+                entity = kwargs.get("entity")
+                if entity:
+                    entity_keys["agent_version_uuid"] = getattr(
+                        entity, "agent_version_uuid", None
+                    )
+                    entity_keys["agent_uuid"] = getattr(entity, "agent_uuid", None)
+
+                # Fallback to kwargs (for creates/deletes)
+                if not entity_keys.get("agent_version_uuid"):
+                    entity_keys["agent_version_uuid"] = kwargs.get("agent_version_uuid")
+                if not entity_keys.get("agent_uuid"):
+                    entity_keys["agent_uuid"] = kwargs.get("agent_uuid")
+
+                # Get partition_key from context or kwargs
                 partition_key = args[0].context.get("partition_key") or kwargs.get(
                     "partition_key"
                 )
-                entity_keys = {}
-                if agent:
-                    entity_keys["agent_uuid"] = agent.agent_uuid
-                if kwargs.get("agent_version_uuid"):
-                    entity_keys["agent_version_uuid"] = kwargs.get("agent_version_uuid")
 
-                result = purge_entity_cascading_cache(
-                    args[0].context.get("logger"),
-                    entity_type="agent",
-                    context_keys=(
-                        {"partition_key": partition_key} if partition_key else None
-                    ),
-                    entity_keys=entity_keys if entity_keys else None,
-                    cascade_depth=3,
-                )
+                # Only purge if we have the required keys
+                if entity_keys.get("agent_version_uuid"):
+                    purge_entity_cascading_cache(
+                        args[0].context.get("logger"),
+                        entity_type="agent",
+                        context_keys=(
+                            {"partition_key": partition_key} if partition_key else None
+                        ),
+                        entity_keys=entity_keys,
+                        cascade_depth=3,
+                    )
 
                 # Also purge active_agent cache
                 from silvaengine_utility.cache import HybridCacheEngine
@@ -172,9 +185,6 @@ def purge_cache():
                     Config.get_cache_name("models", "active_agent")
                 )
                 active_cache.clear()
-
-                ## Original functoin.
-                result = original_function(*args, **kwargs)
 
                 return result
             except Exception as e:
@@ -248,7 +258,7 @@ def get_agent_type(info: ResolveInfo, agent: AgentModel) -> AgentType:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)
         raise e
-    return AgentType(**Utility.json_normalize(agent_dict))
+    return AgentType(**Serializer.json_normalize(agent_dict))
 
 
 def resolve_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AgentType | None:
@@ -358,7 +368,6 @@ def _inactivate_agents(info: ResolveInfo, partition_key: str, agent_uuid: str) -
         raise e
 
 
-@purge_cache()
 @insert_update_decorator(
     keys={
         "hash_key": "partition_key",
@@ -370,6 +379,7 @@ def _inactivate_agents(info: ResolveInfo, partition_key: str, agent_uuid: str) -
     # data_attributes_except_for_data_diff=["created_at", "updated_at"],
     # activity_history_funct=None,
 )
+@purge_cache()
 def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     partition_key = kwargs.get("partition_key")
     agent_version_uuid = kwargs.get("agent_version_uuid")
@@ -540,7 +550,6 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     return
 
 
-@purge_cache()
 @delete_decorator(
     keys={
         "hash_key": "partition_key",
@@ -548,6 +557,7 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     },
     model_funct=get_agent,
 )
+@purge_cache()
 def delete_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
     thread_list = resolve_thread_list(
         info,

@@ -66,7 +66,7 @@ def _get_element(endpoint_id: str, element_uuid: str) -> Dict[str, Any]:
 
 
 def _get_wizard(endpoint_id: str, wizard_uuid: str) -> Dict[str, Any]:
-    from silvaengine_utility import Utility
+    from silvaengine_utility import Serializer
 
     from .wizard import get_wizard
 
@@ -78,7 +78,7 @@ def _get_wizard(endpoint_id: str, wizard_uuid: str) -> Dict[str, Any]:
 
     wizard_elements = []
     for wizard_element in wizard.wizard_elements:
-        wizard_element = Utility.json_normalize(wizard_element)
+        wizard_element = Serializer.json_normalize(wizard_element)
         element = _get_element(endpoint_id, wizard_element.pop("element_uuid"))
         wizard_element["element"] = element
         wizard_elements.append(wizard_element)
@@ -90,7 +90,7 @@ def _get_wizard(endpoint_id: str, wizard_uuid: str) -> Dict[str, Any]:
         "wizard_type": wizard.wizard_type,
         "wizard_schema": wizard_schema,
         "wizard_attributes": [
-            Utility.json_normalize(attr) for attr in wizard.wizard_attributes
+            Serializer.json_normalize(attr) for attr in wizard.wizard_attributes
         ],
         "wizard_elements": wizard_elements,
         "priority": wizard.priority,

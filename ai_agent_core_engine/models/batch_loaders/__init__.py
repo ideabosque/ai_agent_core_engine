@@ -73,57 +73,56 @@ class RequestLoaders:
             return
 
         if entity_type == "llm" and "llm_name" in entity_keys:
-            cache_key = f"{entity_keys.get('llm_provider')}:{entity_keys['llm_name']}"
             if hasattr(self.llm_loader, "cache"):
+                cache_key = self.llm_loader.generate_cache_key((entity_keys.get('llm_provider'),entity_keys['llm_name']))
                 self.llm_loader.cache.delete(cache_key)
         elif entity_type == "mcp_server" and "mcp_server_uuid" in entity_keys:
-            cache_key = (
-                f"{entity_keys.get('partition_key')}:{entity_keys['mcp_server_uuid']}"
-            )
             if hasattr(self.mcp_server_loader, "cache"):
+                cache_key = self.mcp_server_loader.generate_cache_key((entity_keys.get('partition_key'),entity_keys['mcp_server_uuid']))
                 self.mcp_server_loader.cache.delete(cache_key)
         elif entity_type == "agent" and "agent_version_uuid" in entity_keys:
-            cache_key = (
-                f"{entity_keys.get('partition_key')}:{entity_keys['agent_version_uuid']}"
-            )
             if hasattr(self.agent_loader, "cache"):
+                cache_key = self.agent_loader.generate_cache_key((entity_keys.get('partition_key'),entity_keys['agent_version_uuid']))
                 self.agent_loader.cache.delete(cache_key)
         elif entity_type == "thread" and "thread_uuid" in entity_keys:
-            cache_key = f"{entity_keys.get('partition_key')}:{entity_keys['thread_uuid']}"
             if hasattr(self.thread_loader, "cache"):
+                cache_key = self.thread_loader.generate_cache_key((entity_keys.get('partition_key'),entity_keys['thread_uuid']))
                 self.thread_loader.cache.delete(cache_key)
         elif entity_type == "run" and "run_uuid" in entity_keys:
-            cache_key = f"{entity_keys.get('thread_uuid')}:{entity_keys['run_uuid']}"
             if hasattr(self.run_loader, "cache"):
+                cache_key = self.run_loader.generate_cache_key((entity_keys.get('thread_uuid'),entity_keys['run_uuid']))
                 self.run_loader.cache.delete(cache_key)
         elif entity_type == "prompt_template":
-            prompt_uuid = entity_keys.get("prompt_uuid")
-            prompt_version_uuid = entity_keys.get("prompt_version_uuid")
-            partition_key = entity_keys.get("partition_key")
-            # Prefer clearing by prompt_uuid (active lookup path)
-            if prompt_uuid and partition_key and hasattr(self.prompt_template_loader, "cache"):
-                self.prompt_template_loader.cache.delete(f"{partition_key}:{prompt_uuid}")
-            elif prompt_version_uuid and partition_key and hasattr(self.prompt_template_loader, "cache"):
-                self.prompt_template_loader.cache.delete(
-                    f"{partition_key}:{prompt_version_uuid}"
-                )
+            # prompt_uuid = entity_keys.get("prompt_uuid")
+            # prompt_version_uuid = entity_keys.get("prompt_version_uuid")
+            # partition_key = entity_keys.get("partition_key")
+            if hasattr(self.prompt_template_loader, "cache"):
+                cache_key = self.run_loader.generate_cache_key((entity_keys.get('partition_key'),entity_keys['prompt_uuid']))
+                self.prompt_template_loader.cache.delete(cache_key)
+            # # Prefer clearing by prompt_uuid (active lookup path)
+            # if prompt_uuid and partition_key and hasattr(self.prompt_template_loader, "cache"):
+                
+            # elif prompt_version_uuid and partition_key and hasattr(self.prompt_template_loader, "cache"):
+            #     self.prompt_template_loader.cache.delete(
+            #         f"{partition_key}:{prompt_version_uuid}"
+            #     )
         elif (
             entity_type == "flow_snippet" and "flow_snippet_version_uuid" in entity_keys
         ):
-            cache_key = f"{entity_keys.get('partition_key')}:{entity_keys['flow_snippet_version_uuid']}"
             if hasattr(self.flow_snippet_loader, "cache"):
+                cache_key = self.flow_snippet_loader.generate_cache_key((entity_keys.get('partition_key'),entity_keys['flow_snippet_version_uuid']))
                 self.flow_snippet_loader.cache.delete(cache_key)
         elif entity_type == "element" and "element_uuid" in entity_keys:
-            cache_key = f"{entity_keys.get('partition_key')}:{entity_keys['element_uuid']}"
             if hasattr(self.element_loader, "cache"):
+                cache_key = self.element_loader.generate_cache_key((entity_keys.get('partition_key'),entity_keys['element_uuid']))
                 self.element_loader.cache.delete(cache_key)
         elif entity_type == "wizard" and "wizard_uuid" in entity_keys:
-            cache_key = f"{entity_keys.get('partition_key')}:{entity_keys['wizard_uuid']}"
             if hasattr(self.wizard_loader, "cache"):
+                cache_key = self.wizard_loader.generate_cache_key((entity_keys.get('partition_key'),entity_keys['wizard_uuid']))
                 self.wizard_loader.cache.delete(cache_key)
         elif entity_type == "wizard_group" and "wizard_group_uuid" in entity_keys:
-            cache_key = f"{entity_keys.get('partition_key')}:{entity_keys['wizard_group_uuid']}"
             if hasattr(self.wizard_group_loader, "cache"):
+                cache_key = self.wizard_group_loader.generate_cache_key((entity_keys.get('partition_key'),entity_keys['wizard_group_uuid']))
                 self.wizard_group_loader.cache.delete(cache_key)
 
 

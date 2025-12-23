@@ -24,7 +24,7 @@ sys.path.insert(
         os.path.join(os.path.dirname(__file__), "../../../silvaengine_utility")
     ),
 )
-from silvaengine_utility import Utility
+from silvaengine_utility import Serializer
 
 logger = logging.getLogger("test_ai_agent_core_engine")
 
@@ -185,7 +185,7 @@ def call_method(
     cid = uuid.uuid4().hex[:8]  # Correlation ID for tracking
 
     logger.info(
-        f"Method call: cid={cid} op={op} arguments={Utility.json_dumps(arguments)}"
+        f"Method call: cid={cid} op={op} arguments={Serializer.json_dumps(arguments)}"
     )
     t0 = time.perf_counter()
 
@@ -224,7 +224,7 @@ def call_method(
 
         logger.info(
             f"Method response: cid={cid} op={op} elapsed_ms={elapsed_ms} "
-            f"success=True result={Utility.json_dumps(result)}"
+            f"success=True result={Serializer.json_dumps(result)}"
         )
         return result, None
     except Exception as exc:

@@ -22,7 +22,7 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility, method_cache
+from silvaengine_utility import Serializer, method_cache
 
 from ..handlers.config import Config
 from ..types.message import MessageListType, MessageType
@@ -80,32 +80,37 @@ def purge_cache():
         @functools.wraps(original_function)
         def wrapper_function(*args, **kwargs):
             try:
-                # Use cascading cache purging for messages
+                # Execute original function first
+                result = original_function(*args, **kwargs)
+
+                # Then purge cache after successful operation
                 from ..models.cache import purge_entity_cascading_cache
 
-                try:
-                    message = resolve_message(args[0], **kwargs)
-                except Exception as e:
-                    message = None
-
+                # Get entity keys from kwargs or entity parameter
                 entity_keys = {}
-                if kwargs.get("thread_uuid"):
+
+                # Try to get from entity parameter first (for updates)
+                entity = kwargs.get("entity")
+                if entity:
+                    entity_keys["thread_uuid"] = getattr(entity, "thread_uuid", None)
+                    entity_keys["message_uuid"] = getattr(entity, "message_uuid", None)
+                    entity_keys["run_uuid"] = getattr(entity, "run_uuid", None)
+
+                # Fallback to kwargs (for creates/deletes)
+                if not entity_keys.get("thread_uuid"):
                     entity_keys["thread_uuid"] = kwargs.get("thread_uuid")
-                if kwargs.get("message_uuid"):
+                if not entity_keys.get("message_uuid"):
                     entity_keys["message_uuid"] = kwargs.get("message_uuid")
-                if message and message.run:
-                    entity_keys["run_uuid"] = message.run["run_uuid"]
 
-                result = purge_entity_cascading_cache(
-                    args[0].context.get("logger"),
-                    entity_type="message",
-                    context_keys=None,  # Messages don't use endpoint_id directly
-                    entity_keys=entity_keys if entity_keys else None,
-                    cascade_depth=3,
-                )
-
-                ## Original function.
-                result = original_function(*args, **kwargs)
+                # Only purge if we have the required keys
+                if entity_keys.get("thread_uuid") and entity_keys.get("message_uuid"):
+                    purge_entity_cascading_cache(
+                        args[0].context.get("logger"),
+                        entity_type="message",
+                        context_keys=None,  # Messages don't use partition_key
+                        entity_keys=entity_keys,
+                        cascade_depth=3,
+                    )
 
                 return result
             except Exception as e:
@@ -157,7 +162,7 @@ def get_message_type(info: ResolveInfo, message: MessageModel) -> MessageType:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)
         raise e
-    return MessageType(**Utility.json_normalize(message_dict))
+    return MessageType(**Serializer.json_normalize(message_dict))
 
 
 def resolve_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> MessageType | None:
@@ -223,7 +228,6 @@ def resolve_message_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     return inquiry_funct, count_funct, args
 
 
-@purge_cache()
 @insert_update_decorator(
     keys={"hash_key": "thread_uuid", "range_key": "message_uuid"},
     model_funct=get_message,
@@ -232,6 +236,7 @@ def resolve_message_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     # data_attributes_except_for_data_diff=["created_at", "updated_at"],
     # activity_history_funct=None,
 )
+@purge_cache()
 def insert_update_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
 
     thread_uuid = kwargs.get("thread_uuid")
@@ -282,12 +287,33 @@ def insert_update_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     return
 
 
-@purge_cache()
 @delete_decorator(
     keys={"hash_key": "thread_uuid", "range_key": "message_uuid"},
     model_funct=get_message,
 )
+@purge_cache()
 def delete_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
 
     kwargs.get("entity").delete()
     return True
+
+
+@retry(
+    reraise=True,
+    wait=wait_exponential(multiplier=1, max=60),
+    stop=stop_after_attempt(5),
+)
+@method_cache(
+    ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name("models", "message")
+)
+def get_messages_by_thread(thread_uuid: str) -> Any:
+    messages = []
+    # Only retrieve messages from the past 24 hours
+    updated_at_gt = pendulum.now("UTC").subtract(hours=24)
+
+    for message in MessageModel.updated_at_index.query(
+        thread_uuid,
+        MessageModel.updated_at > updated_at_gt,
+    ):
+        messages.append(message)
+    return messages

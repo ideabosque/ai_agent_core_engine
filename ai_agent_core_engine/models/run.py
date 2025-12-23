@@ -20,7 +20,7 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility, method_cache
+from silvaengine_utility import Serializer, method_cache
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
@@ -67,25 +67,36 @@ def purge_cache():
         @functools.wraps(original_function)
         def wrapper_function(*args, **kwargs):
             try:
-                # Use cascading cache purging for runs
+                # Execute original function first
+                result = original_function(*args, **kwargs)
+
+                # Then purge cache after successful operation
                 from ..models.cache import purge_entity_cascading_cache
 
+                # Get entity keys from kwargs or entity parameter
                 entity_keys = {}
-                if kwargs.get("thread_uuid"):
+
+                # Try to get from entity parameter first (for updates)
+                entity = kwargs.get("entity")
+                if entity:
+                    entity_keys["thread_uuid"] = getattr(entity, "thread_uuid", None)
+                    entity_keys["run_uuid"] = getattr(entity, "run_uuid", None)
+
+                # Fallback to kwargs (for creates/deletes)
+                if not entity_keys.get("thread_uuid"):
                     entity_keys["thread_uuid"] = kwargs.get("thread_uuid")
-                if kwargs.get("run_uuid"):
+                if not entity_keys.get("run_uuid"):
                     entity_keys["run_uuid"] = kwargs.get("run_uuid")
 
-                result = purge_entity_cascading_cache(
-                    args[0].context.get("logger"),
-                    entity_type="run",
-                    context_keys=None,  # Runs don't use partition_key directly
-                    entity_keys=entity_keys if entity_keys else None,
-                    cascade_depth=3,
-                )
-
-                ## Original function.
-                result = original_function(*args, **kwargs)
+                # Only purge if we have the required keys
+                if entity_keys.get("thread_uuid") and entity_keys.get("run_uuid"):
+                    purge_entity_cascading_cache(
+                        args[0].context.get("logger"),
+                        entity_type="run",
+                        context_keys=None,  # Runs don't use partition_key
+                        entity_keys=entity_keys,
+                        cascade_depth=3,
+                    )
 
                 return result
             except Exception as e:
@@ -137,7 +148,7 @@ def get_run_type(info: ResolveInfo, run: RunModel) -> RunType:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)
         raise e
-    return RunType(**Utility.json_normalize(run_dict))
+    return RunType(**Serializer.json_normalize(run_dict))
 
 
 def resolve_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> RunType | None:
@@ -212,7 +223,6 @@ def resolve_run_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     return inquiry_funct, count_funct, args
 
 
-@purge_cache()
 @insert_update_decorator(
     keys={
         "hash_key": "thread_uuid",
@@ -224,6 +234,7 @@ def resolve_run_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     # data_attributes_except_for_data_diff=["created_at", "updated_at"],
     # activity_history_funct=None,
 )
+@purge_cache()
 def insert_update_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
 
     thread_uuid = kwargs.get("thread_uuid")
@@ -276,7 +287,6 @@ def insert_update_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     return
 
 
-@purge_cache()
 @delete_decorator(
     keys={
         "hash_key": "thread_uuid",
@@ -284,6 +294,7 @@ def insert_update_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     },
     model_funct=get_run,
 )
+@purge_cache()
 def delete_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
 
     message_list = resolve_message_list(
@@ -308,3 +319,18 @@ def delete_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
 
     kwargs["entity"].delete()
     return True
+
+
+@retry(
+    reraise=True,
+    wait=wait_exponential(multiplier=1, max=60),
+    stop=stop_after_attempt(5),
+)
+@method_cache(
+    ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name("models", "run")
+)
+def get_runs_by_thread(thread_uuid: str) -> Any:
+    runs = []
+    for run in RunModel.query(thread_uuid):
+        runs.append(run)
+    return runs

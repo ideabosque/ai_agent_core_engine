@@ -30,7 +30,8 @@ except (
 ):  # Optional dependency; only needed for Claude token counting
     anthropic = None
 from graphene import ResolveInfo
-from silvaengine_utility import Utility
+
+from silvaengine_utility import Invoker, Serializer
 
 from ..models.async_task import insert_update_async_task
 from ..models.message import resolve_message_list
@@ -109,13 +110,10 @@ def start_async_task(
         params["connection_id"] = info.context.get("connection_id")
 
     # Invoke Lambda function asynchronously
-    Utility.invoke_funct_on_aws_lambda(
-        info.context["logger"],
-        info.context["endpoint_id"],
+    Invoker.invoke_funct_on_aws_lambda(
+        info.context,
         function_name,
         params=params,
-        setting=info.context["setting"],
-        execute_mode=info.context["setting"].get("execute_mode"),
         aws_lambda=Config.aws_lambda,
         invocation_type="Event",
     )
@@ -243,7 +241,7 @@ def combine_thread_messages(
             {
                 "message": {
                     "role": tool_call_role,
-                    "content": Utility.json_dumps(
+                    "content": Serializer.json_dumps(
                         {
                             "tool": {
                                 "tool_call_id": tool_call.tool_call_id,
@@ -652,7 +650,7 @@ def convert_flow_snippet_xml(flow_snippet: List[Dict[str, Any]]) -> str:
     Returns:
         str: Pretty-printed XML string representation of the flow snippet
     """
-    flow_snippet_xml = _json_to_xml(Utility.json_loads(flow_snippet))
+    flow_snippet_xml = _json_to_xml(Serializer.json_loads(flow_snippet))
 
     dom = xml.dom.minidom.parseString(flow_snippet_xml)
     return dom.toprettyxml(indent="  ")
