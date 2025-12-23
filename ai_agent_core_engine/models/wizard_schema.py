@@ -29,7 +29,7 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility, method_cache
+from silvaengine_utility import Serializer, method_cache
 
 from ..handlers.config import Config
 from ..types.wizard_schema import WizardSchemaListType, WizardSchemaType
@@ -92,28 +92,42 @@ def purge_cache():
         @functools.wraps(original_function)
         def wrapper_function(*args, **kwargs):
             try:
-                # Use cascading cache purging for wizard schemas
+                # Execute original function first
+                result = original_function(*args, **kwargs)
+
+                # Then purge cache after successful operation
                 from ..models.cache import purge_entity_cascading_cache
 
-                wizard_schema_type = kwargs.get("wizard_schema_type")
+                # Get entity keys from kwargs or entity parameter
                 entity_keys = {}
-                if kwargs.get("wizard_schema_name"):
+
+                # Try to get from entity parameter first (for updates)
+                entity = kwargs.get("entity")
+                if entity:
+                    entity_keys["wizard_schema_name"] = getattr(
+                        entity, "wizard_schema_name", None
+                    )
+                    wizard_schema_type = getattr(entity, "wizard_schema_type", None)
+                else:
+                    wizard_schema_type = kwargs.get("wizard_schema_type")
+
+                # Fallback to kwargs (for creates/deletes)
+                if not entity_keys.get("wizard_schema_name"):
                     entity_keys["wizard_schema_name"] = kwargs.get("wizard_schema_name")
 
-                result = purge_entity_cascading_cache(
-                    args[0].context.get("logger"),
-                    entity_type="wizard_schema",
-                    context_keys=(
-                        {"wizard_schema_type": wizard_schema_type}
-                        if wizard_schema_type
-                        else None
-                    ),
-                    entity_keys=entity_keys if entity_keys else None,
-                    cascade_depth=3,
-                )
-
-                ## Original function.
-                result = original_function(*args, **kwargs)
+                # Only purge if we have the required keys
+                if entity_keys.get("wizard_schema_name"):
+                    purge_entity_cascading_cache(
+                        args[0].context.get("logger"),
+                        entity_type="wizard_schema",
+                        context_keys=(
+                            {"wizard_schema_type": wizard_schema_type}
+                            if wizard_schema_type
+                            else None
+                        ),
+                        entity_keys=entity_keys,
+                        cascade_depth=3,
+                    )
 
                 return result
             except Exception as e:
@@ -172,7 +186,7 @@ def get_wizard_schema_type(
 ) -> WizardSchemaType:
     try:
         wizard_schema_dict = wizard_schema.__dict__["attribute_values"]
-        return WizardSchemaType(**Utility.json_normalize(wizard_schema_dict))
+        return WizardSchemaType(**Serializer.json_normalize(wizard_schema_dict))
     except Exception as e:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)
@@ -234,7 +248,6 @@ def resolve_wizard_schema_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> A
     return inquiry_funct, count_funct, args
 
 
-@purge_cache()
 @insert_update_decorator(
     keys={
         "hash_key": "wizard_schema_type",
@@ -245,6 +258,7 @@ def resolve_wizard_schema_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> A
     count_funct=get_wizard_schema_count,
     type_funct=get_wizard_schema_type,
 )
+@purge_cache()
 def insert_update_wizard_schema(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     wizard_schema_type = kwargs.get("wizard_schema_type")
     wizard_schema_name = kwargs.get("wizard_schema_name")
@@ -295,7 +309,6 @@ def insert_update_wizard_schema(info: ResolveInfo, **kwargs: Dict[str, Any]) -> 
     return
 
 
-@purge_cache()
 @delete_decorator(
     keys={
         "hash_key": "wizard_schema_type",
@@ -303,6 +316,7 @@ def insert_update_wizard_schema(info: ResolveInfo, **kwargs: Dict[str, Any]) -> 
     },
     model_funct=get_wizard_schema,
 )
+@purge_cache()
 def delete_wizard_schema(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
 
     kwargs["entity"].delete()

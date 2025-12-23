@@ -26,7 +26,7 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility, method_cache
+from silvaengine_utility import Serializer, method_cache
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
@@ -91,28 +91,40 @@ def purge_cache():
         @functools.wraps(original_function)
         def wrapper_function(*args, **kwargs):
             try:
-                # Use cascading cache purging for elements
+                # Execute original function first
+                result = original_function(*args, **kwargs)
+
+                # Then purge cache after successful operation
                 from ..models.cache import purge_entity_cascading_cache
 
+                # Get entity keys from kwargs or entity parameter
+                entity_keys = {}
+
+                # Try to get from entity parameter first (for updates)
+                entity = kwargs.get("entity")
+                if entity:
+                    entity_keys["element_uuid"] = getattr(entity, "element_uuid", None)
+
+                # Fallback to kwargs (for creates/deletes)
+                if not entity_keys.get("element_uuid"):
+                    entity_keys["element_uuid"] = kwargs.get("element_uuid")
+
+                # Get partition_key from context or kwargs
                 partition_key = args[0].context.get("partition_key") or kwargs.get(
                     "partition_key"
                 )
-                entity_keys = {}
-                if kwargs.get("element_uuid"):
-                    entity_keys["element_uuid"] = kwargs.get("element_uuid")
 
-                result = purge_entity_cascading_cache(
-                    args[0].context.get("logger"),
-                    entity_type="element",
-                    context_keys=(
-                        {"partition_key": partition_key} if partition_key else None
-                    ),
-                    entity_keys=entity_keys if entity_keys else None,
-                    cascade_depth=3,
-                )
-
-                ## Original function.
-                result = original_function(*args, **kwargs)
+                # Only purge if we have the required keys
+                if entity_keys.get("element_uuid"):
+                    purge_entity_cascading_cache(
+                        args[0].context.get("logger"),
+                        entity_type="element",
+                        context_keys=(
+                            {"partition_key": partition_key} if partition_key else None
+                        ),
+                        entity_keys=entity_keys,
+                        cascade_depth=3,
+                    )
 
                 return result
             except Exception as e:
@@ -166,7 +178,7 @@ def get_element_type(info: ResolveInfo, element: ElementModel) -> ElementType:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)
         raise e
-    return ElementType(**Utility.json_normalize(element_dict))
+    return ElementType(**Serializer.json_normalize(element_dict))
 
 
 def resolve_element(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ElementType | None:
@@ -228,7 +240,6 @@ def resolve_element_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     return inquiry_funct, count_funct, args
 
 
-@purge_cache()
 @insert_update_decorator(
     keys={
         "hash_key": "partition_key",
@@ -238,6 +249,7 @@ def resolve_element_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     count_funct=get_element_count,
     type_funct=get_element_type,
 )
+@purge_cache()
 def insert_update_element(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     partition_key = kwargs.get("partition_key")
     element_uuid = kwargs.get("element_uuid")
@@ -291,7 +303,6 @@ def insert_update_element(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     return
 
 
-@purge_cache()
 @delete_decorator(
     keys={
         "hash_key": "partition_key",
@@ -299,6 +310,7 @@ def insert_update_element(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     },
     model_funct=get_element,
 )
+@purge_cache()
 def delete_element(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
 
     kwargs["entity"].delete()

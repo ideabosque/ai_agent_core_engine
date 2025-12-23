@@ -26,7 +26,7 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility, method_cache
+from silvaengine_utility import Serializer, method_cache
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
@@ -108,34 +108,47 @@ def purge_cache():
         @functools.wraps(original_function)
         def wrapper_function(*args, **kwargs):
             try:
-                # Use cascading cache purging for prompt templates
+                # Execute original function first
+                result = original_function(*args, **kwargs)
+
+                # Then purge cache after successful operation
                 from ..models.cache import purge_entity_cascading_cache
 
-                try:
-                    prompt_template = resolve_prompt_template(args[0], **kwargs)
-                except Exception:
-                    prompt_template = None
-
-                partition_key = args[0].context.get("partition_key") or kwargs.get(
-                    "partition_key"
-                )
+                # Get entity keys from kwargs or entity parameter
                 entity_keys = {}
-                if kwargs.get("prompt_version_uuid"):
+
+                # Try to get from entity parameter first (for updates)
+                entity = kwargs.get("entity")
+                if entity:
+                    entity_keys["prompt_version_uuid"] = getattr(
+                        entity, "prompt_version_uuid", None
+                    )
+                    entity_keys["prompt_uuid"] = getattr(entity, "prompt_uuid", None)
+
+                # Fallback to kwargs (for creates/deletes)
+                if not entity_keys.get("prompt_version_uuid"):
                     entity_keys["prompt_version_uuid"] = kwargs.get(
                         "prompt_version_uuid"
                     )
-                if prompt_template:
-                    entity_keys["prompt_uuid"] = prompt_template.prompt_uuid
+                if not entity_keys.get("prompt_uuid"):
+                    entity_keys["prompt_uuid"] = kwargs.get("prompt_uuid")
 
-                result = purge_entity_cascading_cache(
-                    args[0].context.get("logger"),
-                    entity_type="prompt_template",
-                    context_keys=(
-                        {"partition_key": partition_key} if partition_key else None
-                    ),
-                    entity_keys=entity_keys if entity_keys else None,
-                    cascade_depth=3,
+                # Get partition_key from context or kwargs
+                partition_key = args[0].context.get("partition_key") or kwargs.get(
+                    "partition_key"
                 )
+
+                # Only purge if we have the required keys
+                if entity_keys.get("prompt_version_uuid"):
+                    purge_entity_cascading_cache(
+                        args[0].context.get("logger"),
+                        entity_type="prompt_template",
+                        context_keys=(
+                            {"partition_key": partition_key} if partition_key else None
+                        ),
+                        entity_keys=entity_keys,
+                        cascade_depth=3,
+                    )
 
                 # Also purge active_prompt_template cache
                 from silvaengine_utility.cache import HybridCacheEngine
@@ -144,9 +157,6 @@ def purge_cache():
                     Config.get_cache_name("models", "active_prompt_template")
                 )
                 active_cache.clear()
-
-                ## Original function.
-                result = original_function(*args, **kwargs)
 
                 return result
             except Exception as e:
@@ -221,7 +231,7 @@ def get_prompt_template_type(
     try:
         prompt_dict: Dict = prompt_template.__dict__["attribute_values"]
 
-        return PromptTemplateType(**Utility.json_normalize(prompt_dict))
+        return PromptTemplateType(**Serializer.json_normalize(prompt_dict))
     except Exception as e:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)
@@ -331,7 +341,6 @@ def _inactivate_prompt_templates(
         raise e
 
 
-@purge_cache()
 @insert_update_decorator(
     keys={
         "hash_key": "partition_key",
@@ -341,6 +350,7 @@ def _inactivate_prompt_templates(
     count_funct=get_prompt_template_count,
     type_funct=get_prompt_template_type,
 )
+@purge_cache()
 def insert_update_prompt_template(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     partition_key = kwargs.get("partition_key")
     prompt_version_uuid = kwargs.get("prompt_version_uuid")
@@ -445,7 +455,6 @@ def insert_update_prompt_template(info: ResolveInfo, **kwargs: Dict[str, Any]) -
     return
 
 
-@purge_cache()
 @delete_decorator(
     keys={
         "hash_key": "partition_key",
@@ -453,6 +462,7 @@ def insert_update_prompt_template(info: ResolveInfo, **kwargs: Dict[str, Any]) -
     },
     model_funct=get_prompt_template,
 )
+@purge_cache()
 def delete_prompt_template(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
     if kwargs["entity"].status == "active":
         results = PromptTemplateModel.prompt_uuid_index.query(

@@ -26,7 +26,7 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility, method_cache
+from silvaengine_utility import Serializer, method_cache
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
@@ -92,42 +92,52 @@ def purge_cache():
         @functools.wraps(original_function)
         def wrapper_function(*args, **kwargs):
             try:
-                # Use cascading cache purging for wizards
+                # Execute original function first
+                result = original_function(*args, **kwargs)
+
+                # Then purge cache after successful operation
                 from ..models.cache import purge_entity_cascading_cache
 
-                try:
-                    wizard = resolve_wizard(args[0], **kwargs)
-                except Exception as e:
-                    wizard = None
+                # Get entity keys from kwargs or entity parameter
+                entity_keys = {}
 
+                # Try to get from entity parameter first (for updates)
+                entity = kwargs.get("entity")
+                if entity:
+                    entity_keys["wizard_uuid"] = getattr(entity, "wizard_uuid", None)
+                    entity_keys["wizard_schema_type"] = getattr(
+                        entity, "wizard_schema_type", None
+                    )
+                    entity_keys["wizard_schema_name"] = getattr(
+                        entity, "wizard_schema_name", None
+                    )
+                    wizard_elements = getattr(entity, "wizard_elements", None)
+                    if wizard_elements:
+                        entity_keys["element_uuids"] = [
+                            wizard_element["element_uuid"]
+                            for wizard_element in wizard_elements
+                        ]
+
+                # Fallback to kwargs (for creates/deletes)
+                if not entity_keys.get("wizard_uuid"):
+                    entity_keys["wizard_uuid"] = kwargs.get("wizard_uuid")
+
+                # Get partition_key from context or kwargs
                 partition_key = args[0].context.get("partition_key") or kwargs.get(
                     "partition_key"
                 )
-                entity_keys = {}
-                if kwargs.get("wizard_uuid"):
-                    entity_keys["wizard_uuid"] = kwargs.get("wizard_uuid")
-                if wizard:
-                    if wizard.wizard_elements:
-                        entity_keys["element_uuids"] = [
-                            wizard_element["element_uuid"]
-                            for wizard_element in wizard.wizard_elements
-                        ]
-                    # Include wizard_schema to ensure schema cache is purged on update
-                    entity_keys["wizard_schema_type"] = wizard.wizard_schema_type
-                    entity_keys["wizard_schema_name"] = wizard.wizard_schema_name
 
-                result = purge_entity_cascading_cache(
-                    args[0].context.get("logger"),
-                    entity_type="wizard",
-                    context_keys=(
-                        {"partition_key": partition_key} if partition_key else None
-                    ),
-                    entity_keys=entity_keys if entity_keys else None,
-                    cascade_depth=3,
-                )
-
-                ## Original function.
-                result = original_function(*args, **kwargs)
+                # Only purge if we have the required keys
+                if entity_keys.get("wizard_uuid"):
+                    purge_entity_cascading_cache(
+                        args[0].context.get("logger"),
+                        entity_type="wizard",
+                        context_keys=(
+                            {"partition_key": partition_key} if partition_key else None
+                        ),
+                        entity_keys=entity_keys,
+                        cascade_depth=3,
+                    )
 
                 return result
             except Exception as e:
@@ -188,7 +198,7 @@ def get_wizard_type(info: ResolveInfo, wizard: WizardModel) -> WizardType:
         # Keep the raw element references for nested resolvers
         wizard_dict["wizard_element_refs"] = wizard.wizard_elements
 
-        return WizardType(**Utility.json_normalize(wizard_dict))
+        return WizardType(**Serializer.json_normalize(wizard_dict))
     except Exception as e:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)
@@ -249,7 +259,6 @@ def resolve_wizard_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     return inquiry_funct, count_funct, args
 
 
-@purge_cache()
 @insert_update_decorator(
     keys={
         "hash_key": "partition_key",
@@ -259,6 +268,7 @@ def resolve_wizard_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     count_funct=get_wizard_count,
     type_funct=get_wizard_type,
 )
+@purge_cache()
 def insert_update_wizard(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     partition_key = kwargs.get("partition_key")
     wizard_uuid = kwargs.get("wizard_uuid")
@@ -323,7 +333,6 @@ def insert_update_wizard(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     return
 
 
-@purge_cache()
 @delete_decorator(
     keys={
         "hash_key": "partition_key",
@@ -331,6 +340,7 @@ def insert_update_wizard(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     },
     model_funct=get_wizard,
 )
+@purge_cache()
 def delete_wizard(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
 
     kwargs["entity"].delete()

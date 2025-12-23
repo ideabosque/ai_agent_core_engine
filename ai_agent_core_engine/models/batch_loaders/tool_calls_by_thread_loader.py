@@ -10,7 +10,7 @@ from promise import Promise
 from silvaengine_utility.cache import HybridCacheEngine
 
 from ...handlers.config import Config
-from .base import SafeDataLoader, normalize_model
+from .base import SafeDataLoader, normalize_model, Key
 
 
 class ToolCallsByThreadLoader(SafeDataLoader):
@@ -22,10 +22,39 @@ class ToolCallsByThreadLoader(SafeDataLoader):
         )
         if self.cache_enabled:
             self.cache = HybridCacheEngine(
-                Config.get_cache_name("models", "tool_calls_by_thread")
+                Config.get_cache_name("models", "tool_call")
             )
+            cache_meta = Config.get_cache_entity_config().get("tool_call")
+            self.cache_func_prefix = ""
+            if cache_meta:
+                self.cache_func_prefix = ".".join([cache_meta.get("module"), "get_tool_calls_by_thread"])
+
+    def generate_cache_key(self, key: Key) -> str:
+        if not isinstance(key, tuple):
+            key = (key,)
+        key_data = ":".join([str(key), str({})])
+        return self.cache._generate_key(
+            self.cache_func_prefix,
+            key_data
+        )
+    
+    def get_cache_data(self, key: Key) -> Dict[str, Any] | None | List[Dict[str, Any]]:
+        cache_key = self.generate_cache_key(key)
+        cached_item = self.cache.get(cache_key)
+        if cached_item is None:  # pragma: no cover - defensive
+            return None
+        if isinstance(cached_item, dict):  # pragma: no cover - defensive
+            return cached_item
+        if isinstance(cached_item, list):  # pragma: no cover - defensive
+            return [normalize_model(item) for item in cached_item]
+        return normalize_model(cached_item)
+
+    def set_cache_data(self, key: Key, data: Any) -> None:
+        cache_key = self.generate_cache_key(key)
+        self.cache.set(cache_key, data, ttl=Config.get_cache_ttl())
 
     def batch_load_fn(self, keys: List[str]) -> Promise:
+        from ..tool_call import get_tool_calls_by_thread
         """
         Load tool calls for multiple thread_uuids.
         Keys are thread_uuids (string).
@@ -49,32 +78,20 @@ class ToolCallsByThreadLoader(SafeDataLoader):
         # Batch fetch uncached items
         if uncached_keys:
             try:
-                import pendulum
-
-                from ..tool_call import ToolCallModel
-
-                # Only retrieve tool calls from the past 24 hours
-                updated_at_gt = pendulum.now("UTC").subtract(hours=24)
-
                 for thread_uuid in uncached_keys:
-                    tool_calls = list(
-                        ToolCallModel.updated_at_index.query(
-                            thread_uuid,
-                            ToolCallModel.updated_at > updated_at_gt,
-                        )
-                    )
+                    tool_calls = get_tool_calls_by_thread(thread_uuid)
 
                     normalized_tool_calls = [normalize_model(tc) for tc in tool_calls]
 
                     key_map[thread_uuid] = normalized_tool_calls
 
-                    # Cache the result if enabled
-                    if self.cache_enabled:
-                        self.cache.set(
-                            thread_uuid,
-                            normalized_tool_calls,
-                            ttl=Config.get_cache_ttl(),
-                        )
+                    # # Cache the result if enabled
+                    # if self.cache_enabled:
+                    #     self.cache.set(
+                    #         thread_uuid,
+                    #         normalized_tool_calls,
+                    #         ttl=Config.get_cache_ttl(),
+                    #     )
 
             except Exception as exc:  # pragma: no cover - defensive
                 if self.logger:

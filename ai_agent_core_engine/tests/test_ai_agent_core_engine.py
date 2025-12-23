@@ -33,7 +33,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger()
 
-from silvaengine_utility import Utility
+from silvaengine_utility import Graphql
 
 # Load test data from JSON file
 _test_data_file = os.path.join(os.path.dirname(__file__), "test_data.json")
@@ -70,7 +70,7 @@ ASYNC_TASK_TEST_DATA = _TEST_DATA.get("async_tasks", [])
 @log_test_result
 def test_graphql_ping(ai_agent_core_engine: Any, schema: Any) -> None:
     """Test GraphQL ping operation."""
-    query = Utility.generate_graphql_operation("ping", "Query", schema)
+    query = Graphql.generate_graphql_operation("ping", "Query", schema)
     logger.info(f"Query: {query}")
     payload = {
         "query": query,
@@ -96,7 +96,7 @@ def test_llm_lifecycle_flow(
 ) -> None:
     """Test LLM lifecycle: Insert -> Get -> Update -> Delete."""
     # 1. Insert
-    insert_query = Utility.generate_graphql_operation(
+    insert_query = Graphql.generate_graphql_operation(
         "insertUpdateLlm", "Mutation", schema
     )
     result, error = call_method(
@@ -111,7 +111,7 @@ def test_llm_lifecycle_flow(
     ), "Insert LLM failed - llm object missing in response"
 
     # 2. Get (Verify)
-    get_query = Utility.generate_graphql_operation("llm", "Query", schema)
+    get_query = Graphql.generate_graphql_operation("llm", "Query", schema)
     get_variables = {
         "llmProvider": test_data["llmProvider"],
         "llmName": test_data["llmName"],
@@ -126,7 +126,7 @@ def test_llm_lifecycle_flow(
     assert result.get("data", {}).get("llm"), "LLM not found after insertion"
 
     # 3. Get List (Verify)
-    list_query = Utility.generate_graphql_operation("llmList", "Query", schema)
+    list_query = Graphql.generate_graphql_operation("llmList", "Query", schema)
     list_variables = {"llmProvider": test_data["llmProvider"]}
     result, error = call_method(
         ai_agent_core_engine,
@@ -151,7 +151,7 @@ def test_llm_lifecycle_flow(
     if not int(os.getenv("full_lifecycle_flow", "0")):
         return
     # 5. Delete
-    delete_query = Utility.generate_graphql_operation("deleteLlm", "Mutation", schema)
+    delete_query = Graphql.generate_graphql_operation("deleteLlm", "Mutation", schema)
     delete_variables = {
         "llmProvider": test_data["llmProvider"],
         "llmName": test_data["llmName"],
@@ -179,7 +179,7 @@ def test_agent_lifecycle_flow(
 ) -> None:
     """Test Agent lifecycle: Insert -> Get -> Delete."""
     # 1. Insert
-    insert_query = Utility.generate_graphql_operation(
+    insert_query = Graphql.generate_graphql_operation(
         "insertUpdateAgent", "Mutation", schema
     )
     result, error = call_method(
@@ -199,7 +199,7 @@ def test_agent_lifecycle_flow(
     )
 
     # 2. Get (Verify)
-    get_query = Utility.generate_graphql_operation("agent", "Query", schema)
+    get_query = Graphql.generate_graphql_operation("agent", "Query", schema)
     get_variables = {"agentUuid": agent_uuid}
     result, error = call_method(
         ai_agent_core_engine,
@@ -211,7 +211,7 @@ def test_agent_lifecycle_flow(
     assert result.get("data", {}).get("agent"), "Agent not found after insertion"
 
     # 3. Get List (Verify)
-    list_query = Utility.generate_graphql_operation("agentList", "Query", schema)
+    list_query = Graphql.generate_graphql_operation("agentList", "Query", schema)
     list_variables = {"agentName": test_data["agentName"]}
     result, error = call_method(
         ai_agent_core_engine,
@@ -226,7 +226,7 @@ def test_agent_lifecycle_flow(
     if not int(os.getenv("full_lifecycle_flow", "0")):
         return
     # 4. Delete
-    delete_query = Utility.generate_graphql_operation("deleteAgent", "Mutation", schema)
+    delete_query = Graphql.generate_graphql_operation("deleteAgent", "Mutation", schema)
     delete_variables = {
         "agentVersionUuid": agent_version_uuid,
         "updatedBy": test_data.get("updatedBy", "test-user"),
@@ -253,7 +253,7 @@ def test_thread_lifecycle_flow(
 ) -> None:
     """Test Thread lifecycle: Insert -> Get -> Delete."""
     # 1. Insert
-    insert_query = Utility.generate_graphql_operation(
+    insert_query = Graphql.generate_graphql_operation(
         "insertThread", "Mutation", schema
     )
     result, error = call_method(
@@ -269,7 +269,7 @@ def test_thread_lifecycle_flow(
     thread_uuid = thread_data.get("threadUuid") or test_data.get("threadUuid")
 
     # 2. Get (Verify)
-    get_query = Utility.generate_graphql_operation("thread", "Query", schema)
+    get_query = Graphql.generate_graphql_operation("thread", "Query", schema)
     get_variables = {"threadUuid": thread_uuid}
     result, error = call_method(
         ai_agent_core_engine,
@@ -281,7 +281,7 @@ def test_thread_lifecycle_flow(
     assert result.get("data", {}).get("thread"), "Thread not found after insertion"
 
     # 3. Get List (Verify)
-    list_query = Utility.generate_graphql_operation("threadList", "Query", schema)
+    list_query = Graphql.generate_graphql_operation("threadList", "Query", schema)
     list_variables = {"agentUuid": test_data.get("agentUuid")}
     result, error = call_method(
         ai_agent_core_engine,
@@ -296,7 +296,7 @@ def test_thread_lifecycle_flow(
     if not int(os.getenv("full_lifecycle_flow", "0")):
         return
     # 4. Delete
-    delete_query = Utility.generate_graphql_operation(
+    delete_query = Graphql.generate_graphql_operation(
         "deleteThread", "Mutation", schema
     )
     delete_variables = {
@@ -325,7 +325,7 @@ def test_run_lifecycle_flow(
 ) -> None:
     """Test Run lifecycle: Insert -> Get -> Delete."""
     # 1. Insert
-    insert_query = Utility.generate_graphql_operation(
+    insert_query = Graphql.generate_graphql_operation(
         "insertUpdateRun", "Mutation", schema
     )
     result, error = call_method(
@@ -342,7 +342,7 @@ def test_run_lifecycle_flow(
     thread_uuid = test_data.get("threadUuid")
 
     # 2. Get (Verify)
-    get_query = Utility.generate_graphql_operation("run", "Query", schema)
+    get_query = Graphql.generate_graphql_operation("run", "Query", schema)
     get_variables = {"threadUuid": thread_uuid, "runUuid": run_uuid}
     result, error = call_method(
         ai_agent_core_engine,
@@ -354,7 +354,7 @@ def test_run_lifecycle_flow(
     assert result.get("data", {}).get("run"), "Run not found after insertion"
 
     # 3. Get List (Verify)
-    list_query = Utility.generate_graphql_operation("runList", "Query", schema)
+    list_query = Graphql.generate_graphql_operation("runList", "Query", schema)
     list_variables = {"threadUuid": thread_uuid}
     result, error = call_method(
         ai_agent_core_engine,
@@ -369,7 +369,7 @@ def test_run_lifecycle_flow(
     if not int(os.getenv("full_lifecycle_flow", "0")):
         return
     # 4. Delete
-    delete_query = Utility.generate_graphql_operation("deleteRun", "Mutation", schema)
+    delete_query = Graphql.generate_graphql_operation("deleteRun", "Mutation", schema)
     delete_variables = {
         "threadUuid": thread_uuid,
         "runUuid": run_uuid,
@@ -397,7 +397,7 @@ def test_message_lifecycle_flow(
 ) -> None:
     """Test Message lifecycle: Insert -> Get -> Delete."""
     # 1. Insert
-    insert_query = Utility.generate_graphql_operation(
+    insert_query = Graphql.generate_graphql_operation(
         "insertUpdateMessage", "Mutation", schema
     )
     result, error = call_method(
@@ -417,7 +417,7 @@ def test_message_lifecycle_flow(
     thread_uuid = test_data.get("threadUuid")
 
     # 2. Get (Verify)
-    get_query = Utility.generate_graphql_operation("message", "Query", schema)
+    get_query = Graphql.generate_graphql_operation("message", "Query", schema)
     get_variables = {"threadUuid": thread_uuid, "messageUuid": message_uuid}
     result, error = call_method(
         ai_agent_core_engine,
@@ -431,7 +431,7 @@ def test_message_lifecycle_flow(
     if not int(os.getenv("full_lifecycle_flow", "0")):
         return
     # 3. Delete
-    delete_query = Utility.generate_graphql_operation(
+    delete_query = Graphql.generate_graphql_operation(
         "deleteMessage", "Mutation", schema
     )
     delete_variables = {"threadUuid": thread_uuid, "messageUuid": message_uuid}
@@ -457,7 +457,7 @@ def test_tool_call_lifecycle_flow(
 ) -> None:
     """Test Tool Call lifecycle: Insert -> Get -> Delete."""
     # 1. Insert
-    insert_query = Utility.generate_graphql_operation(
+    insert_query = Graphql.generate_graphql_operation(
         "insertUpdateToolCall", "Mutation", schema
     )
     result, error = call_method(
@@ -476,7 +476,7 @@ def test_tool_call_lifecycle_flow(
     thread_uuid = test_data.get("threadUuid")
 
     # 2. Get (Verify)
-    get_query = Utility.generate_graphql_operation("toolCall", "Query", schema)
+    get_query = Graphql.generate_graphql_operation("toolCall", "Query", schema)
     get_variables = {"threadUuid": thread_uuid, "toolCallUuid": tool_call_uuid}
     result, error = call_method(
         ai_agent_core_engine,
@@ -490,7 +490,7 @@ def test_tool_call_lifecycle_flow(
     if not int(os.getenv("full_lifecycle_flow", "0")):
         return
     # 3. Delete
-    delete_query = Utility.generate_graphql_operation(
+    delete_query = Graphql.generate_graphql_operation(
         "deleteToolCall", "Mutation", schema
     )
     delete_variables = {"threadUuid": thread_uuid, "toolCallUuid": tool_call_uuid}
@@ -515,7 +515,7 @@ def test_fine_tuning_message_lifecycle_flow(
 ) -> None:
     """Test Fine Tuning Message lifecycle: Insert -> Get -> Delete."""
     # 1. Insert
-    insert_query = Utility.generate_graphql_operation(
+    insert_query = Graphql.generate_graphql_operation(
         "insertUpdateFineTuningMessage", "Mutation", schema
     )
     result, error = call_method(
@@ -536,7 +536,7 @@ def test_fine_tuning_message_lifecycle_flow(
     agent_uuid = test_data.get("agentUuid")
 
     # 2. Get (Verify)
-    get_query = Utility.generate_graphql_operation("fineTuningMessage", "Query", schema)
+    get_query = Graphql.generate_graphql_operation("fineTuningMessage", "Query", schema)
     get_variables = {"agentUuid": agent_uuid, "messageUuid": message_uuid}
     result, error = call_method(
         ai_agent_core_engine,
@@ -552,7 +552,7 @@ def test_fine_tuning_message_lifecycle_flow(
     if not int(os.getenv("full_lifecycle_flow", "0")):
         return
     # 3. Delete
-    delete_query = Utility.generate_graphql_operation(
+    delete_query = Graphql.generate_graphql_operation(
         "deleteFineTuningMessage", "Mutation", schema
     )
     delete_variables = {"agentUuid": agent_uuid, "messageUuid": message_uuid}
@@ -577,7 +577,7 @@ def test_async_task_lifecycle_flow(
 ) -> None:
     """Test Async Task lifecycle: Insert -> Get -> Delete."""
     # 1. Insert
-    insert_query = Utility.generate_graphql_operation(
+    insert_query = Graphql.generate_graphql_operation(
         "insertUpdateAsyncTask", "Mutation", schema
     )
     result, error = call_method(
@@ -598,7 +598,7 @@ def test_async_task_lifecycle_flow(
     function_name = test_data.get("functionName")
 
     # 2. Get (Verify)
-    get_query = Utility.generate_graphql_operation("asyncTask", "Query", schema)
+    get_query = Graphql.generate_graphql_operation("asyncTask", "Query", schema)
     get_variables = {"functionName": function_name, "asyncTaskUuid": async_task_uuid}
     result, error = call_method(
         ai_agent_core_engine,
@@ -614,7 +614,7 @@ def test_async_task_lifecycle_flow(
     if not int(os.getenv("full_lifecycle_flow", "0")):
         return
     # 3. Delete
-    delete_query = Utility.generate_graphql_operation(
+    delete_query = Graphql.generate_graphql_operation(
         "deleteAsyncTask", "Mutation", schema
     )
     delete_variables = {"functionName": function_name, "asyncTaskUuid": async_task_uuid}
@@ -639,7 +639,7 @@ def test_element_lifecycle_flow(
 ) -> None:
     """Test Element lifecycle: Insert -> Get -> Delete."""
     # 1. Insert
-    insert_query = Utility.generate_graphql_operation(
+    insert_query = Graphql.generate_graphql_operation(
         "insertUpdateElement", "Mutation", schema
     )
     result, error = call_method(
@@ -657,7 +657,7 @@ def test_element_lifecycle_flow(
     element_uuid = element_data.get("elementUuid") or test_data.get("elementUuid")
 
     # 2. Get (Verify)
-    get_query = Utility.generate_graphql_operation("element", "Query", schema)
+    get_query = Graphql.generate_graphql_operation("element", "Query", schema)
     get_variables = {"elementUuid": element_uuid}
     result, error = call_method(
         ai_agent_core_engine,
@@ -671,7 +671,7 @@ def test_element_lifecycle_flow(
     if not int(os.getenv("full_lifecycle_flow", "0")):
         return
     # 3. Delete
-    delete_query = Utility.generate_graphql_operation(
+    delete_query = Graphql.generate_graphql_operation(
         "deleteElement", "Mutation", schema
     )
     delete_variables = {"elementUuid": element_uuid}
@@ -697,7 +697,7 @@ def test_wizard_lifecycle_flow(
 ) -> None:
     """Test Wizard lifecycle: Insert -> Get -> Delete."""
     # 1. Insert
-    insert_query = Utility.generate_graphql_operation(
+    insert_query = Graphql.generate_graphql_operation(
         "insertUpdateWizard", "Mutation", schema
     )
     result, error = call_method(
@@ -713,7 +713,7 @@ def test_wizard_lifecycle_flow(
     wizard_uuid = wizard_data.get("wizardUuid") or test_data.get("wizardUuid")
 
     # 2. Get (Verify)
-    get_query = Utility.generate_graphql_operation("wizard", "Query", schema)
+    get_query = Graphql.generate_graphql_operation("wizard", "Query", schema)
     get_variables = {"wizardUuid": wizard_uuid}
     result, error = call_method(
         ai_agent_core_engine,
@@ -727,7 +727,7 @@ def test_wizard_lifecycle_flow(
     if not int(os.getenv("full_lifecycle_flow", "0")):
         return
     # 3. Delete
-    delete_query = Utility.generate_graphql_operation(
+    delete_query = Graphql.generate_graphql_operation(
         "deleteWizard", "Mutation", schema
     )
     delete_variables = {"wizardUuid": wizard_uuid}
@@ -753,7 +753,7 @@ def test_wizard_schema_lifecycle_flow(
 ) -> None:
     """Test Wizard Schema lifecycle: Insert -> Get -> Delete."""
     # 1. Insert
-    insert_query = Utility.generate_graphql_operation(
+    insert_query = Graphql.generate_graphql_operation(
         "insertUpdateWizardSchema", "Mutation", schema
     )
     result, error = call_method(
@@ -778,7 +778,7 @@ def test_wizard_schema_lifecycle_flow(
     )
 
     # 2. Get (Verify)
-    get_query = Utility.generate_graphql_operation("wizardSchema", "Query", schema)
+    get_query = Graphql.generate_graphql_operation("wizardSchema", "Query", schema)
     get_variables = {"wizardSchemaType": schema_type, "wizardSchemaName": schema_name}
     result, error = call_method(
         ai_agent_core_engine,
@@ -794,7 +794,7 @@ def test_wizard_schema_lifecycle_flow(
     if not int(os.getenv("full_lifecycle_flow", "0")):
         return
     # 3. Delete
-    delete_query = Utility.generate_graphql_operation(
+    delete_query = Graphql.generate_graphql_operation(
         "deleteWizardSchema", "Mutation", schema
     )
     delete_variables = {
@@ -823,7 +823,7 @@ def test_wizard_group_lifecycle_flow(
 ) -> None:
     """Test Wizard Group lifecycle: Insert -> Get -> Delete."""
     # 1. Insert
-    insert_query = Utility.generate_graphql_operation(
+    insert_query = Graphql.generate_graphql_operation(
         "insertUpdateWizardGroup", "Mutation", schema
     )
     result, error = call_method(
@@ -841,7 +841,7 @@ def test_wizard_group_lifecycle_flow(
     group_uuid = group_data.get("wizardGroupUuid") or test_data.get("wizardGroupUuid")
 
     # 2. Get (Verify)
-    get_query = Utility.generate_graphql_operation("wizardGroup", "Query", schema)
+    get_query = Graphql.generate_graphql_operation("wizardGroup", "Query", schema)
     get_variables = {"wizardGroupUuid": group_uuid}
     result, error = call_method(
         ai_agent_core_engine,
@@ -857,7 +857,7 @@ def test_wizard_group_lifecycle_flow(
     if not int(os.getenv("full_lifecycle_flow", "0")):
         return
     # 3. Delete
-    delete_query = Utility.generate_graphql_operation(
+    delete_query = Graphql.generate_graphql_operation(
         "deleteWizardGroup", "Mutation", schema
     )
     delete_variables = {"wizardGroupUuid": group_uuid}
@@ -883,7 +883,7 @@ def test_wizard_group_filter_lifecycle_flow(
 ) -> None:
     """Test Wizard Group Filter lifecycle: Insert -> Get -> Delete."""
     # 1. Insert
-    insert_query = Utility.generate_graphql_operation(
+    insert_query = Graphql.generate_graphql_operation(
         "insertUpdateWizardGroupFilter", "Mutation", schema
     )
     result, error = call_method(
@@ -905,7 +905,7 @@ def test_wizard_group_filter_lifecycle_flow(
     )
 
     # 2. Get (Verify)
-    get_query = Utility.generate_graphql_operation("wizardGroupFilter", "Query", schema)
+    get_query = Graphql.generate_graphql_operation("wizardGroupFilter", "Query", schema)
     get_variables = {"wizardGroupFilterUuid": filter_uuid}
     result, error = call_method(
         ai_agent_core_engine,
@@ -921,7 +921,7 @@ def test_wizard_group_filter_lifecycle_flow(
     if not int(os.getenv("full_lifecycle_flow", "0")):
         return
     # 3. Delete
-    delete_query = Utility.generate_graphql_operation(
+    delete_query = Graphql.generate_graphql_operation(
         "deleteWizardGroupFilter", "Mutation", schema
     )
     delete_variables = {"wizardGroupFilterUuid": filter_uuid}
@@ -947,7 +947,7 @@ def test_ui_component_lifecycle_flow(
 ) -> None:
     """Test UI Component lifecycle: Insert -> Get -> Delete."""
     # 1. Insert
-    insert_query = Utility.generate_graphql_operation(
+    insert_query = Graphql.generate_graphql_operation(
         "insertUpdateUiComponent", "Mutation", schema
     )
     result, error = call_method(
@@ -970,7 +970,7 @@ def test_ui_component_lifecycle_flow(
     )
 
     # 2. Get (Verify)
-    get_query = Utility.generate_graphql_operation("uiComponent", "Query", schema)
+    get_query = Graphql.generate_graphql_operation("uiComponent", "Query", schema)
     get_variables = {"uiComponentType": ui_comp_type, "uiComponentUuid": ui_comp_uuid}
     result, error = call_method(
         ai_agent_core_engine,
@@ -986,7 +986,7 @@ def test_ui_component_lifecycle_flow(
     if not int(os.getenv("full_lifecycle_flow", "0")):
         return
     # 3. Delete
-    delete_query = Utility.generate_graphql_operation(
+    delete_query = Graphql.generate_graphql_operation(
         "deleteUiComponent", "Mutation", schema
     )
     delete_variables = {
@@ -1015,7 +1015,7 @@ def test_mcp_server_lifecycle_flow(
 ) -> None:
     """Test MCP Server lifecycle: Insert -> Get -> Delete."""
     # 1. Insert
-    insert_query = Utility.generate_graphql_operation(
+    insert_query = Graphql.generate_graphql_operation(
         "insertUpdateMcpServer", "Mutation", schema
     )
     result, error = call_method(
@@ -1033,7 +1033,7 @@ def test_mcp_server_lifecycle_flow(
     mcp_uuid = mcp_data.get("mcpServerUuid") or test_data.get("mcpServerUuid")
 
     # 2. Get (Verify)
-    get_query = Utility.generate_graphql_operation("mcpServer", "Query", schema)
+    get_query = Graphql.generate_graphql_operation("mcpServer", "Query", schema)
     get_variables = {"mcpServerUuid": mcp_uuid}
     result, error = call_method(
         ai_agent_core_engine,
@@ -1049,7 +1049,7 @@ def test_mcp_server_lifecycle_flow(
     if not int(os.getenv("full_lifecycle_flow", "0")):
         return
     # 3. Delete
-    delete_query = Utility.generate_graphql_operation(
+    delete_query = Graphql.generate_graphql_operation(
         "deleteMcpServer", "Mutation", schema
     )
     delete_variables = {"mcpServerUuid": mcp_uuid}
@@ -1075,7 +1075,7 @@ def test_prompt_template_lifecycle_flow(
 ) -> None:
     """Test Prompt Template lifecycle: Insert -> Get -> Delete."""
     # 1. Insert
-    insert_query = Utility.generate_graphql_operation(
+    insert_query = Graphql.generate_graphql_operation(
         "insertUpdatePromptTemplate", "Mutation", schema
     )
     result, error = call_method(
@@ -1098,7 +1098,7 @@ def test_prompt_template_lifecycle_flow(
     )
 
     # 2. Get (Verify)
-    get_query = Utility.generate_graphql_operation("promptTemplate", "Query", schema)
+    get_query = Graphql.generate_graphql_operation("promptTemplate", "Query", schema)
     get_variables = {
         "promptUuid": prompt_uuid,
         "promptVersionUuid": prompt_version_uuid,
@@ -1117,7 +1117,7 @@ def test_prompt_template_lifecycle_flow(
     if not int(os.getenv("full_lifecycle_flow", "0")):
         return
     # 3. Delete
-    delete_query = Utility.generate_graphql_operation(
+    delete_query = Graphql.generate_graphql_operation(
         "deletePromptTemplate", "Mutation", schema
     )
     delete_variables = {"promptVersionUuid": prompt_version_uuid}
@@ -1143,7 +1143,7 @@ def test_flow_snippet_lifecycle_flow(
 ) -> None:
     """Test Flow Snippet lifecycle: Insert -> Get -> Delete."""
     # 1. Insert
-    insert_query = Utility.generate_graphql_operation(
+    insert_query = Graphql.generate_graphql_operation(
         "insertUpdateFlowSnippet", "Mutation", schema
     )
     result, error = call_method(
@@ -1165,7 +1165,7 @@ def test_flow_snippet_lifecycle_flow(
     prompt_uuid = test_data.get("promptUuid")
 
     # 2. Get (Verify)
-    get_query = Utility.generate_graphql_operation("flowSnippet", "Query", schema)
+    get_query = Graphql.generate_graphql_operation("flowSnippet", "Query", schema)
     get_variables = {
         "flowSnippetUuid": flow_uuid,
         "flowSnippetVersionUuid": flow_version_uuid,
@@ -1182,7 +1182,7 @@ def test_flow_snippet_lifecycle_flow(
     ), "Flow Snippet not found after insertion"
 
     # 3. Get List (Verify)
-    list_query = Utility.generate_graphql_operation("flowSnippetList", "Query", schema)
+    list_query = Graphql.generate_graphql_operation("flowSnippetList", "Query", schema)
     list_variables = {"promptUuid": prompt_uuid}
     result, error = call_method(
         ai_agent_core_engine,
@@ -1197,7 +1197,7 @@ def test_flow_snippet_lifecycle_flow(
     if not int(os.getenv("full_lifecycle_flow", "0")):
         return
     # 3. Delete
-    delete_query = Utility.generate_graphql_operation(
+    delete_query = Graphql.generate_graphql_operation(
         "deleteFlowSnippet", "Mutation", schema
     )
     delete_variables = {"flowSnippetVersionUuid": flow_version_uuid}

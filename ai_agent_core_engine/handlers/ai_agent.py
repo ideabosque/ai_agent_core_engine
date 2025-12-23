@@ -10,7 +10,8 @@ from typing import Any, Dict, List
 
 import pendulum
 from graphene import ResolveInfo
-from silvaengine_utility import Utility
+
+from silvaengine_utility import Serializer
 
 from ..models.agent import resolve_agent
 from ..models.async_task import insert_update_async_task
@@ -205,8 +206,6 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
         info.context.get("logger").info(
             f"connection_id: {info.context.get('connection_id')}"
         )
-        endpoint_id = info.context.get("endpoint_id")
-        connection_id = info.context.get("connection_id")
         async_task_uuid = kwargs["async_task_uuid"]
         arguments = kwargs["arguments"]
 
@@ -283,17 +282,12 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
             agent.__dict__,
             **info.context.get("setting", {}),
         )
-        # Extract both endpoint_id and part_id from context
-        endpoint_id = info.context.get("endpoint_id")
-        part_id = info.context.get("part_id")
 
-        ai_agent_handler.endpoint_id = endpoint_id  # Platform identifier
-        ai_agent_handler.part_id = part_id  # Business partition
+        ai_agent_handler.context = info.context
         ai_agent_handler.run = run.__dict__
-        ai_agent_handler.connection_id = connection_id
         ai_agent_handler.task_queue = Config.task_queue
 
-        if connection_id or arguments.get("stream", False):
+        if info.context.get("connection_id") or arguments.get("stream", False):
             stream_queue = Queue()
             stream_event = threading.Event()
             args = [input_messages, stream_queue, stream_event]
@@ -455,7 +449,7 @@ def _update_user_message_with_files(
         **{
             "thread_uuid": user_message.run["thread"]["thread_uuid"],
             "message_uuid": user_message.message_uuid,
-            "message": Utility.json_dumps(message_content),
+            "message": Serializer.json_dumps(message_content),
             "updated_by": updated_by,
         },
     )
