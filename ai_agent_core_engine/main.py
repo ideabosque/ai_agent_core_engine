@@ -283,6 +283,10 @@ class AIAgentCoreEngine(Graphql):
 
         self._apply_partition_defaults(params)
 
+        self.logger.info(params.get("variables"))
+        self.logger.info(type(params.get("variables",{}).get("page_number")))
+        self.logger.info(type(params.get("variables",{}).get("limit")))
+
         schema = Schema(
             query=Query,
             mutation=Mutations,

@@ -478,6 +478,9 @@ class Query(ObjectType):
     def resolve_agent_list(
         self, info: ResolveInfo, **kwargs: Dict[str, Any]
     ) -> AgentListType:
+        info.context.get("logger").info(type(kwargs.get("page_number")))
+        info.context.get("logger").info(type(kwargs.get("limit")))
+        info.context.get("logger").info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
         return resolve_agent_list(info, **kwargs)
 
     def resolve_thread(self, info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType:
