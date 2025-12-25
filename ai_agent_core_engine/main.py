@@ -250,9 +250,11 @@ class AIAgentCoreEngine(Graphql):
         ## Test the waters 🧪 before diving in!
         endpoint_id = params.get("endpoint_id", self.setting.get("endpoint_id"))
         part_id = params.get("custom_headers",{}).get("part_id", self.setting.get("part_id"))
-        context = params.get("context",{})
-        context["partition_key"] = f"{endpoint_id}#{part_id}"
-        params["context"] = context
+
+        if params.get("context") is None:
+            params["context"] = {}
+
+        params["context"]["partition_key"] = f"{endpoint_id}#{part_id}"
 
     def async_execute_ask_model(self, **params: Dict[str, Any]) -> Any:
         self._apply_partition_defaults(params)
