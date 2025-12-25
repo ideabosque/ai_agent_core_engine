@@ -20,6 +20,6 @@ def resolve_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AgentType:
     return agent.resolve_agent(info, **kwargs)
 
 
-@method_cache(ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name('queries', 'agent'))
+# @method_cache(ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name('queries', 'agent'))
 def resolve_agent_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AgentListType:
     return agent.resolve_agent_list(info, **kwargs)
