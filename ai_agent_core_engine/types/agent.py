@@ -176,7 +176,7 @@ class AgentType(AgentTypeBase):
 
 
 class AgentListType(ListObjectType):
-    agent_list = List(AgentTypeBase)
+    agent_list = List(AgentType)
 
 
 # Import at end to avoid circular dependency
