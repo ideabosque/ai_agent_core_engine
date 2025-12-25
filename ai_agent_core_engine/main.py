@@ -248,15 +248,8 @@ class AIAgentCoreEngine(Graphql):
         Ensure endpoint_id/part_id defaults and assemble partition_key.
         """
         ## Test the waters 🧪 before diving in!
-        ##<--Testing Data-->##
-        if params.get("endpoint_id") is None:
-            params["endpoint_id"] = self.setting.get("endpoint_id")
-        if params.get("part_id") is None:
-            params["part_id"] = self.setting.get("part_id")
-        ##<--Testing Data-->##
-
-        endpoint_id = params.get("endpoint_id")
-        part_id = params.get("custom_headers",{}).get("part_id")
+        endpoint_id = params.get("endpoint_id", self.setting.get("endpoint_id"))
+        part_id = params.get("custom_headers",{}).get("part_id", self.setting.get("part_id"))
         context = params.get("context",{})
         context["partition_key"] = f"{endpoint_id}#{part_id}"
         params["context"] = context

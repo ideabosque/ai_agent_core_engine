@@ -292,6 +292,9 @@ def resolve_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AgentType | No
     scan_index_forward=False,
 )
 def resolve_agent_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
+    info.context.get("logger").info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+    info.context.get("logger").info(info.context)
+    info.context.get("logger").info("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
     partition_key = info.context["partition_key"]
     agent_uuid = kwargs.get("agent_uuid")
     agent_name = kwargs.get("agent_name")
