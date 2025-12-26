@@ -205,6 +205,13 @@ def deploy() -> List:
 
 class AIAgentCoreEngine(Graphql):
     def __init__(self, logger: logging.Logger, **setting: Dict[str, Any]) -> None:
+        """
+        Initialize the AIAgentCoreEngine with the provided logger and settings.
+
+        Args:
+            logger (logging.Logger): The logger instance to be used for logging.
+            **setting (Dict[str, Any]): A dictionary of settings required to initialize the engine.
+        """
         Graphql.__init__(self, logger, **setting)
 
         if (
@@ -220,7 +227,15 @@ class AIAgentCoreEngine(Graphql):
         Config.initialize(logger, **setting)
 
     def ai_agent_build_graphql_query(self, **params: Dict[str, Any]):
+        """
+        Build a GraphQL query based on the provided parameters.
 
+        Args:
+            params (Dict[str, Any]): A dictionary of parameters required to build the GraphQL query.
+
+        Returns:
+            Dict[str, Any]: A dictionary containing the operation name, operation type, and the generated GraphQL query.
+        """
         self._apply_partition_defaults(params)
 
         context = {
@@ -228,24 +243,26 @@ class AIAgentCoreEngine(Graphql):
             "setting": self.setting,
             "logger": self.logger,
         }
-
         schema = Config.fetch_graphql_schema(
             context,
             params.get("function_name"),
         )
-        return Serializer.json_dumps(
-            {
-                "operation_name": params.get("operation_name"),
-                "operation_type": params.get("operation_type"),
-                "query": Graphql.generate_graphql_operation(
-                    params.get("operation_name"), params.get("operation_type"), schema
-                ),
-            }
-        )
+
+        return {
+            "operation_name": params.get("operation_name"),
+            "operation_type": params.get("operation_type"),
+            "query": Graphql.generate_graphql_operation(
+                params.get("operation_name"), params.get("operation_type"), schema
+            ),
+        }
+        
 
     def _apply_partition_defaults(self, params: Dict[str, Any]) -> None:
         """
-        Ensure endpoint_id/part_id defaults and assemble partition_key.
+        Apply default partition values if not provided in params.
+
+        Args:
+            params (Dict[str, Any]): A dictionary of parameters required to build the GraphQL query.
         """
         endpoint_id = params.get("endpoint_id", self.setting.get("endpoint_id"))
         part_id = params.get("custom_headers",{}).get("part_id", self.setting.get("part_id"))
@@ -256,12 +273,27 @@ class AIAgentCoreEngine(Graphql):
         params["context"]["partition_key"] = f"{endpoint_id}#{part_id}"
 
     def async_execute_ask_model(self, **params: Dict[str, Any]) -> Any:
+        """
+        Execute an ask model asynchronously based on the provided parameters.
+
+        Args:
+            params (Dict[str, Any]): A dictionary of parameters required to execute the ask model.
+
+        Returns:
+            Any: The result of the ask model execution.
+        """
         self._apply_partition_defaults(params)
 
         at_agent_listener.async_execute_ask_model(self.logger, self.setting, **params)
         return
 
     def async_insert_update_tool_call(self, **params: Dict[str, Any]) -> Any:
+        """
+        Insert or update a tool call record asynchronously based on the provided parameters.
+
+        Args:
+            params (Dict[str, Any]): A dictionary of parameters required to insert or update the tool call record.
+        """
         self._apply_partition_defaults(params)
 
         at_agent_listener.async_insert_update_tool_call(
@@ -270,12 +302,25 @@ class AIAgentCoreEngine(Graphql):
         return
 
     def send_data_to_stream(self, **params: Dict[str, Any]) -> Any:
+        """
+        Send data to a WebSocket stream based on the provided parameters.
+
+        Args:
+            params (Dict[str, Any]): A dictionary of parameters required to send data to the WebSocket stream.
+        """
         at_agent_listener.send_data_to_stream(self.logger, **params)
         return
 
     def ai_agent_core_graphql(self, **params: Dict[str, Any]) -> Any:
-        ## Test the waters 🧪 before diving in!
-        ##<--Testing Data-->##
+        """
+        Execute a GraphQL query based on the provided parameters.
+
+        Args:
+            params (Dict[str, Any]): A dictionary of parameters required to build the GraphQL query.
+
+        Returns:
+            Any: The result of the GraphQL query execution.
+        """
         if params.get("connection_id") is None:
             params["connection_id"] = self.setting.get("connection_id")
         ##<--Testing Data-->##
