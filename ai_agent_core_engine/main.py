@@ -240,6 +240,7 @@ class AIAgentCoreEngine(Graphql):
             self.logger.info(f">>>>>>>>>>> Building GraphQL query for function: {params.get('function_name')}")
             self._apply_partition_defaults(params)
 
+            self.logger.info(f">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
             context = {
                 "endpoint_id": params.get("endpoint_id"),
                 "setting": self.setting,
