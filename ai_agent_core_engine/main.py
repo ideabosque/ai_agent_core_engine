@@ -236,26 +236,29 @@ class AIAgentCoreEngine(Graphql):
         Returns:
             Dict[str, Any]: A dictionary containing the operation name, operation type, and the generated GraphQL query.
         """
-        self._apply_partition_defaults(params)
+        try:
+            self._apply_partition_defaults(params)
 
-        context = {
-            "endpoint_id": params.get("endpoint_id"),
-            "setting": self.setting,
-            "logger": self.logger,
-        }
-        schema = Config.fetch_graphql_schema(
-            context,
-            params.get("function_name"),
-        )
+            context = {
+                "endpoint_id": params.get("endpoint_id"),
+                "setting": self.setting,
+                "logger": self.logger,
+            }
+            schema = Config.fetch_graphql_schema(
+                context,
+                params.get("function_name"),
+            )
 
-        return {
-            "operation_name": params.get("operation_name"),
-            "operation_type": params.get("operation_type"),
-            "query": Graphql.generate_graphql_operation(
-                params.get("operation_name"), params.get("operation_type"), schema
-            ),
-        }
-        
+            return {
+                "operation_name": params.get("operation_name"),
+                "operation_type": params.get("operation_type"),
+                "query": Graphql.generate_graphql_operation(
+                    params.get("operation_name"), params.get("operation_type"), schema
+                ),
+            }
+        except Exception as e:
+            self.logger.error(f"Error building GraphQL query: {e}")
+            raise e
 
     def _apply_partition_defaults(self, params: Dict[str, Any]) -> None:
         """
