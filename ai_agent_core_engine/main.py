@@ -253,13 +253,15 @@ class AIAgentCoreEngine(Graphql):
 
             self.logger.info(f">>>>>>>>>>> Building GraphQL query for operation: {params.get('operation_name')}")
 
-            return {
+            r = {
                 "operation_name": params.get("operation_name"),
                 "operation_type": params.get("operation_type"),
                 "query": Graphql.generate_graphql_operation(
                     params.get("operation_name"), params.get("operation_type"), schema
                 ),
             }
+            self.logger.info(f">>>>>>>>>>> Result: {r}")
+            return r
         except Exception as e:
             self.logger.error(f"Error building GraphQL query: {e}")
             raise e
