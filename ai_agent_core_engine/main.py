@@ -237,6 +237,7 @@ class AIAgentCoreEngine(Graphql):
             Dict[str, Any]: A dictionary containing the operation name, operation type, and the generated GraphQL query.
         """
         try:
+            self.logger.info(f">>>>>>>>>>> Building GraphQL query for function: {params.get('function_name')}")
             self._apply_partition_defaults(params)
 
             context = {
@@ -248,6 +249,8 @@ class AIAgentCoreEngine(Graphql):
                 context,
                 params.get("function_name"),
             )
+
+            self.logger.info(f">>>>>>>>>>> Building GraphQL query for operation: {params.get('operation_name')}")
 
             return {
                 "operation_name": params.get("operation_name"),
