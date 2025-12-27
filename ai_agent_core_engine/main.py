@@ -237,7 +237,9 @@ class AIAgentCoreEngine(Graphql):
             Dict[str, Any]: A dictionary containing the operation name, operation type, and the generated GraphQL query.
         """
         try:
-            self.logger.info(f">>>>>>>>>>> Building GraphQL query for function: {params.get('function_name')}")
+            self.logger.info(
+                f">>>>>>>>>>> Building GraphQL query for function: {params.get('function_name')}"
+            )
             self._apply_partition_defaults(params)
 
             self.logger.info(f">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
@@ -251,15 +253,21 @@ class AIAgentCoreEngine(Graphql):
                 params.get("function_name"),
             )
 
-            self.logger.info(f">>>>>>>>>>> Building GraphQL query for operation: {params.get('operation_name')}")
+            self.logger.info(
+                f">>>>>>>>>>> Building GraphQL query for operation: {params.get('operation_name')}"
+            )
 
-            r = {
-                "operation_name": params.get("operation_name"),
-                "operation_type": params.get("operation_type"),
-                "query": Graphql.generate_graphql_operation(
-                    params.get("operation_name"), params.get("operation_type"), schema
-                ),
-            }
+            r = Graphql.success_response(
+                data={
+                    "operation_name": params.get("operation_name"),
+                    "operation_type": params.get("operation_type"),
+                    "query": Graphql.generate_graphql_operation(
+                        params.get("operation_name"),
+                        params.get("operation_type"),
+                        schema,
+                    ),
+                }
+            )
             self.logger.info(f">>>>>>>>>>> Result: {r}")
             return r
         except Exception as e:
@@ -274,7 +282,9 @@ class AIAgentCoreEngine(Graphql):
             params (Dict[str, Any]): A dictionary of parameters required to build the GraphQL query.
         """
         endpoint_id = params.get("endpoint_id", self.setting.get("endpoint_id"))
-        part_id = params.get("custom_headers",{}).get("part_id", self.setting.get("part_id"))
+        part_id = params.get("custom_headers", {}).get(
+            "part_id", self.setting.get("part_id")
+        )
 
         if params.get("context") is None:
             params["context"] = {}
