@@ -237,12 +237,8 @@ class AIAgentCoreEngine(Graphql):
             Dict[str, Any]: A dictionary containing the operation name, operation type, and the generated GraphQL query.
         """
         try:
-            self.logger.info(
-                f">>>>>>>>>>> Building GraphQL query for function: {params.get('function_name')}"
-            )
             self._apply_partition_defaults(params)
 
-            self.logger.info(f">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
             context = {
                 "endpoint_id": params.get("endpoint_id"),
                 "setting": self.setting,
@@ -253,11 +249,7 @@ class AIAgentCoreEngine(Graphql):
                 params.get("function_name"),
             )
 
-            self.logger.info(
-                f">>>>>>>>>>> Building GraphQL query for operation: {params.get('operation_name')}"
-            )
-
-            r = Graphql.success_response(
+            return Graphql.success_response(
                 data={
                     "operation_name": params.get("operation_name"),
                     "operation_type": params.get("operation_type"),
@@ -268,11 +260,8 @@ class AIAgentCoreEngine(Graphql):
                     ),
                 }
             )
-            self.logger.info(f">>>>>>>>>>> Result: {r}")
-            return r
         except Exception as e:
-            self.logger.error(f"Error building GraphQL query: {e}")
-            raise e
+            return Graphql.error_response(errors=str(e), status_code=500)
 
     def _apply_partition_defaults(self, params: Dict[str, Any]) -> None:
         """
