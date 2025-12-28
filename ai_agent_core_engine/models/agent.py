@@ -76,7 +76,7 @@ class UpdatedAtIndex(LocalSecondaryIndex):
     updated_at = UnicodeAttribute(range_key=True)
 
 
-@complete_table_name_decorator
+# @complete_table_name_decorator
 class AgentModel(BaseModel):
     """
     Agent Model - Reference Implementation for partition_key Migration
