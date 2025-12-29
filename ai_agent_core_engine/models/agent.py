@@ -76,7 +76,7 @@ class UpdatedAtIndex(LocalSecondaryIndex):
     updated_at = UnicodeAttribute(range_key=True)
 
 
-@complete_table_name_decorator
+# @complete_table_name_decorator
 class AgentModel(BaseModel):
     """
     Agent Model - Reference Implementation for partition_key Migration
@@ -304,14 +304,7 @@ def resolve_agent_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     flow_snippet_version_uuid = kwargs.get("flow_snippet_version_uuid")
     updated_at_gt = kwargs.get("updated_at_gt")
     updated_at_lt = kwargs.get("updated_at_lt")
-    info.context.get("logger").info(">" * 100)
-    info.context.get("logger").info(
-        f"Get table name of agent model by instance: {AgentModel().Meta.table_name}"
-    )
-    info.context.get("logger").info(
-        f"Get table name of agent model by staticmethod: {AgentModel.Meta.table_name}"
-    )
-    info.context.get("logger").info("<" * 100)
+
     args = []
     inquiry_funct = AgentModel.scan
     count_funct = AgentModel.count
