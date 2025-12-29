@@ -331,7 +331,6 @@ class AIAgentCoreEngine(Graphql):
         """
         if params.get("connection_id") is None:
             params["connection_id"] = self.setting.get("connection_id")
-        ##<--Testing Data-->##
 
         self._apply_partition_defaults(params)
 
@@ -340,4 +339,5 @@ class AIAgentCoreEngine(Graphql):
             mutation=Mutations,
             types=type_class(),
         )
+
         return self.execute(schema, **params)
