@@ -31,7 +31,7 @@ class Config:
 
     # Cache Configuration
     CACHE_TTL = 1800  # 30 minutes default TTL
-    CACHE_ENABLED = True
+    CACHE_ENABLED = False
 
     # Cache name patterns for different modules
     CACHE_NAMES = {

@@ -63,6 +63,7 @@ class WizardLoader(SafeDataLoader):
         if self.cache_enabled:
             for key in unique_keys:
                 cached_item = self.get_cache_data(key)
+
                 if cached_item:
                     key_map[key] = cached_item
                 else:
@@ -80,6 +81,7 @@ class WizardLoader(SafeDataLoader):
                     # Cache the result if enabled
                     if self.cache_enabled:
                         self.set_cache_data(key, wizard)
+
                     normalized = normalize_model(wizard)
                     key_map[key] = normalized
 
