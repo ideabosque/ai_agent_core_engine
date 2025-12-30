@@ -59,18 +59,17 @@ class WizardGroupType(ObjectType):
             for wizard_uuid in wizard_uuids
         ]
 
-        result = Promise.all(promises).then(
-            lambda wizard_dicts: (
-                [normalize_to_json(wizard_dict) for wizard_dict in wizard_dicts]
-                if wizard_dicts
-                else []
+        return (
+            Promise.all(promises)
+            .then(
+                lambda wizard_dicts: (
+                    [normalize_to_json(wizard_dict) for wizard_dict in wizard_dicts]
+                    if wizard_dicts
+                    else []
+                )
             )
+            .get()
         )
-
-        print(f"Promises Result {'>' * 60}", type(result))
-        print(f"Promises Result {'>' * 60}", result)
-
-        return result
 
 
 class WizardGroupListType(ListObjectType):
