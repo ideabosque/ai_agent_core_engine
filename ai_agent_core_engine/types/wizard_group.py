@@ -71,7 +71,7 @@ class WizardGroupType(ObjectType):
                     )
                 )
                 .catch(lambda error: [])
-            )
+            ).get()
         except ImportError as exc:
             info.context.get("logger").error(
                 "Failed to import DataLoader module: %s", exc, exc_info=True
