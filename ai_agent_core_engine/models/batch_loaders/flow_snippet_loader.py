@@ -10,7 +10,7 @@ from promise import Promise
 from silvaengine_utility.cache import HybridCacheEngine
 
 from ...handlers.config import Config
-from .base import SafeDataLoader, normalize_model, Key
+from .base import Key, SafeDataLoader, normalize_model
 
 
 class FlowSnippetLoader(SafeDataLoader):
@@ -27,17 +27,16 @@ class FlowSnippetLoader(SafeDataLoader):
             cache_meta = Config.get_cache_entity_config().get("flow_snippet")
             self.cache_func_prefix = ""
             if cache_meta:
-                self.cache_func_prefix = ".".join([cache_meta.get("module"), cache_meta.get("getter")])
+                self.cache_func_prefix = ".".join(
+                    [cache_meta.get("module"), cache_meta.get("getter")]
+                )
 
     def generate_cache_key(self, key: Key) -> str:
         if not isinstance(key, tuple):
             key = (key,)
         key_data = ":".join([str(key), str({})])
-        return self.cache._generate_key(
-            self.cache_func_prefix,
-            key_data
-        )
-    
+        return self.cache._generate_key(self.cache_func_prefix, key_data)
+
     def get_cache_data(self, key: Key) -> Dict[str, Any] | None | List[Dict[str, Any]]:
         cache_key = self.generate_cache_key(key)
         cached_item = self.cache.get(cache_key)
@@ -55,6 +54,8 @@ class FlowSnippetLoader(SafeDataLoader):
 
     def batch_load_fn(self, keys: List[Key]) -> Promise:
         from ..flow_snippet import FlowSnippetModel
+
+        print("Keys =" * 200, keys)
         unique_keys = list(dict.fromkeys(keys))
         key_map: Dict[Key, Dict[str, Any]] = {}
         uncached_keys = []
@@ -71,6 +72,7 @@ class FlowSnippetLoader(SafeDataLoader):
             uncached_keys = unique_keys
 
         # Batch fetch uncached items
+        print("Uncached Keys -" * 200, keys)
         if uncached_keys:
             try:
                 for flow_snippet in FlowSnippetModel.batch_get(uncached_keys):
@@ -87,4 +89,5 @@ class FlowSnippetLoader(SafeDataLoader):
                 if self.logger:
                     self.logger.exception(exc)
 
+        print("All Keys ~" * 200, keys)
         return Promise.resolve([key_map.get(key) for key in keys])

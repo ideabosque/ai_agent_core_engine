@@ -152,6 +152,7 @@ class AgentType(AgentTypeBase):
 
         # Check if already embedded
         existing = getattr(parent, "flow_snippet", None)
+
         if isinstance(existing, dict):
             return [
                 normalize_to_json(flow_snippet_dict) for flow_snippet_dict in existing
@@ -161,6 +162,7 @@ class AgentType(AgentTypeBase):
         # MIGRATION: Extract partition_key from context (was: endpoint_id)
         partition_key = info.context.get("partition_key")
         flow_snippet_version_uuid = getattr(parent, "flow_snippet_version_uuid", None)
+
         if not partition_key or not flow_snippet_version_uuid:
             return None
 
