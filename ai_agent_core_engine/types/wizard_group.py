@@ -29,7 +29,7 @@ class WizardGroupType(ObjectType):
     # Nested resolver for strongly-typed relationships
     wizards = List(JSON)
 
-    def resolve_wizards(parent, info):
+    def resolve_wizards(self, parent, info):
         """
         Resolve wizards for this wizard group.
         Two cases:
@@ -52,24 +52,39 @@ class WizardGroupType(ObjectType):
             return []
 
         partition_key = parent.partition_key
-        loaders = get_loaders(info.context)
 
-        promises = [
-            loaders.wizard_loader.load((partition_key, wizard_uuid))
-            for wizard_uuid in wizard_uuids
-        ]
+        try:
+            loaders = get_loaders(info.context)
 
-        return (
-            Promise.all(promises)
-            .then(
-                lambda wizard_dicts: (
-                    [normalize_to_json(wizard_dict) for wizard_dict in wizard_dicts]
-                    if wizard_dicts
-                    else []
+            promises = [
+                loaders.wizard_loader.load((partition_key, wizard_uuid))
+                for wizard_uuid in wizard_uuids
+            ]
+
+            return (
+                Promise.all(promises)
+                .then(
+                    lambda wizard_dicts: (
+                        [normalize_to_json(wizard_dict) for wizard_dict in wizard_dicts]
+                        if wizard_dicts
+                        else []
+                    )
                 )
+                .catch(lambda error: [])
             )
-            .get()
-        )
+        except ImportError as exc:
+            info.context.get("logger").error(
+                "Failed to import DataLoader module: %s", exc, exc_info=True
+            )
+            return []
+        except Exception as exc:
+            info.context.get("logger").error(
+                "Unexpected error in resolve_wizards for group %s: %s",
+                getattr(parent, "wizard_group_uuid", "unknown"),
+                exc,
+                exc_info=True,
+            )
+            return []
 
 
 class WizardGroupListType(ListObjectType):
