@@ -168,7 +168,11 @@ def get_wizard_group_type(
     - This is resolved lazily by WizardGroupType.resolve_wizards.
     """
     try:
-        wizard_group_dict: Dict = wizard_group.__dict__["attribute_values"]
+        wizard_group_dict: Dict = {}
+
+        if wizard_group:
+            wizard_group_dict = wizard_group.__dict__["attribute_values"]
+
         return WizardGroupType(**Serializer.json_normalize(wizard_group_dict))
     except Exception as e:
         log = traceback.format_exc()
@@ -185,7 +189,10 @@ def get_wizard_group_list_type(
     - Keep 'wizard_uuids' as foreign keys.
     """
     try:
-        wizard_group_dict: Dict = wizard_group.__dict__["attribute_values"]
+        wizard_group_dict: Dict = {}
+
+        if wizard_group:
+            wizard_group_dict = wizard_group.__dict__["attribute_values"]
         return WizardGroupType(**Serializer.json_normalize(wizard_group_dict))
     except Exception as e:
         log = traceback.format_exc()
@@ -199,6 +206,7 @@ def resolve_wizard_group(
     count = get_wizard_group_count(
         info.context["partition_key"], kwargs["wizard_group_uuid"]
     )
+    
     if count == 0:
         return None
 
@@ -313,6 +321,5 @@ def insert_update_wizard_group(info: ResolveInfo, **kwargs: Dict[str, Any]) -> A
 )
 @purge_cache()
 def delete_wizard_group(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
-
     kwargs["entity"].delete()
     return True
