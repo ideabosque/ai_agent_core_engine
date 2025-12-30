@@ -84,11 +84,11 @@ class FlowSnippetLoader(SafeDataLoader):
                     # Cache the result if enabled
                     if self.cache_enabled:
                         self.set_cache_data(key, flow_snippet)
-                    normalized = normalize_model(flow_snippet)
-                    key_map[key] = normalized
+
+                    key_map[key] = normalize_model(flow_snippet)
             except Exception as exc:  # pragma: no cover - defensive
                 if self.logger:
                     self.logger.exception(exc)
 
-        print(f"Flow Snippet Loader All Keys {'~' * 60}", keys)
+        print(f"Flow Snippet Loader Results {'~' * 60}", key_map)
         return Promise.resolve([key_map.get(key) for key in keys])

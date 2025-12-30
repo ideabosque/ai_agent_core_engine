@@ -82,12 +82,11 @@ class WizardLoader(SafeDataLoader):
                     if self.cache_enabled:
                         self.set_cache_data(key, wizard)
 
-                    normalized = normalize_model(wizard)
-                    key_map[key] = normalized
+                    key_map[key] = normalize_model(wizard)
 
             except Exception as exc:  # pragma: no cover - defensive
                 if self.logger:
                     self.logger.exception(exc)
 
-        print(f"Wizard Loader Keys {'#' * 60}", keys)
+        print(f"Wizard Loader Results {'#' * 60}", key_map)
         return Promise.resolve([key_map.get(key) for key in keys])
