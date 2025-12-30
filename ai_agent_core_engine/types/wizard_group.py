@@ -68,7 +68,9 @@ class WizardGroupType(ObjectType):
                 else []
             )
 
-        return Promise.all(promises).then(fn)
+        return Promise.all(promises).then(
+            lambda wizard_dicts: print("partition_key >>>>>>", wizard_dicts)
+        )
 
 
 class WizardGroupListType(ListObjectType):
