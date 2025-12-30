@@ -237,38 +237,29 @@ class AIAgentCoreEngine(Graphql):
             Dict[str, Any]: A dictionary containing the operation name, operation type, and the generated GraphQL query.
         """
         try:
-            # self._apply_partition_defaults(params)
+            self._apply_partition_defaults(params)
 
-            # context = {
-            #     "endpoint_id": params.get("endpoint_id"),
-            #     "setting": self.setting,
-            #     "logger": self.logger,
-            # }
-            # schema = Config.fetch_graphql_schema(
-            #     context,
-            #     params.get("function_name"),
-            # )
-
-            # return Graphql.success_response(
-            #     data={
-            #         "operation_name": params.get("operation_name"),
-            #         "operation_type": params.get("operation_type"),
-            #         "query": Graphql.generate_graphql_operation(
-            #             params.get("operation_name"),
-            #             params.get("operation_type"),
-            #             schema,
-            #         ),
-            #     }
-            # )
-            schema = Schema(query=Query, mutation=Mutations)
+            context = {
+                "endpoint_id": params.get("endpoint_id"),
+                "setting": self.setting,
+                "logger": self.logger,
+            }
+            schema = Config.fetch_graphql_schema(
+                context,
+                params.get("function_name"),
+            )
 
             return Graphql.success_response(
                 data={
-                    "operations": self.get_operations(schema=schema),
-                    "types": self.get_schema_types(schema=schema),
+                    "operation_name": params.get("operation_name"),
+                    "operation_type": params.get("operation_type"),
+                    "query": Graphql.generate_graphql_operation(
+                        params.get("operation_name"),
+                        params.get("operation_type"),
+                        schema,
+                    ),
                 }
             )
-
         except Exception as e:
             return Graphql.error_response(errors=str(e), status_code=500)
 
@@ -350,67 +341,3 @@ class AIAgentCoreEngine(Graphql):
         )
 
         return self.execute(schema, **params)
-
-    def get_schema_types(self, schema):
-        """Get all types of the schema"""
-        introspection = schema.introspect()
-        types = introspection["__schema"]["types"]
-
-        # Filter the system types
-        filtered_types = [
-            t
-            for t in types
-            if not t["name"].startswith("__")
-            and t["name"] != "Query"
-            and t["name"] != "Mutation"
-        ]
-
-        return filtered_types
-
-    def get_operations(self, schema):
-        """Get all queries and mutations"""
-        introspection = schema.introspect()
-        schema_info = introspection["__schema"]
-
-        operations = []
-
-        # Get queries
-        if schema_info.get("queryType"):
-            query_type = schema_info["queryType"]["name"]
-            # 找到查询类型的定义
-            for t in schema_info["types"]:
-                if t["name"] == query_type:
-                    operations.append({"type": "Query", "fields": t["fields"]})
-
-        # Get mutations
-        if schema_info.get("mutationType"):
-            mutation_type = schema_info["mutationType"]["name"]
-            for t in schema_info["types"]:
-                if t["name"] == mutation_type:
-                    operations.append({"type": "Mutation", "fields": t["fields"]})
-
-        return operations
-
-    def format_field(self, field):
-        """Format field"""
-        field_type = self.get_type_string(field["type"])
-
-        # 构建参数列表
-        args_str = ""
-        if field.get("args"):
-            args_list = [
-                f"{arg['name']}: {self.get_type_string(arg['type'])}"
-                for arg in field["args"]
-            ]
-            args_str = f"({', '.join(args_list)})"
-
-        return f"{field['name']}{args_str}: {field_type}"
-
-    def get_type_string(self, type_info):
-        """Get type as string"""
-        if type_info["kind"] == "NON_NULL":
-            return f"{self.get_type_string(type_info['ofType'])}!"
-        elif type_info["kind"] == "LIST":
-            return f"[{self.get_type_string(type_info['ofType'])}]"
-        else:
-            return type_info["name"]
