@@ -115,8 +115,11 @@ class AgentType(AgentTypeBase):
             return None
 
         loaders = get_loaders(info.context)
-        return loaders.llm_loader.load((llm_provider, llm_name)).then(
-            lambda llm_dict: LlmType(**llm_dict) if llm_dict else None
+
+        return (
+            loaders.llm_loader.load((llm_provider, llm_name))
+            .then(lambda llm_dict: LlmType(**llm_dict) if llm_dict else None)
+            .get()
         )
 
     def resolve_mcp_servers(parent, info):
@@ -168,12 +171,14 @@ class AgentType(AgentTypeBase):
 
         loaders = get_loaders(info.context)
         # Load using (partition_key, version_uuid) tuple
-        return loaders.flow_snippet_loader.load(
-            (partition_key, flow_snippet_version_uuid)
-        ).then(
-            lambda flow_snippet_dict: (
-                FlowSnippetType(**flow_snippet_dict) if flow_snippet_dict else None
+        return (
+            loaders.flow_snippet_loader.load((partition_key, flow_snippet_version_uuid))
+            .then(
+                lambda flow_snippet_dict: (
+                    FlowSnippetType(**flow_snippet_dict) if flow_snippet_dict else None
+                )
             )
+            .get()
         )
 
 

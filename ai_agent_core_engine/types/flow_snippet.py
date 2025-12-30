@@ -54,10 +54,14 @@ class FlowSnippetType(FlowSnippetBaseType):
 
         loaders = get_loaders(info.context)
 
-        return loaders.prompt_template_loader.load((partition_key, prompt_uuid)).then(
-            lambda prompt_dict: (
-                PromptTemplateType(**prompt_dict) if prompt_dict else None
+        return (
+            loaders.prompt_template_loader.load((partition_key, prompt_uuid))
+            .then(
+                lambda prompt_dict: (
+                    PromptTemplateType(**prompt_dict) if prompt_dict else None
+                )
             )
+            .get()
         )
 
 
