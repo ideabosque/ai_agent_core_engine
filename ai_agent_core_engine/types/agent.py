@@ -168,12 +168,14 @@ class AgentType(AgentTypeBase):
 
         loaders = get_loaders(info.context)
         # Load using (partition_key, version_uuid) tuple
-        return loaders.flow_snippet_loader.load(
-            (partition_key, flow_snippet_version_uuid)
-        ).then(
-            lambda flow_snippet_dict: (
-                normalize_to_json(flow_snippet_dict) if flow_snippet_dict else None
+        return (
+            loaders.flow_snippet_loader.load((partition_key, flow_snippet_version_uuid))
+            .then(
+                lambda flow_snippet_dict: (
+                    normalize_to_json(flow_snippet_dict) if flow_snippet_dict else None
+                )
             )
+            .get()
         )
 
 
