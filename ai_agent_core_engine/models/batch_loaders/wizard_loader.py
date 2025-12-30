@@ -10,7 +10,7 @@ from promise import Promise
 from silvaengine_utility.cache import HybridCacheEngine
 
 from ...handlers.config import Config
-from .base import SafeDataLoader, normalize_model, Key
+from .base import Key, SafeDataLoader, normalize_model
 
 
 class WizardLoader(SafeDataLoader):
@@ -25,17 +25,16 @@ class WizardLoader(SafeDataLoader):
             cache_meta = Config.get_cache_entity_config().get("wizard")
             self.cache_func_prefix = ""
             if cache_meta:
-                self.cache_func_prefix = ".".join([cache_meta.get("module"), cache_meta.get("getter")])
+                self.cache_func_prefix = ".".join(
+                    [cache_meta.get("module"), cache_meta.get("getter")]
+                )
 
     def generate_cache_key(self, key: Key) -> str:
         if not isinstance(key, tuple):
             key = (key,)
         key_data = ":".join([str(key), str({})])
-        return self.cache._generate_key(
-            self.cache_func_prefix,
-            key_data
-        )
-    
+        return self.cache._generate_key(self.cache_func_prefix, key_data)
+
     def get_cache_data(self, key: Key) -> Dict[str, Any] | None | List[Dict[str, Any]]:
         cache_key = self.generate_cache_key(key)
         cached_item = self.cache.get(cache_key)
@@ -53,11 +52,14 @@ class WizardLoader(SafeDataLoader):
 
     def batch_load_fn(self, keys: List[Key]) -> Promise:
         from ..wizard import WizardModel
+
+        print("Keys +" * 60, keys)
         unique_keys = list(dict.fromkeys(keys))
         key_map: Dict[Key, Dict[str, Any]] = {}
         uncached_keys = []
 
         # Check cache first if enabled
+        print("cache_enabled =" * 60, self.cache_enabled)
         if self.cache_enabled:
             for key in unique_keys:
                 cached_item = self.get_cache_data(key)
@@ -68,6 +70,7 @@ class WizardLoader(SafeDataLoader):
         else:
             uncached_keys = unique_keys
 
+        print("Keys *" * 60, uncached_keys)
         # Batch fetch uncached items
         if uncached_keys:
             try:
@@ -84,4 +87,5 @@ class WizardLoader(SafeDataLoader):
                 if self.logger:
                     self.logger.exception(exc)
 
+        print("Keys #" * 60, uncached_keys)
         return Promise.resolve([key_map.get(key) for key in keys])
