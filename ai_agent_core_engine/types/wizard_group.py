@@ -29,7 +29,7 @@ class WizardGroupType(ObjectType):
     # Nested resolver for strongly-typed relationships
     wizards = List(JSON)
 
-    def resolve_wizards(self, parent, info):
+    def resolve_wizards(parent, info):
         """
         Resolve wizards for this wizard group.
         Two cases:
