@@ -41,33 +41,34 @@ class WizardGroupType(ObjectType):
 
         # Case 1: Already embedded (backward compatibility)
         existing = getattr(parent, "wizards", None)
-        print("existing_wizards >>>>>>", existing)
 
         if isinstance(existing, list):
             return [normalize_to_json(wizard_dict) for wizard_dict in existing]
 
         # Case 2: Load via DataLoader using wizard_uuids
         wizard_uuids = getattr(parent, "wizard_uuids", None)
-        print("wizard_uuids >>>>>>", wizard_uuids)
+
         if not wizard_uuids:
             return []
 
         partition_key = parent.partition_key
         loaders = get_loaders(info.context)
-        print("partition_key >>>>>>", partition_key)
 
         promises = [
             loaders.wizard_loader.load((partition_key, wizard_uuid))
             for wizard_uuid in wizard_uuids
         ]
 
-        return Promise.all(promises).then(
-            lambda wizard_dicts: (
+        def fn(wizard_dicts):
+            print("partition_key >>>>>>", wizard_dicts)
+
+            return (
                 [normalize_to_json(wizard_dict) for wizard_dict in wizard_dicts]
                 if wizard_dicts
                 else []
             )
-        )
+
+        return Promise.all(promises).then(fn)
 
 
 class WizardGroupListType(ListObjectType):
