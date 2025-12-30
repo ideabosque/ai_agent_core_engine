@@ -27,7 +27,7 @@ class WizardGroupType(ObjectType):
     updated_at = DateTime()
 
     # Nested resolver for strongly-typed relationships
-    wizards = List(lambda: JSON)
+    wizards = List(JSON)
 
     def resolve_wizards(parent, info):
         """
@@ -71,7 +71,7 @@ class WizardGroupType(ObjectType):
                     )
                 )
                 .catch(lambda error: [])
-            )
+            ).get()
         except ImportError as exc:
             info.context.get("logger").error(
                 "Failed to import DataLoader module: %s", exc, exc_info=True
