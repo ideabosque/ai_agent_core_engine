@@ -27,7 +27,7 @@ class WizardGroupType(ObjectType):
     updated_at = DateTime()
 
     # Nested resolver for strongly-typed relationships
-    wizards = lambda List(JSON)
+    wizards = List(lambda: JSON)
 
     def resolve_wizards(parent, info):
         """
