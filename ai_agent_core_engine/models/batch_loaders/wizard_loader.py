@@ -53,13 +53,13 @@ class WizardLoader(SafeDataLoader):
     def batch_load_fn(self, keys: List[Key]) -> Promise:
         from ..wizard import WizardModel
 
-        print("Keys +" * 60, keys)
+        print(f"Wizard Loader Keys {'+' * 60}", keys)
         unique_keys = list(dict.fromkeys(keys))
         key_map: Dict[Key, Dict[str, Any]] = {}
         uncached_keys = []
 
         # Check cache first if enabled
-        print("cache_enabled =" * 60, self.cache_enabled)
+        print(f"Wizard Loader Cache Enabled {'*' * 60}", self.cache_enabled)
         if self.cache_enabled:
             for key in unique_keys:
                 cached_item = self.get_cache_data(key)
@@ -70,7 +70,7 @@ class WizardLoader(SafeDataLoader):
         else:
             uncached_keys = unique_keys
 
-        print("Keys *" * 60, uncached_keys)
+        print(f"Wizard Loader Uncached Keys {'*' * 60}", uncached_keys)
         # Batch fetch uncached items
         if uncached_keys:
             try:
@@ -87,5 +87,5 @@ class WizardLoader(SafeDataLoader):
                 if self.logger:
                     self.logger.exception(exc)
 
-        print("Keys #" * 60, uncached_keys)
+        print(f"Wizard Loader Keys {'#' * 60}", keys)
         return Promise.resolve([key_map.get(key) for key in keys])

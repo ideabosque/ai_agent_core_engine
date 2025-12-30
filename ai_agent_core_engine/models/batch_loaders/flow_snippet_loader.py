@@ -55,7 +55,8 @@ class FlowSnippetLoader(SafeDataLoader):
     def batch_load_fn(self, keys: List[Key]) -> Promise:
         from ..flow_snippet import FlowSnippetModel
 
-        print("Keys =" * 200, keys)
+        print(f"Flow Snippet Loader Keys {'=' * 60}", keys)
+        print(f"Flow Snippet Loader Cache Enabled {'*' * 60}", self.cache_enabled)
         unique_keys = list(dict.fromkeys(keys))
         key_map: Dict[Key, Dict[str, Any]] = {}
         uncached_keys = []
@@ -72,7 +73,7 @@ class FlowSnippetLoader(SafeDataLoader):
             uncached_keys = unique_keys
 
         # Batch fetch uncached items
-        print("Uncached Keys -" * 200, keys)
+        print(f"Flow Snippet Loader Uncached Keys {'-' * 60}", keys)
         if uncached_keys:
             try:
                 for flow_snippet in FlowSnippetModel.batch_get(uncached_keys):
@@ -89,5 +90,5 @@ class FlowSnippetLoader(SafeDataLoader):
                 if self.logger:
                     self.logger.exception(exc)
 
-        print("All Keys ~" * 200, keys)
+        print(f"Flow Snippet Loader All Keys {'~' * 60}", keys)
         return Promise.resolve([key_map.get(key) for key in keys])
