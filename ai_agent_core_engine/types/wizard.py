@@ -10,6 +10,7 @@ from silvaengine_dynamodb_base import ListObjectType
 from silvaengine_utility import JSON
 
 from ..types.wizard_schema import WizardSchemaType
+from ..types.element import ElementType
 from ..utils.normalization import normalize_to_json
 
 
@@ -45,7 +46,7 @@ class WizardType(ObjectType):
         """
 
         """Resolve nested Run for this tool call using DataLoader."""
-        from ..models.batch_loaders import get_loaders
+        # from ..models.batch_loaders import get_loaders
 
         # Case 1: Already embedded (backward compatibility)
         if hasattr(parent, "wizard_schema") and parent.wizard_schema:
@@ -76,14 +77,15 @@ class WizardType(ObjectType):
         from ..models.batch_loaders import get_loaders
 
         # Case 1: Already embedded (backward compatibility)
-        if hasattr(parent, "wizard_elements") and parent.wizard_elements:
-            return parent.wizard_elements
+        # if hasattr(parent, "wizard_elements") and parent.wizard_elements:
+        #     return parent.wizard_elements
 
         # Case 2: Load via DataLoader using wizard_element_refs
-        wizard_element_refs = getattr(parent, "wizard_element_refs", None)
-        if not wizard_element_refs:
-            return []
+        # wizard_element_refs = getattr(parent, "wizard_element_refs", None)
+        # if not wizard_element_refs:
+        #     return []
 
+        wizard_element_refs = parent.wizard_elements
         partition_key = parent.partition_key
         loaders = get_loaders(info.context)
 
@@ -109,7 +111,7 @@ class WizardType(ObjectType):
                     )
             return wizard_elements
 
-        return Promise.all(promises).then(build_wizard_elements)
+        return Promise.all(promises).then(build_wizard_elements).get()
 
 
 class WizardListType(ListObjectType):

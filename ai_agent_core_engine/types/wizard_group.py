@@ -9,6 +9,7 @@ from promise import Promise
 from silvaengine_dynamodb_base import ListObjectType
 from silvaengine_utility import JSON
 
+from ..types.wizard import WizardType
 from ..utils.normalization import normalize_to_json
 
 
@@ -43,7 +44,7 @@ class WizardGroupType(ObjectType):
         existing = getattr(parent, "wizards", None)
 
         if isinstance(existing, list):
-            return [normalize_to_json(wizard_dict) for wizard_dict in existing]
+            return existing
 
         # Case 2: Load via DataLoader using wizard_uuids
         wizard_uuids = getattr(parent, "wizard_uuids", None)
@@ -53,6 +54,7 @@ class WizardGroupType(ObjectType):
 
         partition_key = parent.partition_key
 
+        
         try:
             loaders = get_loaders(info.context)
 
@@ -61,14 +63,65 @@ class WizardGroupType(ObjectType):
                 for wizard_uuid in wizard_uuids
             ]
 
+            def build_wizards(wizard_dicts):
+                from ..models.wizard_schema import get_wizard_schema
+                wizards = []
+                def build_wizard_elements(wizard_dict):
+                    wizard_elements = []
+                    element_refs = [
+                        wizard_element_dict
+                        for wizard_element_dict in wizard_dict.get("wizard_elements", [])
+                        if "element_uuid" in wizard_element_dict
+                    ]
+                    if len(element_refs) == 0:
+                        return []
+                    element_promises = [
+                        loaders.element_loader.load((partition_key, ref["element_uuid"]))
+                        for ref in wizard_dict.get("wizard_elements", [])
+                        if "element_uuid" in ref
+                    ]
+                    element_dicts = Promise.all(element_promises).get()
+                    for i, element_dict in enumerate(element_dicts):
+                        if element_dict is not None:
+                            ref = element_refs[i]
+                            wizard_elements.append(
+                                normalize_to_json(
+                                    {
+                                        "element": element_dict,
+                                        "required": ref.get("required", False),
+                                        "placeholder": ref.get("placeholder"),
+                                    }
+                                )
+                            )
+                    return wizard_elements
+                
+                for i, wizard_dict in enumerate(wizard_dicts):
+                    if wizard_dict is not None:
+                        # ref = wizard_element_refs[i]
+                        wizard_schema = None
+                        if wizard_dict.get("wizard_schema_type") and wizard_dict.get("wizard_schema_name"):
+                            wizard_schema = get_wizard_schema(
+                                wizard_dict.get("wizard_schema_type"),
+                                wizard_dict.get("wizard_schema_name"),
+                            )
+                        wizards.append(
+                            
+                            normalize_to_json(
+                                dict(
+                                    wizard_dict,
+                                    **{
+                                        "wizard_schema": wizard_schema,
+                                        "wizard_elements": build_wizard_elements(wizard_dict)
+                                    }
+                                )
+                            )
+                        )
+                return wizards
+
             return (
                 Promise.all(promises)
                 .then(
-                    lambda wizard_dicts: (
-                        [normalize_to_json(wizard_dict) for wizard_dict in wizard_dicts]
-                        if wizard_dicts
-                        else []
-                    )
+                    build_wizards
                 )
                 .catch(lambda error: [])
             ).get()

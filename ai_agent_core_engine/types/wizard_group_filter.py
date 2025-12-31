@@ -60,7 +60,7 @@ class WizardGroupFilterType(ObjectType):
             lambda wizard_group_dict: (
                 WizardGroupType(**wizard_group_dict) if wizard_group_dict else None
             )
-        )
+        ).get()
 
 
 class WizardGroupFilterListType(ListObjectType):

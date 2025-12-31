@@ -41,7 +41,6 @@ class PromptTemplateType(PromptTemplateBaseType):
     def resolve_mcp_servers(parent, info):
         # Get the MCP server references from the model
         mcp_server_refs = getattr(parent, "mcp_servers", None)
-
         if not mcp_server_refs:
             return []
 
@@ -55,7 +54,6 @@ class PromptTemplateType(PromptTemplateBaseType):
 
         # Otherwise, load via DataLoader to get full entity data
         from ..models.batch_loaders import get_loaders
-
         partition_key = parent.partition_key
         loaders = get_loaders(info.context)
 
@@ -63,11 +61,11 @@ class PromptTemplateType(PromptTemplateBaseType):
             loaders.mcp_server_loader.load(
                 (
                     partition_key,
-                    ref["mcp_server_uuid"] if isinstance(ref, dict) else ref,
+                    ref["mcpServerUuid"] if isinstance(ref, dict) else ref,
                 )
             )
             for ref in mcp_server_refs
-            if (isinstance(ref, dict) and "mcp_server_uuid" in ref)
+            if (isinstance(ref, dict) and "mcpServerUuid" in ref)
             or isinstance(ref, str)
         ]
 
@@ -77,7 +75,7 @@ class PromptTemplateType(PromptTemplateBaseType):
                 for mcp_dict in mcp_server_dicts
                 if mcp_dict is not None
             ]
-        )
+        ).get()
 
     def resolve_ui_components(parent, info):
         # Get the UI component references from the model
@@ -101,12 +99,12 @@ class PromptTemplateType(PromptTemplateBaseType):
 
         promises = [
             loaders.ui_component_loader.load(
-                (ref["ui_component_type"], ref["ui_component_uuid"])
+                (ref["uiComponentType"], ref["uiComponentUuid"])
             )
             for ref in ui_component_refs
             if isinstance(ref, dict)
-            and "ui_component_type" in ref
-            and "ui_component_uuid" in ref
+            and "uiComponentType" in ref
+            and "uiComponentUuid" in ref
         ]
 
         return Promise.all(promises).then(
@@ -115,7 +113,7 @@ class PromptTemplateType(PromptTemplateBaseType):
                 for ui_comp_dict in ui_component_dicts
                 if ui_comp_dict is not None
             ]
-        )
+        ).get()
 
 
 class PromptTemplateListType(ListObjectType):

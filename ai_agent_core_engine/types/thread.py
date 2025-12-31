@@ -51,7 +51,7 @@ class ThreadType(ObjectType):
         loaders = get_loaders(info.context)
         return loaders.agent_loader.load((partition_key, agent_uuid)).then(
             lambda agent_dict: AgentType(**agent_dict) if agent_dict else None
-        )
+        ).get()
 
     def resolve_messages(parent, info):
         """Resolve nested Messages for this thread as JSON-friendly list."""
@@ -166,7 +166,7 @@ class ThreadType(ObjectType):
                 loaders.messages_by_thread_loader.load(thread_uuid),
                 loaders.tool_calls_by_thread_loader.load(thread_uuid),
             ]
-        ).then(process_messages_and_tool_calls)
+        ).then(process_messages_and_tool_calls).get()
 
     def resolve_tool_calls(parent, info):
         """Resolve nested Tool Calls for this thread as JSON-friendly list."""
@@ -192,7 +192,7 @@ class ThreadType(ObjectType):
                 if tool_call_dicts
                 else []
             )
-        )
+        ).get()
 
 
 class ThreadListType(ListObjectType):
