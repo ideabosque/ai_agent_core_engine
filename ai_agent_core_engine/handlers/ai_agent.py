@@ -96,7 +96,7 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
         raise e
 
 
-def _get_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType:
+def _get_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType | None:
     """
     Retrieve a conversation thread by its UUID.
 
@@ -109,17 +109,15 @@ def _get_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType:
     """
     try:
         if "thread_uuid" in kwargs:
-            thread = resolve_thread(
+            return resolve_thread(
                 info,
                 **{"thread_uuid": kwargs["thread_uuid"]},
             )
-            return thread
 
         if "user_id" in kwargs:
             # Only retrieve threads from the past 'thread_life_minutes' minutes
             thread_life_minutes = kwargs.get("thread_life_minutes", 30)
             created_at_gt = pendulum.now("UTC").subtract(minutes=thread_life_minutes)
-
             thread_list: ThreadListType = resolve_thread_list(
                 info,
                 **{
@@ -128,6 +126,7 @@ def _get_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType:
                     "created_at_gt": created_at_gt,
                 },
             )
+
             if thread_list.total > 0:
                 # Return the latest thread based on updated_time or created_time
                 latest_thread = max(thread_list.thread_list, key=lambda t: t.created_at)

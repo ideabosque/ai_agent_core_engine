@@ -13,8 +13,6 @@ import pendulum
 from graphene import ResolveInfo
 from pynamodb.attributes import UnicodeAttribute, UTCDateTimeAttribute
 from pynamodb.indexes import AllProjection, LocalSecondaryIndex
-from tenacity import retry, stop_after_attempt, wait_exponential
-
 from silvaengine_dynamodb_base import (
     BaseModel,
     delete_decorator,
@@ -23,6 +21,7 @@ from silvaengine_dynamodb_base import (
     resolve_list_decorator,
 )
 from silvaengine_utility import Serializer, method_cache
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
 from ..types.thread import ThreadListType, ThreadType
@@ -163,13 +162,17 @@ def get_thread_type(info: ResolveInfo, thread: ThreadModel) -> ThreadType:
 
 
 def resolve_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType | None:
-    count = get_thread_count(info.context["partition_key"], kwargs["thread_uuid"])
+    info.context.get("loggger").info(
+        f"resolve_thread {'#' * 80}: {info.context.get('partition_key')}"
+    )
+    partition_key = info.context.get("partition_key")
+    thread_uuid = kwargs.get("thread_uuid")
+    count = get_thread_count(partition_key, thread_uuid)
+
     if count == 0:
         return None
 
-    return get_thread_type(
-        info, get_thread(info.context["partition_key"], kwargs["thread_uuid"])
-    )
+    return get_thread_type(info, get_thread(partition_key, thread_uuid))
 
 
 @monitor_decorator
@@ -186,7 +189,8 @@ def resolve_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType | 
     scan_index_forward=False,
 )
 def resolve_thread_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
-    partition_key = info.context["partition_key"]
+    partition_key = info.context.get("partition_key")
+    info.context.get("loggger").info(f"resolve_thread_list {'#' * 80}: {partition_key}")
     agent_uuid = kwargs.get("agent_uuid", None)
     user_id = kwargs.get("user_id", None)
     created_at_gt = kwargs.get("created_at_gt", None)
@@ -197,7 +201,6 @@ def resolve_thread_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     count_funct = ThreadModel.count
     range_key_condition = None
     if partition_key:
-
         # Build range key condition for created_at when using created_at_index
         if created_at_gt is not None and created_at_lt is not None:
             range_key_condition = ThreadModel.created_at.between(
@@ -242,8 +245,11 @@ def resolve_thread_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
 )
 @purge_cache()
 def insert_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
-    partition_key = kwargs.get("partition_key")
+    # partition_key = kwargs.get("partition_key")
+    partition_key = info.context.get("partition_key")
+    info.context.get("loggger").info(f"resolve_thread_list {'#' * 80}: {partition_key}")
     thread_uuid = kwargs.get("thread_uuid")
+
     if kwargs.get("entity") is None:
         cols = {
             "agent_uuid": kwargs["agent_uuid"],
@@ -274,7 +280,6 @@ def insert_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
 )
 @purge_cache()
 def delete_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
-
     run_list = resolve_run_list(
         info,
         **{
