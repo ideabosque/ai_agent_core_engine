@@ -29,6 +29,7 @@ class WizardGroupType(ObjectType):
 
     # Nested resolver for strongly-typed relationships
     wizards = List(JSON)
+    wizard_items = List(lambda: WizardType)
 
     def resolve_wizards(parent, info):
         """
@@ -124,7 +125,7 @@ class WizardGroupType(ObjectType):
                     build_wizards
                 )
                 .catch(lambda error: [])
-            ).get()
+            )
         except ImportError as exc:
             info.context.get("logger").error(
                 "Failed to import DataLoader module: %s", exc, exc_info=True
@@ -138,7 +139,63 @@ class WizardGroupType(ObjectType):
                 exc_info=True,
             )
             return []
+    
+    def resolve_wizard_items(parent, info):
+        """
+        Resolve wizards for this wizard group.
+        Two cases:
+        1. If wizards is already embedded, return as-is
+        2. Otherwise, use wizard_uuids to load wizards via DataLoader
+        """
+        """Resolve nested Run for this tool call using DataLoader."""
+        from ..models.batch_loaders import get_loaders
 
+        # Case 1: Already embedded (backward compatibility)
+        existing = getattr(parent, "wizards", None)
 
+        if isinstance(existing, list):
+            return existing
+
+        # Case 2: Load via DataLoader using wizard_uuids
+        wizard_uuids = getattr(parent, "wizard_uuids", None)
+
+        if not wizard_uuids:
+            return []
+
+        partition_key = parent.partition_key
+
+        
+        try:
+            loaders = get_loaders(info.context)
+
+            promises = [
+                loaders.wizard_loader.load((partition_key, wizard_uuid))
+                for wizard_uuid in wizard_uuids
+            ]
+
+            return (
+                Promise.all(promises)
+                .then(
+                    lambda wizard_dicts: [
+                        WizardType(**wizard_dict) if wizard_dict else None
+                        for wizard_dict in wizard_dicts
+                    ]
+                )
+                .catch(lambda error: [])
+            )
+        except ImportError as exc:
+            info.context.get("logger").error(
+                "Failed to import DataLoader module: %s", exc, exc_info=True
+            )
+            return []
+        except Exception as exc:
+            info.context.get("logger").error(
+                "Unexpected error in resolve_wizards for group %s: %s",
+                getattr(parent, "wizard_group_uuid", "unknown"),
+                exc,
+                exc_info=True,
+            )
+            return []
+        
 class WizardGroupListType(ListObjectType):
     wizard_group_list = List(WizardGroupType)

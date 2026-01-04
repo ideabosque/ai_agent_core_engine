@@ -119,7 +119,6 @@ class AgentType(AgentTypeBase):
         return (
             loaders.llm_loader.load((llm_provider, llm_name))
             .then(lambda llm_dict: LlmType(**llm_dict) if llm_dict else None)
-            .get()
         )
 
     def resolve_mcp_servers(parent, info):
@@ -178,7 +177,6 @@ class AgentType(AgentTypeBase):
                     FlowSnippetType(**flow_snippet_dict) if flow_snippet_dict else None
                 )
             )
-            .get()
         )
 
 

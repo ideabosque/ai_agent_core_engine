@@ -51,7 +51,7 @@ class MessageType(ObjectType):
         loaders = get_loaders(info.context)
         return loaders.run_loader.load((thread_uuid, run_uuid)).then(
             lambda run_dict: RunType(**run_dict) if run_dict else None
-        ).get()
+        )
 
 
 class MessageListType(ListObjectType):

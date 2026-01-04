@@ -51,7 +51,7 @@ class RunType(ObjectType):
         loaders = get_loaders(info.context)
         return loaders.thread_loader.load((partition_key, thread_uuid)).then(
             lambda thread_dict: ThreadType(**thread_dict) if thread_dict else None
-        ).get()
+        )
 
 
 class RunListType(ListObjectType):

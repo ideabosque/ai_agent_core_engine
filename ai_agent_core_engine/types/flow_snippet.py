@@ -61,7 +61,6 @@ class FlowSnippetType(FlowSnippetBaseType):
                     PromptTemplateType(**prompt_dict) if prompt_dict else None
                 )
             )
-            .get()
         )
 
 

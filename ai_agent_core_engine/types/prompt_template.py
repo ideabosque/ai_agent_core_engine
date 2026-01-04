@@ -75,7 +75,7 @@ class PromptTemplateType(PromptTemplateBaseType):
                 for mcp_dict in mcp_server_dicts
                 if mcp_dict is not None
             ]
-        ).get()
+        )
 
     def resolve_ui_components(parent, info):
         # Get the UI component references from the model
@@ -113,7 +113,7 @@ class PromptTemplateType(PromptTemplateBaseType):
                 for ui_comp_dict in ui_component_dicts
                 if ui_comp_dict is not None
             ]
-        ).get()
+        )
 
 
 class PromptTemplateListType(ListObjectType):

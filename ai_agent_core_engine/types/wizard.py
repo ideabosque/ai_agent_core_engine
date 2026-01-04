@@ -111,7 +111,7 @@ class WizardType(ObjectType):
                     )
             return wizard_elements
 
-        return Promise.all(promises).then(build_wizard_elements).get()
+        return Promise.all(promises).then(build_wizard_elements)
 
 
 class WizardListType(ListObjectType):
