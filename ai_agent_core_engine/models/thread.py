@@ -162,7 +162,7 @@ def get_thread_type(info: ResolveInfo, thread: ThreadModel) -> ThreadType:
 
 
 def resolve_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType | None:
-    info.context.get("loggger").info(
+    info.context.get("logger").info(
         f"resolve_thread {'#' * 80}: {info.context.get('partition_key')}"
     )
     partition_key = info.context.get("partition_key")
@@ -190,7 +190,7 @@ def resolve_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType | 
 )
 def resolve_thread_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     partition_key = info.context.get("partition_key")
-    info.context.get("loggger").info(f"resolve_thread_list {'#' * 80}: {partition_key}")
+    info.context.get("logger").info(f"resolve_thread_list {'#' * 80}: {partition_key}")
     agent_uuid = kwargs.get("agent_uuid", None)
     user_id = kwargs.get("user_id", None)
     created_at_gt = kwargs.get("created_at_gt", None)
@@ -247,7 +247,7 @@ def resolve_thread_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
 def insert_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     # partition_key = kwargs.get("partition_key")
     partition_key = info.context.get("partition_key")
-    info.context.get("loggger").info(f"resolve_thread_list {'#' * 80}: {partition_key}")
+    info.context.get("logger").info(f"resolve_thread_list {'#' * 80}: {partition_key}")
     thread_uuid = kwargs.get("thread_uuid")
 
     if kwargs.get("entity") is None:
