@@ -10,7 +10,6 @@ from typing import Any, Dict, List
 
 import pendulum
 from graphene import ResolveInfo
-
 from silvaengine_utility import Serializer
 
 from ..models.agent import resolve_agent
@@ -47,10 +46,7 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
     try:
         # Log request details
         info.context.get("logger").info(
-            f"endpoint_id: {info.context.get('endpoint_id')}"
-        )
-        info.context.get("logger").info(
-            f"connection_id: {info.context.get('connection_id')}"
+            f"Ask model (context) {'~' * 80}: {info.context}"
         )
 
         thread = _get_thread(info, **kwargs)
@@ -322,7 +318,9 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
         assert isinstance(ai_agent_handler.final_output, dict) and all(
             key in ai_agent_handler.final_output and ai_agent_handler.final_output[key]
             for key in ["message_id", "role", "content"]
-        ), "final_output must be a dict containing non-empty values for message_id, role and content fields"
+        ), (
+            "final_output must be a dict containing non-empty values for message_id, role and content fields"
+        )
 
         if ai_agent_handler.uploaded_files:
             _update_user_message_with_files(
