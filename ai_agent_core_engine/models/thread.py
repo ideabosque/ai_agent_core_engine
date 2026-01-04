@@ -200,6 +200,7 @@ def resolve_thread_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     inquiry_funct = ThreadModel.scan
     count_funct = ThreadModel.count
     range_key_condition = None
+
     if partition_key:
         # Build range key condition for created_at when using created_at_index
         if created_at_gt is not None and created_at_lt is not None:
@@ -221,6 +222,7 @@ def resolve_thread_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
             count_funct = ThreadModel.agent_uuid_index.count
 
     the_filters = None
+
     if agent_uuid and range_key_condition is not None:
         the_filters &= ThreadModel.agent_uuid == agent_uuid
     if user_id is not None:
