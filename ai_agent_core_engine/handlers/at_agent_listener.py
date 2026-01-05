@@ -86,8 +86,6 @@ def async_insert_update_tool_call(
         info, **{k: v for k, v in tool_call_params.items() if v is not None}
     )
 
-    logger.info(f"Tool Call: {tool_call.__dict__}.")
-
 
 def send_data_to_stream(logger: logging.Logger, **kwargs: Dict[str, Any]) -> bool:
     try:

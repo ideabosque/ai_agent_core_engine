@@ -45,10 +45,6 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
     """
     try:
         # Log request details
-        info.context.get("logger").info(
-            f"Ask model (context) {'~' * 80}: {info.context}"
-        )
-
         thread = _get_thread(info, **kwargs)
 
         # Create new run instance for this request
@@ -195,19 +191,10 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
     """
     try:
         # Log endpoint and connection IDs for tracing
-        info.context.get("logger").info(
-            f"endpoint_id: {info.context.get('endpoint_id')}"
-        )
-        info.context.get("logger").info(
-            f"connection_id: {info.context.get('connection_id')}"
-        )
         async_task_uuid = kwargs["async_task_uuid"]
         arguments = kwargs["arguments"]
 
         # Initialize async task as in-progress
-        info.context.get("logger").info(
-            f"async_task_uuid: {async_task_uuid}/in_progress."
-        )
         async_task = insert_update_async_task(
             info,
             **{
@@ -249,7 +236,6 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
                 "updated_by": arguments["updated_by"],
             },
         )
-        info.context.get("logger").info(f"User Message: {user_message.__dict__}.")
 
         # Initialize run record
         run = insert_update_run(
@@ -286,7 +272,7 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
             stream_queue = Queue()
             stream_event = threading.Event()
             args = [input_messages, stream_queue, stream_event]
-            
+
             if "input_files" in arguments:
                 args.append(arguments["input_files"])
 
@@ -300,11 +286,9 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
             current_run = stream_queue.get()
             if current_run["name"] == "run_id":
                 run_id = current_run["value"]
-                info.context["logger"].info(f"Current Run ID: {current_run['value']}")
 
             # Wait until streaming is done, timeout after 60 second
             stream_event.wait(timeout=120)
-            info.context["logger"].info("Streaming ask_model finished.")
         else:
             # Process query through AI model
             if "input_files" in arguments:
@@ -343,9 +327,6 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
                 "updated_by": arguments["updated_by"],
             },
         )
-        info.context.get("logger").info(
-            f"Assistant Message: {assistant_message.__dict__}."
-        )
 
         # Update run with completion details
         run = insert_update_run(
@@ -372,8 +353,6 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
                 "updated_by": arguments["updated_by"],
             },
         )
-
-        info.context.get("logger").info(f"Async Task: {async_task.__dict__}.")
 
         # TODO: Implement MCP Prompt and update system prmompt by analyzing user query and assistant response.
         # TODO: Invoke execute_ask_model with the updated system prompt by dispatching thread.
@@ -458,7 +437,6 @@ def _update_user_message_with_files(
 def upload_file(info: ResolveInfo, **kwargs: Dict[str, Any]) -> FileType:
     # Retrieve AI agent configuration
     agent = _get_agent(info, kwargs["agent_uuid"])
-
     ai_agent_handler_class = getattr(
         __import__(agent.llm["module_name"]),
         agent.llm["class_name"],
@@ -470,10 +448,9 @@ def upload_file(info: ResolveInfo, **kwargs: Dict[str, Any]) -> FileType:
     )
     ai_agent_handler.endpoint_id = info.context["endpoint_id"]
     ai_agent_handler.part_id = info.context.get("part_id")
-
     file = ai_agent_handler.insert_file(**kwargs["arguments"])
+
     if agent.llm["llm_name"] == "gemini":
-        info.context["logger"].info(f"File: {file.__dict__}.")
         return FileType(
             **{
                 "identity": "file_name",
@@ -482,7 +459,6 @@ def upload_file(info: ResolveInfo, **kwargs: Dict[str, Any]) -> FileType:
             }
         )
     elif agent.llm["llm_name"] == "gpt":
-        info.context["logger"].info(f"File: {file}.")
         return FileType(**{"identity": "id", "value": file["id"], "file_detail": file})
     else:
         raise Exception(f"Unsupported LLM: {agent.llm['llm_name']}")
