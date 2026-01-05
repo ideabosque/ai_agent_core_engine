@@ -35,7 +35,9 @@ def create_listener_info(
             "logger": logger,
             "part_id": kwargs.get("part_id"),
             "connection_id": kwargs.get("connection_id"),
-            "partition_key": kwargs.get("partition_key"),
+            "partition_key": kwargs.get(
+                "partition_key", kwargs.get("context", {}).get("partition_key")
+            ),
         },
         path=None,
     )
