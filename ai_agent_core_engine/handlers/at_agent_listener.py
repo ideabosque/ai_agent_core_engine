@@ -30,6 +30,10 @@ def async_execute_ask_model(
             - connection_id: Connection identifier
             - setting: Additional settings dict
     """
+    logger.info(f"{'~' * 30} async_execute_ask_model start {'~' * 30}")
+    logger.info(kwargs)
+    print(kwargs)
+    logger.info(f"{'~' * 31} async_execute_ask_model end {'~' * 31}")
     info = create_listener_info(logger, "ask_model", setting, **kwargs)
 
     execute_ask_model(
