@@ -286,6 +286,7 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
             stream_queue = Queue()
             stream_event = threading.Event()
             args = [input_messages, stream_queue, stream_event]
+            
             if "input_files" in arguments:
                 args.append(arguments["input_files"])
 

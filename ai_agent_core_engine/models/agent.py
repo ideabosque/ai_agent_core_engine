@@ -231,11 +231,6 @@ def get_agent(partition_key: str, agent_version_uuid: str) -> AgentModel:
 )
 def _get_active_agent(partition_key: str, agent_uuid: str) -> AgentModel | None:
     try:
-        print(f"{'*' * 30} Get active agent start {'*' * 30}")
-        print(
-            f"Partition Key: {partition_key} Agent UUID: {agent_uuid} Status: 'active'"
-        )
-        print(f"{'*' * 31} Get active agent end {'*' * 31}")
         results = AgentModel.agent_uuid_index.query(
             partition_key,
             AgentModel.agent_uuid == agent_uuid,
