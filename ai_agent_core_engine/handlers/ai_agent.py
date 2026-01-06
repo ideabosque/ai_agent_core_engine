@@ -214,7 +214,7 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
         input_messages = get_input_messages(
             info,
             arguments["thread_uuid"],
-            int(agent.num_of_messages),
+            int(agent.num_of_messages) if agent.num_of_messages is not None else 0,
             agent.tool_call_role,
         )
         input_messages.append({"role": "user", "content": arguments["user_query"]})
