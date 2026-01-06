@@ -341,6 +341,8 @@ class AIAgentCoreEngine(Graphql):
         Args:
             params (Dict[str, Any]): A dictionary of parameters required to send data to the WebSocket stream.
         """
+        self._apply_partition_defaults(params)
+
         at_agent_listener.send_data_to_stream(self.logger, **params)
         return
 
