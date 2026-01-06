@@ -5,6 +5,7 @@ __author__ = "bibow"
 
 import threading
 import traceback
+from collections.abc import Iterable
 from queue import Queue
 from typing import Any, Dict, List
 
@@ -153,24 +154,25 @@ def _get_agent(info: ResolveInfo, agent_uuid: str):
     llm_dict = loaders.llm_loader.load((agent.llm_provider, agent.llm_name)).get()
     agent.llm = llm_dict
 
-    from ..models.utils import _get_mcp_servers
+    if isinstance(agent.mcp_server_uuids, Iterable):
+        from ..models.utils import _get_mcp_servers
 
-    mcp_servers = [
-        {"mcp_server_uuid": mcp_server_uuid}
-        for mcp_server_uuid in agent.mcp_server_uuids
-    ]
+        mcp_servers = [
+            {"mcp_server_uuid": mcp_server_uuid}
+            for mcp_server_uuid in agent.mcp_server_uuids
+        ]
 
-    agent.mcp_servers = [
-        {
-            "name": mcp_server["mcp_label"],
-            "mcp_server_uuid": mcp_server["mcp_server_uuid"],
-            "setting": {
-                "base_url": mcp_server["mcp_server_url"],
-                "headers": mcp_server["headers"],
-            },
-        }
-        for mcp_server in _get_mcp_servers(info, mcp_servers)
-    ]
+        agent.mcp_servers = [
+            {
+                "name": mcp_server["mcp_label"],
+                "mcp_server_uuid": mcp_server["mcp_server_uuid"],
+                "setting": {
+                    "base_url": mcp_server["mcp_server_url"],
+                    "headers": mcp_server["headers"],
+                },
+            }
+            for mcp_server in _get_mcp_servers(info, mcp_servers)
+        ]
 
     return agent
 
