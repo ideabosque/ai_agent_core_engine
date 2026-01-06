@@ -68,9 +68,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger()
 
-from silvaengine_utility import Graphql, Serializer
-
 from ai_agent_core_engine import AIAgentCoreEngine
+from silvaengine_utility import Graphql, Serializer
 
 
 class ChatbotRunner:

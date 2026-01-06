@@ -164,6 +164,26 @@ def get_thread_type(info: ResolveInfo, thread: ThreadModel) -> ThreadType:
 def resolve_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType | None:
     partition_key = info.context.get("partition_key")
     thread_uuid = kwargs.get("thread_uuid")
+
+    # Validate parameters before querying - must be non-empty strings
+    if not partition_key or not isinstance(partition_key, str):
+        info.context.get("logger").warning(
+            f"resolve_thread: Invalid partition_key: {partition_key}"
+        )
+        return None
+    if not thread_uuid or not isinstance(thread_uuid, str):
+        info.context.get("logger").warning(
+            f"resolve_thread: Invalid thread_uuid: {thread_uuid}"
+        )
+        return None
+
+    # Additional validation: partition_key should not contain "None"
+    if "None" in partition_key:
+        info.context.get("logger").warning(
+            f"resolve_thread: partition_key contains 'None': {partition_key}"
+        )
+        return None
+
     count = get_thread_count(partition_key, thread_uuid)
 
     if count == 0:

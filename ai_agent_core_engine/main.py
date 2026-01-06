@@ -8,6 +8,7 @@ import logging
 from typing import Any, Dict, List
 
 from graphene import Schema
+
 from silvaengine_dynamodb_base import BaseModel
 from silvaengine_utility import Graphql, Serializer
 
@@ -279,8 +280,24 @@ class AIAgentCoreEngine(Graphql):
         if params.get("context") is None:
             params["context"] = {}
 
+        if "endpoint_id" not in params["context"]:
+            params["context"]["endpoint_id"] = endpoint_id
+        if "part_id" not in params["context"]:
+            params["context"]["part_id"] = part_id
+        if "connection_id" not in params:
+            params["connection_id"] = self.setting.get("connection_id")
+
         if "partition_key" not in params["context"]:
-            params["context"]["partition_key"] = f"{endpoint_id}#{part_id}"
+            # Validate endpoint_id and part_id before creating partition_key
+            if not endpoint_id or not part_id:
+                self.logger.error(
+                    f"Missing endpoint_id or part_id: endpoint_id={endpoint_id}, part_id={part_id}"
+                )
+                # Only create partition key if both values are present
+                if endpoint_id and part_id:
+                    params["context"]["partition_key"] = f"{endpoint_id}#{part_id}"
+            else:
+                params["context"]["partition_key"] = f"{endpoint_id}#{part_id}"
 
         if "logger" in params:
             params.pop("logger")
@@ -337,8 +354,6 @@ class AIAgentCoreEngine(Graphql):
         Returns:
             Any: The result of the GraphQL query execution.
         """
-        if params.get("connection_id") is None:
-            params["connection_id"] = self.setting.get("connection_id")
 
         self._apply_partition_defaults(params)
 

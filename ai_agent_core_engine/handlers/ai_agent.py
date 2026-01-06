@@ -105,7 +105,8 @@ def _get_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType | Non
         Dict[str, Any]: Thread data
     """
     try:
-        if "thread_uuid" in kwargs:
+        # Only query for thread if thread_uuid is a valid non-empty string
+        if "thread_uuid" in kwargs and kwargs["thread_uuid"]:
             return resolve_thread(
                 info,
                 **{"thread_uuid": kwargs["thread_uuid"]},
