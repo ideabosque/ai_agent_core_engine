@@ -147,14 +147,14 @@ def start_async_task(
             )
             pass
 
-        # Invoke Lambda function asynchronously
-        Invoker.invoke_funct_on_aws_lambda(
-            info.context,
-            function_name,
-            params=params,
-            aws_lambda=Config.aws_lambda,
-            invocation_type="Event",
-        )
+        # # Invoke Lambda function asynchronously
+        # Invoker.invoke_funct_on_aws_lambda(
+        #     info.context,
+        #     function_name,
+        #     params=params,
+        #     aws_lambda=Config.aws_lambda,
+        #     invocation_type="Event",
+        # )
 
         return async_task.async_task_uuid
     except Exception as e:
