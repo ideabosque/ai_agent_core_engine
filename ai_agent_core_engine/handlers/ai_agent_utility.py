@@ -110,22 +110,22 @@ def start_async_task(
             params["connection_id"] = info.context.get("connection_id")
 
         # Invoke Lambda function asynchronously
-        Invoker.import_dynamically(
-            module_name="ai_agent_core_engine",
-            function_name=function_name,
-            class_name="AIAgentCoreEngine",
-            constructor_parameters={
-                "logger": info.context.get("logger"),
-                "setting": info.context.get("setting"),
-            },
-        )(**params)
-        # Invoker.invoke_funct_on_aws_lambda(
-        #     info.context,
-        #     function_name,
-        #     params=params,
-        #     aws_lambda=Config.aws_lambda,
-        #     invocation_type="Event",
-        # )
+        # Invoker.import_dynamically(
+        #     module_name="ai_agent_core_engine",
+        #     function_name=function_name,
+        #     class_name="AIAgentCoreEngine",
+        #     constructor_parameters={
+        #         "logger": info.context.get("logger"),
+        #         "setting": info.context.get("setting"),
+        #     },
+        # )(**params)
+        Invoker.invoke_funct_on_aws_lambda(
+            info.context,
+            function_name,
+            params=params,
+            aws_lambda=Config.aws_lambda,
+            invocation_type="Event",
+        )
 
         return async_task.async_task_uuid
     except Exception as e:
