@@ -7,7 +7,7 @@ import logging
 import traceback
 from typing import Any, Dict
 
-from silvaengine_utility import Serializer
+from silvaengine_utility import Serializer, Debugger
 
 from ..models.tool_call import insert_update_tool_call, resolve_tool_call_list
 from ..utils.listener import create_listener_info

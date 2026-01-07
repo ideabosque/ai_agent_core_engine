@@ -11,7 +11,7 @@ from typing import Any, Dict, List
 
 import pendulum
 from graphene import ResolveInfo
-from silvaengine_utility import Serializer
+from silvaengine_utility import Debugger, Serializer
 
 from ..models.agent import resolve_agent
 from ..models.async_task import insert_update_async_task
@@ -47,7 +47,6 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
     try:
         # Log request details
         thread = _get_thread(info, **kwargs)
-
         # Create new run instance for this request
         run = insert_update_run(
             info,
@@ -56,7 +55,6 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
                 "updated_by": kwargs["updated_by"],
             },
         )
-
         # Prepare arguments for async processing
         arguments = {
             "thread_uuid": thread.thread_uuid,
@@ -66,6 +64,7 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
             "stream": kwargs.get("stream", False),
             "updated_by": kwargs["updated_by"],
         }
+
         if "input_files" in kwargs:
             arguments["input_files"] = kwargs["input_files"]
 
@@ -193,6 +192,11 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
         Exception: If any error occurs during execution
     """
     try:
+        Debugger.info(
+            variable=kwargs,
+            logger=info.context.get("logger"),
+            stage="execute_ask_model",
+        )
         # Log endpoint and connection IDs for tracing
         async_task_uuid = kwargs["async_task_uuid"]
         arguments = kwargs["arguments"]
@@ -208,6 +212,11 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
             },
         )
 
+        Debugger.info(
+            variable=arguments,
+            logger=info.context.get("logger"),
+            stage="arguments",
+        )
         # Retrieve AI agent configuration with LLM details
         agent = _get_agent(info, arguments["agent_uuid"])
 
