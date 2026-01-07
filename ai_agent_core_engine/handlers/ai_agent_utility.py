@@ -30,7 +30,6 @@ except (
 ):  # Optional dependency; only needed for Claude token counting
     anthropic = None
 from graphene import ResolveInfo
-
 from silvaengine_utility import Invoker, Serializer
 
 from ..models.async_task import insert_update_async_task
@@ -90,35 +89,47 @@ def start_async_task(
         The function creates an async task record, prepares Lambda invocation parameters,
         and triggers the Lambda function asynchronously using the Utility helper.
     """
+    try:
+        # Create task record in database
+        async_task = insert_update_async_task(
+            info,
+            **{
+                "function_name": function_name,
+                "arguments": {k: v for k, v in arguments.items() if k != "updated_by"},
+                "updated_by": arguments["updated_by"],
+            },
+        )
 
-    # Create task record in database
-    async_task = insert_update_async_task(
-        info,
-        **{
-            "function_name": function_name,
-            "arguments": {k: v for k, v in arguments.items() if k != "updated_by"},
-            "updated_by": arguments["updated_by"],
-        },
-    )
+        # Prepare parameters for Lambda invocation
+        params = {
+            "async_task_uuid": async_task.async_task_uuid,
+            "arguments": arguments,
+        }
 
-    # Prepare parameters for Lambda invocation
-    params = {
-        "async_task_uuid": async_task.async_task_uuid,
-        "arguments": arguments,
-    }
-    if info.context.get("connection_id"):
-        params["connection_id"] = info.context.get("connection_id")
+        if info.context.get("connection_id"):
+            params["connection_id"] = info.context.get("connection_id")
 
-    # Invoke Lambda function asynchronously
-    Invoker.invoke_funct_on_aws_lambda(
-        info.context,
-        function_name,
-        params=params,
-        aws_lambda=Config.aws_lambda,
-        invocation_type="Event",
-    )
+        # Invoke Lambda function asynchronously
+        Invoker.import_dynamically(
+            module_name="ai_agent_core_engine",
+            function_name=function_name,
+            class_name="AIAgentCoreEngine",
+            constructor_parameters={
+                "logger": info.context.get("logger"),
+                "setting": info.context.get("setting"),
+            },
+        )(**params)
+        # Invoker.invoke_funct_on_aws_lambda(
+        #     info.context,
+        #     function_name,
+        #     params=params,
+        #     aws_lambda=Config.aws_lambda,
+        #     invocation_type="Event",
+        # )
 
-    return async_task.async_task_uuid
+        return async_task.async_task_uuid
+    except Exception as e:
+        raise e
 
 
 # Retrieves and formats message history for a thread
