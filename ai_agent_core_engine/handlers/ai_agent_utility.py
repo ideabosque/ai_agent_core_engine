@@ -105,11 +105,31 @@ def start_async_task(
             "async_task_uuid": async_task.async_task_uuid,
             "arguments": arguments,
         }
+        required = [
+            "endpoint_id",
+            "part_id",
+            "connection_id",
+            "context",
+            "partition_key",
+        ]
 
-        if info.context.get("connection_id"):
-            params["connection_id"] = info.context.get("connection_id")
+        for index in required:
+            if info.context.get(index):
+                params[index] = info.context.get(index)
 
         try:
+            Debugger.info(
+                variable=info.context,
+                stage="info context",
+                logger=info.context.get("logger"),
+            )
+
+            Debugger.info(
+                variable=info.context,
+                stage="params",
+                logger=info.context.get("logger"),
+            )
+
             Invoker.import_dynamically(
                 module_name="ai_agent_core_engine",
                 function_name=function_name,
