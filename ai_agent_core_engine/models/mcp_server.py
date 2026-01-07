@@ -27,7 +27,7 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Serializer, method_cache
+from silvaengine_utility import Invoker, Serializer, method_cache
 
 from ..handlers.config import Config
 from ..types.mcp_server import MCPServerListType, MCPServerType
@@ -183,7 +183,8 @@ def get_mcp_server_type(
     info: ResolveInfo, mcp_server: MCPServerModel | Dict[str, Any]
 ) -> MCPServerType:
     try:
-        tools = asyncio.run(_run_list_tools(info, mcp_server))
+        # tools = asyncio.run(_run_list_tools(info, mcp_server))
+        tools = Invoker.sync_call_async_compatible(_run_list_tools(info, mcp_server))
     except Exception as e:
         mcp_server_uuid = "internal_mcp"
         if isinstance(mcp_server, MCPServerModel):
