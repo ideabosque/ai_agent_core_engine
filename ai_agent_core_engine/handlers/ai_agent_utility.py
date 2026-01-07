@@ -30,7 +30,7 @@ except (
 ):  # Optional dependency; only needed for Claude token counting
     anthropic = None
 from graphene import ResolveInfo
-from silvaengine_utility import Invoker, Serializer
+from silvaengine_utility import Debugger, Invoker, Serializer
 
 from ..models.async_task import insert_update_async_task
 from ..models.message import resolve_message_list
@@ -109,16 +109,25 @@ def start_async_task(
         if info.context.get("connection_id"):
             params["connection_id"] = info.context.get("connection_id")
 
+        try:
+            Invoker.import_dynamically(
+                module_name="ai_agent_core_engine",
+                function_name=function_name,
+                class_name="AIAgentCoreEngine",
+                constructor_parameters={
+                    "logger": info.context.get("logger"),
+                    "setting": info.context.get("setting"),
+                },
+            )(**params)
+        except Exception as e:
+            Debugger.info(
+                variable=e,
+                stage="import ai_agent_core_engine",
+                logger=info.context.get("logger"),
+            )
+            pass
+
         # Invoke Lambda function asynchronously
-        # Invoker.import_dynamically(
-        #     module_name="ai_agent_core_engine",
-        #     function_name=function_name,
-        #     class_name="AIAgentCoreEngine",
-        #     constructor_parameters={
-        #         "logger": info.context.get("logger"),
-        #         "setting": info.context.get("setting"),
-        #     },
-        # )(**params)
         Invoker.invoke_funct_on_aws_lambda(
             info.context,
             function_name,
