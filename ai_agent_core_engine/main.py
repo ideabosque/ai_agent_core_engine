@@ -325,8 +325,8 @@ class AIAgentCoreEngine(Graphql):
         """
         self._apply_partition_defaults(params)
 
-        at_agent_listener.async_execute_ask_model(self.logger, self.setting, **params)
-        return
+        return at_agent_listener.async_execute_ask_model(self.logger, self.setting, **params)
+
 
     def async_insert_update_tool_call(self, **params: Dict[str, Any]) -> Any:
         """
@@ -337,10 +337,10 @@ class AIAgentCoreEngine(Graphql):
         """
         self._apply_partition_defaults(params)
 
-        at_agent_listener.async_insert_update_tool_call(
+        return at_agent_listener.async_insert_update_tool_call(
             self.logger, self.setting, **params
         )
-        return
+
 
     def send_data_to_stream(self, **params: Dict[str, Any]) -> Any:
         """
@@ -351,14 +351,7 @@ class AIAgentCoreEngine(Graphql):
         """
         self._apply_partition_defaults(params)
 
-        Debugger.info(
-            variable=Config.get_setting(),
-            logger=self.logger,
-            stage="AI Agent Handler Exception(send_data_to_stream)",
-        )
-
-        at_agent_listener.send_data_to_stream(self.logger, **params)
-        return
+        return at_agent_listener.send_data_to_stream(self.logger, **params)
 
     def ai_agent_core_graphql(self, **params: Dict[str, Any]) -> Any:
         """
