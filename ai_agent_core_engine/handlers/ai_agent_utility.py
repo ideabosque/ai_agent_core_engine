@@ -124,7 +124,7 @@ def start_async_task(
                 module_name="ai_agent_core_engine",
                 function_name=function_name,
                 class_name="AIAgentCoreEngine",
-                constructor_parameters={"logger": info.context.get("logger"), "setting": **setting},
+                constructor_parameters={"logger": info.context.get("logger"), **setting},
             )(**params)
         except Exception as e:
             Debugger.info(
