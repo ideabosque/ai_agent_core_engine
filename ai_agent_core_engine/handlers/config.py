@@ -474,6 +474,13 @@ class Config:
         return cls.CACHE_RELATIONSHIPS.get(entity_type, [])
 
     @classmethod
+    def get_setting(cls)->Dict[str, Any]:
+        if not cls._initialized:
+            raise RuntimeError("Configuration not initialized")
+
+        return cls._setting
+
+    @classmethod
     def fetch_graphql_schema(
         cls,
         context: Dict[str, Any],
