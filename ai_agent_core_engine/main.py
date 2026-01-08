@@ -9,7 +9,7 @@ from typing import Any, Dict, List
 
 from graphene import Schema
 from silvaengine_dynamodb_base import BaseModel
-from silvaengine_utility import Graphql, Serializer
+from silvaengine_utility import Graphql, Serializer, Debugger
 
 from .handlers import at_agent_listener
 from .handlers.config import Config
@@ -223,6 +223,12 @@ class AIAgentCoreEngine(Graphql):
             BaseModel.Meta.aws_access_key_id = setting.get("aws_access_key_id")
             BaseModel.Meta.aws_secret_access_key = setting.get("aws_secret_access_key")
 
+        Debugger.info(
+            variable=setting,
+            stage="AI Agent Core Engine(__init__)",
+            logger=logger,
+            delimiter="*"
+        )
         # Initialize configuration via the Config class
         Config.initialize(logger, **setting)
 
