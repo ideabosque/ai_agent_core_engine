@@ -214,7 +214,7 @@ class AIAgentCoreEngine(Graphql):
         """
         if type(setting) is dict and type(setting.get("setting")) is dict:
             Debugger.info(
-                variable=traceback.format_exc(),
+                variable=setting,
                 stage="AI Agent Core Engine (__init__)",
                 logger=logger,
                 delimiter="~",
