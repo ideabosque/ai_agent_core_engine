@@ -117,6 +117,8 @@ def start_async_task(
             if info.context.get(index):
                 params[index] = info.context.get(index)
 
+        setting = info.context.get("setting") if type(info.context.get("setting")) is dict else {}
+
         try:
             Invoker.import_dynamically(
                 module_name="ai_agent_core_engine",
@@ -124,7 +126,7 @@ def start_async_task(
                 class_name="AIAgentCoreEngine",
                 constructor_parameters={
                     "logger": info.context.get("logger"),
-                    "setting": info.context.get("setting"),
+                    "setting": **setting,
                 },
             )(**params)
         except Exception as e:
