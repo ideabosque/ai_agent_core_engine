@@ -284,7 +284,7 @@ class Config:
         return cls.CACHE_ENTITY_CONFIG
 
     @classmethod
-    def initialize(cls, logger: logging.Logger, **setting: Dict[str, Any]) -> None:
+    def initialize(cls, logger: logging.Logger, setting: Dict[str, Any]) -> None:
         """
         Initialize configuration setting.
         Args:
@@ -294,13 +294,20 @@ class Config:
         if not setting:
             Debugger.info(
                 variable=traceback.format_exc(),
-                stage="AI Agent Core Engine(initialize)",
+                stage="AI Agent Core Engine Exception(initialize)",
                 logger=logger,
                 delimiter="#",
             )
             raise RuntimeError("`setting` is required")
         elif cls._initialized:
             return
+
+        Debugger.info(
+            variable=setting,
+            stage="AI Agent Core Engine(initialize)",
+            logger=logger,
+            delimiter="*"
+        )
 
         with cls._lock:
             if not cls._initialized:
