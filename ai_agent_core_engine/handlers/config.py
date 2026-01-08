@@ -291,7 +291,15 @@ class Config:
             logger (logging.Logger): Logger instance for logging.
             **setting (Dict[str, Any]): Configuration dictionary.
         """
-        if cls._initialized:
+        if not setting:
+            Debugger.info(
+                variable=traceback.format_exc(),
+                stage="AI Agent Core Engine(initialize)",
+                logger=logger,
+                delimiter="#",
+            )
+            raise RuntimeError("`setting` is required")
+        elif cls._initialized:
             return
 
         with cls._lock:
