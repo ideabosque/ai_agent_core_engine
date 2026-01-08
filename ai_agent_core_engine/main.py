@@ -213,6 +213,12 @@ class AIAgentCoreEngine(Graphql):
             **setting (Dict[str, Any]): A dictionary of settings required to initialize the engine.
         """
         if type(setting) is dict and type(setting.get("setting")) is dict:
+            Debugger.info(
+                variable=traceback.format_exc(),
+                stage="AI Agent Core Engine (__init__)",
+                logger=logger,
+                delimiter="~",
+            )
             setting = setting.get("setting")
 
         Graphql.__init__(self, logger, **setting)
