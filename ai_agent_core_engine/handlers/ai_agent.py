@@ -11,7 +11,7 @@ from typing import Any, Dict, List
 
 import pendulum
 from graphene import ResolveInfo
-from silvaengine_utility import Debugger, Serializer
+from silvaengine_utility import Serializer
 
 from ..models.agent import resolve_agent
 from ..models.async_task import insert_update_async_task
@@ -192,11 +192,6 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
         Exception: If any error occurs during execution
     """
     try:
-        Debugger.info(
-            variable=kwargs,
-            logger=info.context.get("logger"),
-            stage="execute_ask_model",
-        )
         # Log endpoint and connection IDs for tracing
         async_task_uuid = kwargs["async_task_uuid"]
         arguments = kwargs["arguments"]
@@ -212,11 +207,6 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
             },
         )
 
-        Debugger.info(
-            variable=arguments,
-            logger=info.context.get("logger"),
-            stage="arguments",
-        )
         # Retrieve AI agent configuration with LLM details
         agent = _get_agent(info, arguments["agent_uuid"])
 

@@ -118,18 +118,6 @@ def start_async_task(
                 params[index] = info.context.get(index)
 
         try:
-            Debugger.info(
-                variable=info.context,
-                stage="info context",
-                logger=info.context.get("logger"),
-            )
-
-            Debugger.info(
-                variable=info.context,
-                stage="params",
-                logger=info.context.get("logger"),
-            )
-
             Invoker.import_dynamically(
                 module_name="ai_agent_core_engine",
                 function_name=function_name,

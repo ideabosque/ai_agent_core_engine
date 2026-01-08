@@ -9,7 +9,7 @@ from typing import Any, Dict, List
 
 from graphene import Schema
 from silvaengine_dynamodb_base import BaseModel
-from silvaengine_utility import Debugger, Graphql, Serializer
+from silvaengine_utility import Graphql, Serializer
 
 from .handlers import at_agent_listener
 from .handlers.config import Config
@@ -316,12 +316,6 @@ class AIAgentCoreEngine(Graphql):
         """
         self._apply_partition_defaults(params)
 
-        Debugger.info(
-            variable=params,
-            logger=self.logger,
-            stage="async_execute_ask_model",
-        )
-
         at_agent_listener.async_execute_ask_model(self.logger, self.setting, **params)
         return
 
@@ -347,12 +341,6 @@ class AIAgentCoreEngine(Graphql):
             params (Dict[str, Any]): A dictionary of parameters required to send data to the WebSocket stream.
         """
         self._apply_partition_defaults(params)
-
-        Debugger.info(
-            variable=params,
-            logger=self.logger,
-            stage="AI Agent Core Engine(send_data_to_stream)",
-        )
 
         at_agent_listener.send_data_to_stream(self.logger, **params)
         return

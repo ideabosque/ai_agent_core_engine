@@ -7,7 +7,6 @@ __author__ = "bibow"
 from typing import Any, Dict
 
 from graphene import ResolveInfo
-from silvaengine_utility import Debugger
 
 
 def create_listener_info(
@@ -19,17 +18,6 @@ def create_listener_info(
     """
     Build a minimal ResolveInfo for async listener contexts.
     """
-    Debugger.info(
-        variable=setting,
-        stage="create_listener_info (setting)",
-        logger=logger,
-    )
-
-    Debugger.info(
-        variable=kwargs,
-        stage="create_listener_info (kwargs)",
-        logger=logger,
-    )
 
     return ResolveInfo(
         field_name=field_name,

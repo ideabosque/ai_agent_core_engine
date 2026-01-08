@@ -7,7 +7,7 @@ import logging
 import traceback
 from typing import Any, Dict
 
-from silvaengine_utility import Debugger, Serializer
+from silvaengine_utility import Serializer
 
 from ..models.tool_call import insert_update_tool_call, resolve_tool_call_list
 from ..utils.listener import create_listener_info
@@ -93,7 +93,7 @@ def send_data_to_stream(logger: logging.Logger, **kwargs: Dict[str, Any]) -> boo
         connection_id = kwargs["connection_id"]
         data = kwargs["data"]
 
-        Config.apigw_client.post_to_connection(
+        Config.get_api_gateway_client().post_to_connection(
             ConnectionId=connection_id, Data=Serializer.json_dumps(data)
         )
 
