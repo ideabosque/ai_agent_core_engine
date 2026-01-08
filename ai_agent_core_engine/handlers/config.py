@@ -10,7 +10,7 @@ import traceback
 from typing import Any, Dict, List
 
 import boto3
-from silvaengine_utility import Graphql
+from silvaengine_utility import Graphql, Debugger
 
 from ..models import utils
 
@@ -20,8 +20,10 @@ class Config:
     Centralized Configuration Class
     Manages shared configuration variables across the application.
     """
-    _initialized: bool = False  # 标记是否已初始化
-    _lock = threading.Lock()  # 线程锁，保证初始化线程安全
+    _initialized: bool = False
+    _lock = threading.Lock()
+    _logger: logging.Logger = None
+    _setting: Dict[str, Any] = {}
     aws_lambda = None
     aws_sqs = None
     aws_s3 = None
@@ -30,6 +32,7 @@ class Config:
     schemas = {}
     xml_convert = None
     internal_mcp = None
+
 
     # Cache Configuration
     CACHE_TTL = 1800  # 30 minutes default TTL
@@ -294,6 +297,8 @@ class Config:
         with cls._lock:
             if not cls._initialized:
                 try:
+                    cls._logger = logger
+                    cls._setting = setting
                     cls._set_parameters(setting)
                     cls._initialize_aws_services(setting)
                     cls._initialize_task_queue(setting)
@@ -367,6 +372,11 @@ class Config:
             setting (Dict[str, Any]): Configuration dictionary containing API Gateway settings
                                     including api_id, api_stage, region_name and AWS credentials.
         """
+        Debugger.info(
+            variable=[setting.get(k) for k in ["api_id","api_stage","region_name","aws_access_key_id","aws_secret_access_key"]],
+            stage="AI Agent Core Engine Config(_initialize_apigw_client)",
+            logger=cls._logger
+        )
         if all(
             setting.get(k)
             for k in [
@@ -377,6 +387,11 @@ class Config:
                 "aws_secret_access_key",
             ]
         ):
+            Debugger.info(
+                variable="Initialize API Gateway Management API client if required settings are present.",
+                stage="AI Agent Core Engine Config(_initialize_apigw_client)",
+                logger=cls._logger
+            )
             cls.apigw_client = boto3.client(
                 "apigatewaymanagementapi",
                 endpoint_url=f"https://{setting['api_id']}.execute-api.{setting['region_name']}.amazonaws.com/{setting['api_stage']}",
