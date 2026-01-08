@@ -349,7 +349,7 @@ class AIAgentCoreEngine(Graphql):
         self._apply_partition_defaults(params)
 
         Debugger.info(
-            variable=e,
+            variable=Config.get_setting(),
             logger=self.logger,
             stage="AI Agent Handler Exception(send_data_to_stream)",
         )
