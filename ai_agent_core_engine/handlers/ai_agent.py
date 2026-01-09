@@ -11,7 +11,7 @@ from typing import Any, Dict, List
 
 import pendulum
 from graphene import ResolveInfo
-from silvaengine_utility import Serializer
+from silvaengine_utility import Debugger, Serializer
 
 from ..models.agent import resolve_agent
 from ..models.async_task import insert_update_async_task
@@ -208,7 +208,18 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
         )
 
         # Retrieve AI agent configuration with LLM details
+        Debugger.info(
+            variable=arguments,
+            stage="execute_ask_model (arguments)",
+            logger=info.context.get("logger"),
+        )
         agent = _get_agent(info, arguments["agent_uuid"])
+
+        Debugger.info(
+            variable=agent,
+            stage="execute_ask_model (agent)",
+            logger=info.context.get("logger"),
+        )
 
         # Build conversation history and add new user query
         input_messages = get_input_messages(
