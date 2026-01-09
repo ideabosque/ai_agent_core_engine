@@ -149,6 +149,9 @@ def _get_agent(info: ResolveInfo, agent_uuid: str):
 
     agent = resolve_agent(info, **{"agent_uuid": agent_uuid})
 
+    if not agent:
+        return None
+
     # Use the DataLoader to fetch LLM data (triggers nested resolver)
     loaders = get_loaders(info.context)
     llm_dict = loaders.llm_loader.load((agent.llm_provider, agent.llm_name)).get()
@@ -208,18 +211,10 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
         )
 
         # Retrieve AI agent configuration with LLM details
-        Debugger.info(
-            variable=arguments,
-            stage="execute_ask_model (arguments)",
-            logger=info.context.get("logger"),
-        )
         agent = _get_agent(info, arguments["agent_uuid"])
 
-        Debugger.info(
-            variable=agent,
-            stage="execute_ask_model (agent)",
-            logger=info.context.get("logger"),
-        )
+        if not agent:
+            raise ValueError("Not found any agent")
 
         # Build conversation history and add new user query
         input_messages = get_input_messages(
