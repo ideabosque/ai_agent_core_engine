@@ -9,7 +9,7 @@ from typing import Any, Dict, List
 
 from graphene import Schema
 from silvaengine_dynamodb_base import BaseModel
-from silvaengine_utility import Graphql, Serializer, Debugger
+from silvaengine_utility import Debugger, Graphql, Serializer
 
 from .handlers import at_agent_listener
 from .handlers.config import Config
@@ -325,8 +325,9 @@ class AIAgentCoreEngine(Graphql):
         """
         self._apply_partition_defaults(params)
 
-        return at_agent_listener.async_execute_ask_model(self.logger, self.setting, **params)
-
+        return at_agent_listener.async_execute_ask_model(
+            self.logger, self.setting, **params
+        )
 
     def async_insert_update_tool_call(self, **params: Dict[str, Any]) -> Any:
         """
@@ -340,7 +341,6 @@ class AIAgentCoreEngine(Graphql):
         return at_agent_listener.async_insert_update_tool_call(
             self.logger, self.setting, **params
         )
-
 
     def send_data_to_stream(self, **params: Dict[str, Any]) -> Any:
         """

@@ -120,7 +120,7 @@ def start_async_task(
         setting = info.context.get("setting") if type(info.context.get("setting")) is dict else {}
 
         try:
-            Invoker.import_dynamically(
+            Invoker.resolve_proxied_callable(
                 module_name="ai_agent_core_engine",
                 function_name=function_name,
                 class_name="AIAgentCoreEngine",
