@@ -199,6 +199,9 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
         async_task_uuid = kwargs["async_task_uuid"]
         arguments = kwargs["arguments"]
 
+        if not async_task_uuid or not arguments:
+            raise Exception("Missing required parameter(s)")
+
         # Initialize async task as in-progress
         async_task = insert_update_async_task(
             info,
