@@ -3,14 +3,14 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
-import threading
 import logging
 import sys
+import threading
 import traceback
 from typing import Any, Dict, List
 
 import boto3
-from silvaengine_utility import Graphql, Debugger
+from silvaengine_utility import Debugger, Graphql
 
 from ..models import utils
 
@@ -20,9 +20,10 @@ class Config:
     Centralized Configuration Class
     Manages shared configuration variables across the application.
     """
+
     _initialized: bool = False
-    _lock = threading.Lock()
-    _logger: logging.Logger = None
+    _lock: threading.RLock = threading.RLock()
+    _logger: logging.Logger | None = None
     _setting: Dict[str, Any] = {}
     aws_lambda = None
     aws_sqs = None
@@ -32,7 +33,6 @@ class Config:
     schemas = {}
     xml_convert = None
     internal_mcp = None
-
 
     # Cache Configuration
     CACHE_TTL = 1800  # 30 minutes default TTL
@@ -306,7 +306,7 @@ class Config:
             variable=setting,
             stage="AI Agent Core Engine(initialize)",
             logger=logger,
-            delimiter="*"
+            delimiter="*",
         )
 
         with cls._lock:
@@ -329,7 +329,6 @@ class Config:
                     traceback.print_exc(file=sys.stderr)
                     logger.exception("Failed to initialize configuration.")
                     raise e
-
 
     @classmethod
     def _set_parameters(cls, setting: Dict[str, Any]) -> None:
@@ -388,9 +387,18 @@ class Config:
                                     including api_id, api_stage, region_name and AWS credentials.
         """
         Debugger.info(
-            variable=[setting.get(k) for k in ["api_id","api_stage","region_name","aws_access_key_id","aws_secret_access_key"]],
+            variable=[
+                setting.get(k)
+                for k in [
+                    "api_id",
+                    "api_stage",
+                    "region_name",
+                    "aws_access_key_id",
+                    "aws_secret_access_key",
+                ]
+            ],
             stage="AI Agent Core Engine Config(_initialize_apigw_client)",
-            logger=cls._logger
+            logger=cls._logger,
         )
         if all(
             setting.get(k)
@@ -405,7 +413,7 @@ class Config:
             Debugger.info(
                 variable="Initialize API Gateway Management API client if required settings are present.",
                 stage="AI Agent Core Engine Config(_initialize_apigw_client)",
-                logger=cls._logger
+                logger=cls._logger,
             )
             cls.apigw_client = boto3.client(
                 "apigatewaymanagementapi",
@@ -481,7 +489,7 @@ class Config:
         return cls.CACHE_RELATIONSHIPS.get(entity_type, [])
 
     @classmethod
-    def get_setting(cls)->Dict[str, Any]:
+    def get_setting(cls) -> Dict[str, Any]:
         if not cls._initialized:
             raise RuntimeError("Configuration not initialized")
 
