@@ -279,6 +279,13 @@ class AIAgentCoreEngine(Graphql):
         Args:
             params (Dict[str, Any]): A dictionary of parameters required to build the GraphQL query.
         """
+        Debugger.info(
+            variable=params,
+            stage="AI Agent Core Engine (_apply_partition_defaults)",
+            logger=Config.get_logger,
+            delimiter="##",
+        )
+
         endpoint_id = params.get("endpoint_id", self.setting.get("endpoint_id"))
         part_id = params.get("custom_headers", {}).get(
             "part_id",
@@ -365,6 +372,12 @@ class AIAgentCoreEngine(Graphql):
         """
 
         self._apply_partition_defaults(params)
+
+        Debugger.info(
+            variable=params,
+            stage="AI Agent Core Engine (ai_agent_core_graphql)",
+            logger=Config.get_logger,
+        )
 
         return self.execute(self.__class__.build_graphql_schema(), **params)
 

@@ -547,3 +547,10 @@ class Config:
         elif not cls.apigw_client:
             raise ValueError("Invalid api gateway client")
         return cls.apigw_client
+
+    @classmethod
+    def get_logger(cls):
+        if cls._logger:
+            return cls._logger
+
+        return logging.getLogger()
