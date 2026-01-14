@@ -212,14 +212,8 @@ class AIAgentCoreEngine(Graphql):
             logger (logging.Logger): The logger instance to be used for logging.
             **setting (Dict[str, Any]): A dictionary of settings required to initialize the engine.
         """
-        if type(setting) is dict and type(setting.get("setting")) is dict:
-            Debugger.info(
-                variable=setting,
-                stage="AI Agent Core Engine (__init__)",
-                logger=logger,
-                delimiter="~",
-            )
-            setting = setting.get("setting")
+        if isinstance(setting, dict) and isinstance(setting.get("setting"), dict):
+            setting = setting.get("setting", {})
 
         Graphql.__init__(self, logger, **setting)
 
@@ -279,13 +273,6 @@ class AIAgentCoreEngine(Graphql):
         Args:
             params (Dict[str, Any]): A dictionary of parameters required to build the GraphQL query.
         """
-        Debugger.info(
-            variable=params,
-            stage="AI Agent Core Engine (_apply_partition_defaults)",
-            logger=Config.get_logger,
-            delimiter="##",
-        )
-
         endpoint_id = params.get("endpoint_id", self.setting.get("endpoint_id"))
         part_id = params.get("metadata", {}).get(
             "part_id",
@@ -372,12 +359,6 @@ class AIAgentCoreEngine(Graphql):
         """
 
         self._apply_partition_defaults(params)
-
-        Debugger.info(
-            variable=params,
-            stage="AI Agent Core Engine (ai_agent_core_graphql)",
-            logger=Config.get_logger,
-        )
 
         return self.execute(self.__class__.build_graphql_schema(), **params)
 

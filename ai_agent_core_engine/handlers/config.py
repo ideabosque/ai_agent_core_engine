@@ -302,13 +302,6 @@ class Config:
         elif cls._initialized:
             return
 
-        Debugger.info(
-            variable=setting,
-            stage="AI Agent Core Engine(initialize)",
-            logger=logger,
-            delimiter="*",
-        )
-
         with cls._lock:
             if not cls._initialized:
                 try:
@@ -386,20 +379,6 @@ class Config:
             setting (Dict[str, Any]): Configuration dictionary containing API Gateway settings
                                     including api_id, api_stage, region_name and AWS credentials.
         """
-        Debugger.info(
-            variable=[
-                setting.get(k)
-                for k in [
-                    "api_id",
-                    "api_stage",
-                    "region_name",
-                    "aws_access_key_id",
-                    "aws_secret_access_key",
-                ]
-            ],
-            stage="AI Agent Core Engine Config(_initialize_apigw_client)",
-            logger=cls._logger,
-        )
         if all(
             setting.get(k)
             for k in [
@@ -410,11 +389,6 @@ class Config:
                 "aws_secret_access_key",
             ]
         ):
-            Debugger.info(
-                variable="Initialize API Gateway Management API client if required settings are present.",
-                stage="AI Agent Core Engine Config(_initialize_apigw_client)",
-                logger=cls._logger,
-            )
             cls.apigw_client = boto3.client(
                 "apigatewaymanagementapi",
                 endpoint_url=f"https://{setting['api_id']}.execute-api.{setting['region_name']}.amazonaws.com/{setting['api_stage']}",
