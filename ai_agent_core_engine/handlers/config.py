@@ -292,12 +292,6 @@ class Config:
             **setting (Dict[str, Any]): Configuration dictionary.
         """
         if not setting:
-            Debugger.info(
-                variable=traceback.format_exc(),
-                stage="AI Agent Core Engine Exception(initialize)",
-                logger=logger,
-                delimiter="#",
-            )
             raise RuntimeError("`setting` is required")
         elif cls._initialized:
             return
@@ -389,12 +383,6 @@ class Config:
                 "aws_secret_access_key",
             ]
         ):
-            Debugger.info(
-                variable=setting,
-                stage="Create API Gateway Client",
-                logger=cls.get_logger(),
-                setting=setting,
-            )
             cls.apigw_client = boto3.client(
                 "apigatewaymanagementapi",
                 endpoint_url=f"https://{setting['api_id']}.execute-api.{setting['region_name']}.amazonaws.com/{setting['api_stage']}",

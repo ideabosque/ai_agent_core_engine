@@ -93,18 +93,12 @@ def send_data_to_stream(logger: logging.Logger, **kwargs: Dict[str, Any]) -> boo
         connection_id = kwargs["connection_id"]
         data = kwargs["data"]
 
-        Debugger.info(
-            variable=f"Connection ID: {connection_id}, Data: {data}",
-            stage="send_data_to_stream",
-            logger=logger,
-        )
-
         Config.get_api_gateway_client().post_to_connection(
             ConnectionId=connection_id, Data=Serializer.json_dumps(data)
         )
 
         return True
-    except Exception as e:
+    except Exception:
         log = traceback.format_exc()
         logger.error(log)
         raise
