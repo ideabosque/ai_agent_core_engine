@@ -94,7 +94,7 @@ def send_data_to_stream(logger: logging.Logger, **kwargs: Dict[str, Any]) -> boo
         data = kwargs["data"]
 
         Debugger.info(
-            variable=(connection_id, data),
+            variable=f"Connection ID: {connection_id}, Data: {data}",
             stage="send_data_to_stream",
             logger=logger,
         )

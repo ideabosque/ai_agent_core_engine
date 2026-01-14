@@ -389,6 +389,12 @@ class Config:
                 "aws_secret_access_key",
             ]
         ):
+            Debugger.info(
+                variable=setting,
+                stage="Create API Gateway Client",
+                logger=cls.get_logger(),
+                setting=setting,
+            )
             cls.apigw_client = boto3.client(
                 "apigatewaymanagementapi",
                 endpoint_url=f"https://{setting['api_id']}.execute-api.{setting['region_name']}.amazonaws.com/{setting['api_stage']}",
