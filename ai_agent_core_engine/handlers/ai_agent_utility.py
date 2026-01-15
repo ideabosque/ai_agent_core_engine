@@ -117,19 +117,32 @@ def start_async_task(
             if info.context.get(index):
                 params[index] = info.context.get(index)
 
-        setting = info.context.get("setting") if type(info.context.get("setting")) is dict else {}
+        setting = (
+            info.context.get("setting")
+            if type(info.context.get("setting")) is dict
+            else {}
+        )
+
+        Debugger.info(
+            variable=async_task.async_task_uuid,
+            setting=setting,
+            stage="AI Agent Core Engine(start_async_task)",
+        )
 
         try:
             Invoker.resolve_proxied_callable(
                 module_name="ai_agent_core_engine",
                 function_name=function_name,
                 class_name="AIAgentCoreEngine",
-                constructor_parameters={"logger": info.context.get("logger"), **setting},
+                constructor_parameters={
+                    "logger": info.context.get("logger"),
+                    **setting,
+                },
             )(**params)
         except Exception as e:
             Debugger.info(
                 variable=e,
-                stage="import ai_agent_core_engine",
+                stage="AI Agent Core Engine(resolve_proxied_callable)",
                 logger=info.context.get("logger"),
             )
             pass
