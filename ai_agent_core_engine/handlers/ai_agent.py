@@ -10,7 +10,6 @@ from typing import Any, Dict, List
 
 import pendulum
 from graphene import ResolveInfo
-
 from silvaengine_utility import Serializer
 
 from ..models.agent import resolve_agent
@@ -100,7 +99,7 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
         raise e
 
 
-def _get_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType:
+def _get_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType | None:
     """
     Retrieve a conversation thread by its UUID.
 
@@ -162,7 +161,7 @@ def _get_agent(info: ResolveInfo, agent_uuid: str):
     llm_dict = loaders.llm_loader.load((agent.llm_provider, agent.llm_name)).get()
     agent.llm = llm_dict
 
-    from ..models.utils import _get_mcp_servers
+    from ..models.utils import get_mcp_servers
 
     mcp_servers = [
         {"mcp_server_uuid": mcp_server_uuid}
@@ -178,7 +177,7 @@ def _get_agent(info: ResolveInfo, agent_uuid: str):
                 "headers": mcp_server["headers"],
             },
         }
-        for mcp_server in _get_mcp_servers(info, mcp_servers)
+        for mcp_server in get_mcp_servers(info, mcp_servers)
     ]
 
     return agent

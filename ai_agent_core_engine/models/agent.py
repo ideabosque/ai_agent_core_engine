@@ -5,7 +5,6 @@ from __future__ import print_function
 __author__ = "bibow"
 
 import functools
-import logging
 import traceback
 import uuid
 from typing import Any, Dict
@@ -33,7 +32,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 from ..handlers.config import Config
 from ..types.agent import AgentListType, AgentType
 from .thread import resolve_thread_list
-from .utils import _get_flow_snippet, _get_prompt_template
+from .utils import get_flow_snippet, get_prompt_template
 
 
 class AgentUuidIndex(LocalSecondaryIndex):
@@ -197,22 +196,15 @@ def purge_cache():
     return actual_decorator
 
 
-def create_agent_table(logger: logging.Logger) -> bool:
-    """Create the Agent table if it doesn't exist."""
-    if not AgentModel.exists():
-        # Create with on-demand billing (PAY_PER_REQUEST)
-        AgentModel.create_table(billing_mode="PAY_PER_REQUEST", wait=True)
-        logger.info("The Agent table has been created.")
-    return True
-
-
 @retry(
     reraise=True,
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
 )
 @method_cache(
-    ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name("models", "agent")
+    ttl=Config.get_cache_ttl(),
+    cache_name=Config.get_cache_name("models", "agent"),
+    cache_enabled=Config.is_cache_enabled,
 )
 def get_agent(partition_key: str, agent_version_uuid: str) -> AgentModel:
     return AgentModel.get(partition_key, agent_version_uuid)
@@ -226,6 +218,7 @@ def get_agent(partition_key: str, agent_version_uuid: str) -> AgentModel:
 @method_cache(
     ttl=Config.get_cache_ttl(),
     cache_name=Config.get_cache_name("models", "active_agent"),
+    cache_enabled=Config.is_cache_enabled,
 )
 def _get_active_agent(partition_key: str, agent_uuid: str) -> AgentModel | None:
     try:
@@ -452,8 +445,8 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
                 cols[key] = kwargs[key]
 
                 if key == "flow_snippet_version_uuid":
-                    flow_snippet = _get_flow_snippet(partition_key, kwargs[key])
-                    prmopt_template = _get_prompt_template(
+                    flow_snippet = get_flow_snippet(partition_key, kwargs[key])
+                    prmopt_template = get_prompt_template(
                         info, flow_snippet["prompt_uuid"]
                     )
 

@@ -16,12 +16,16 @@ from ..models import message
 from ..types.message import MessageListType, MessageType
 
 
-def resolve_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> MessageType:
+def resolve_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> MessageType | None:
     return message.resolve_message(info, **kwargs)
 
 
-@method_cache(ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name('queries', 'message'))
+@method_cache(
+    ttl=Config.get_cache_ttl(),
+    cache_name=Config.get_cache_name("queries", "message"),
+    cache_enabled=Config.is_cache_enabled,
+)
 def resolve_message_list(
     info: ResolveInfo, **kwargs: Dict[str, Any]
-) -> MessageListType:
+) -> MessageListType | None:
     return message.resolve_message_list(info, **kwargs)

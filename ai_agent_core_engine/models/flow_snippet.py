@@ -5,7 +5,6 @@ from __future__ import print_function
 __author__ = "bibow"
 
 import functools
-import logging
 import traceback
 import uuid
 from typing import Any, Dict
@@ -31,7 +30,7 @@ from ..types.flow_snippet import (
     FlowSnippetListType,
     FlowSnippetType,
 )
-from .utils import _update_agents_by_flow_snippet
+from .utils import update_agents_by_flow_snippet
 
 
 class FlowSnippetUuidIndex(LocalSecondaryIndex):
@@ -161,15 +160,6 @@ def purge_cache():
     return actual_decorator
 
 
-def create_flow_snippet_table(logger: logging.Logger) -> bool:
-    """Create the FlowSnippet table if it doesn't exist."""
-    if not FlowSnippetModel.exists():
-        # Create with on-demand billing (PAY_PER_REQUEST)
-        FlowSnippetModel.create_table(billing_mode="PAY_PER_REQUEST", wait=True)
-        logger.info("The FlowSnippet table has been created.")
-    return True
-
-
 @retry(
     reraise=True,
     wait=wait_exponential(multiplier=1, max=60),
@@ -178,6 +168,7 @@ def create_flow_snippet_table(logger: logging.Logger) -> bool:
 @method_cache(
     ttl=Config.get_cache_ttl(),
     cache_name=Config.get_cache_name("models", "flow_snippet"),
+    cache_enabled=Config.is_cache_enabled,
 )
 def get_flow_snippet(
     partition_key: str, flow_snippet_version_uuid: str
@@ -193,6 +184,7 @@ def get_flow_snippet(
 @method_cache(
     ttl=Config.get_cache_ttl(),
     cache_name=Config.get_cache_name("models", "active_flow_snippet"),
+    cache_enabled=Config.is_cache_enabled,
 )
 def _get_active_flow_snippet(
     partition_key: str, flow_snippet_uuid: str
@@ -448,7 +440,7 @@ def insert_update_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> A
         ).save()
 
         if active_flow_snippet is not None:
-            _update_agents_by_flow_snippet(
+            update_agents_by_flow_snippet(
                 info,
                 active_flow_snippet.flow_snippet_version_uuid,
                 flow_snippet_version_uuid,

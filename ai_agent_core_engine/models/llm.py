@@ -5,7 +5,6 @@ from __future__ import print_function
 __author__ = "bibow"
 
 import functools
-import logging
 import traceback
 from typing import Any, Dict
 
@@ -13,8 +12,6 @@ import pendulum
 from graphene import ResolveInfo
 from pynamodb.attributes import MapAttribute, UnicodeAttribute, UTCDateTimeAttribute
 from pynamodb.indexes import AllProjection, LocalSecondaryIndex
-from tenacity import retry, stop_after_attempt, wait_exponential
-
 from silvaengine_dynamodb_base import (
     BaseModel,
     delete_decorator,
@@ -23,6 +20,7 @@ from silvaengine_dynamodb_base import (
     resolve_list_decorator,
 )
 from silvaengine_utility import Serializer, method_cache
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
 from ..types.llm import LlmListType, LlmType
@@ -106,22 +104,15 @@ def purge_cache():
     return actual_decorator
 
 
-def create_llm_table(logger: logging.Logger) -> bool:
-    """Create the LLM table if it doesn't exist."""
-    if not LlmModel.exists():
-        # Create with on-demand billing (PAY_PER_REQUEST)
-        LlmModel.create_table(billing_mode="PAY_PER_REQUEST", wait=True)
-        logger.info("The LLM table has been created.")
-    return True
-
-
 @retry(
     reraise=True,
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
 )
 @method_cache(
-    ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name("models", "llm")
+    ttl=Config.get_cache_ttl(),
+    cache_name=Config.get_cache_name("models", "llm"),
+    cache_enabled=Config.is_cache_enabled,
 )
 def get_llm(llm_provider: str, llm_name: str) -> LlmModel:
     return LlmModel.get(llm_provider, llm_name)

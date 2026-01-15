@@ -17,15 +17,16 @@ from ..types.wizard_group_filter import WizardGroupFilterListType, WizardGroupFi
 
 def resolve_wizard_group_filter(
     info: ResolveInfo, **kwargs: Dict[str, Any]
-) -> WizardGroupFilterType:
+) -> WizardGroupFilterType | None:
     return wizard_group_filter.resolve_wizard_group_filter(info, **kwargs)
 
 
 @method_cache(
     ttl=Config.get_cache_ttl(),
     cache_name=Config.get_cache_name("queries", "wizard_group_filter"),
+    cache_enabled=Config.is_cache_enabled,
 )
 def resolve_wizard_group_filter_list(
     info: ResolveInfo, **kwargs: Dict[str, Any]
-) -> WizardGroupFilterListType:
+) -> WizardGroupFilterListType | None:
     return wizard_group_filter.resolve_wizard_group_filter_list(info, **kwargs)
