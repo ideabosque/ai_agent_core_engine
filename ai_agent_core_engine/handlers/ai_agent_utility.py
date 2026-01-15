@@ -123,34 +123,28 @@ def start_async_task(
             else {}
         )
 
-        Debugger.info(
-            variable=async_task.async_task_uuid,
-            setting=setting,
-            stage="AI Agent Core Engine(start_async_task)",
-        )
-
         try:
-            # Invoker.resolve_proxied_callable(
-            #     module_name="ai_agent_core_engine",
-            #     function_name=function_name,
-            #     class_name="AIAgentCoreEngine",
-            #     constructor_parameters={
-            #         "logger": info.context.get("logger"),
-            #         **setting,
-            #     },
-            # )(**params)
-            Invoker.create_async_task(
-                task=Invoker.resolve_proxied_callable(
-                    module_name="ai_agent_core_engine",
-                    function_name=function_name,
-                    class_name="AIAgentCoreEngine",
-                    constructor_parameters={
-                        "logger": info.context.get("logger"),
-                        **setting,
-                    },
-                ),
-                parameters=params,
-            )
+            Invoker.resolve_proxied_callable(
+                module_name="ai_agent_core_engine",
+                function_name=function_name,
+                class_name="AIAgentCoreEngine",
+                constructor_parameters={
+                    "logger": info.context.get("logger"),
+                    **setting,
+                },
+            )(**params)
+            # Invoker.execute_async_task(
+            #     task=Invoker.resolve_proxied_callable(
+            #         module_name="ai_agent_core_engine",
+            #         function_name=function_name,
+            #         class_name="AIAgentCoreEngine",
+            #         constructor_parameters={
+            #             "logger": info.context.get("logger"),
+            #             **setting,
+            #         },
+            #     ),
+            #     parameters=params,
+            # )
 
         except Exception as e:
             Debugger.info(
