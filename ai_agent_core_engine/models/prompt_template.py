@@ -5,7 +5,6 @@ from __future__ import print_function
 __author__ = "bibow"
 
 import functools
-import logging
 import traceback
 import uuid
 from typing import Any, Dict
@@ -169,15 +168,6 @@ def purge_cache():
     return actual_decorator
 
 
-def create_prompt_template_table(logger: logging.Logger) -> bool:
-    """Create the PromptTemplate table if it doesn't exist."""
-    if not PromptTemplateModel.exists():
-        # Create with on-demand billing (PAY_PER_REQUEST)
-        PromptTemplateModel.create_table(billing_mode="PAY_PER_REQUEST", wait=True)
-        logger.info("The PromptTemplate table has been created.")
-    return True
-
-
 @retry(
     reraise=True,
     wait=wait_exponential(multiplier=1, max=60),
@@ -186,6 +176,7 @@ def create_prompt_template_table(logger: logging.Logger) -> bool:
 @method_cache(
     ttl=Config.get_cache_ttl(),
     cache_name=Config.get_cache_name("models", "prompt_template"),
+    cache_enabled=Config.is_cache_enabled,
 )
 def get_prompt_template(
     partition_key: str, prompt_version_uuid: str
@@ -201,6 +192,7 @@ def get_prompt_template(
 @method_cache(
     ttl=Config.get_cache_ttl(),
     cache_name=Config.get_cache_name("models", "active_prompt_template"),
+    cache_enabled=Config.is_cache_enabled,
 )
 def _get_active_prompt_template(
     partition_key: str, prompt_uuid: str

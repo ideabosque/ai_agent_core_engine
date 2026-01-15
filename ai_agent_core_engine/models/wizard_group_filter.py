@@ -5,7 +5,6 @@ from __future__ import print_function
 __author__ = "bibow"
 
 import functools
-import logging
 import traceback
 from typing import Any, Dict
 
@@ -125,15 +124,6 @@ def purge_cache():
     return actual_decorator
 
 
-def create_wizard_group_filter_table(logger: logging.Logger) -> bool:
-    """Create the WizardGroupFilter table if it doesn't exist."""
-    if not WizardGroupFilterModel.exists():
-        # Create with on-demand billing (PAY_PER_REQUEST)
-        WizardGroupFilterModel.create_table(billing_mode="PAY_PER_REQUEST", wait=True)
-        logger.info("The WizardGroupFilter table has been created.")
-    return True
-
-
 @retry(
     reraise=True,
     wait=wait_exponential(multiplier=1, max=60),
@@ -142,6 +132,7 @@ def create_wizard_group_filter_table(logger: logging.Logger) -> bool:
 @method_cache(
     ttl=Config.get_cache_ttl(),
     cache_name=Config.get_cache_name("models", "wizard_group_filter"),
+    cache_enabled=Config.is_cache_enabled,
 )
 def get_wizard_group_filter(
     partition_key: str, wizard_group_filter_uuid: str
@@ -182,7 +173,9 @@ def get_wizard_group_filter_type(
         wizard_group_filter_dict: Dict = wizard_group_filter.__dict__[
             "attribute_values"
         ]
-        return WizardGroupFilterType(**Serializer.json_normalize(wizard_group_filter_dict))
+        return WizardGroupFilterType(
+            **Serializer.json_normalize(wizard_group_filter_dict)
+        )
     except Exception as e:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)

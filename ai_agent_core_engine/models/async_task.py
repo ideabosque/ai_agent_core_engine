@@ -5,7 +5,6 @@ from __future__ import print_function
 __author__ = "bibow"
 
 import functools
-import logging
 import traceback
 from typing import Any, Dict
 
@@ -19,8 +18,6 @@ from pynamodb.attributes import (
     UTCDateTimeAttribute,
 )
 from pynamodb.indexes import AllProjection, GlobalSecondaryIndex
-from tenacity import retry, stop_after_attempt, wait_exponential
-
 from silvaengine_dynamodb_base import (
     BaseModel,
     delete_decorator,
@@ -29,6 +26,7 @@ from silvaengine_dynamodb_base import (
     resolve_list_decorator,
 )
 from silvaengine_utility import Serializer, method_cache
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
 from ..types.async_task import AsyncTaskListType, AsyncTaskType
@@ -85,8 +83,12 @@ def purge_cache():
                 # Try to get from entity parameter first (for updates)
                 entity = kwargs.get("entity")
                 if entity:
-                    entity_keys["function_name"] = getattr(entity, "function_name", None)
-                    entity_keys["async_task_uuid"] = getattr(entity, "async_task_uuid", None)
+                    entity_keys["function_name"] = getattr(
+                        entity, "function_name", None
+                    )
+                    entity_keys["async_task_uuid"] = getattr(
+                        entity, "async_task_uuid", None
+                    )
 
                 # Fallback to kwargs (for creates/deletes)
                 if not entity_keys.get("function_name"):
@@ -95,7 +97,9 @@ def purge_cache():
                     entity_keys["async_task_uuid"] = kwargs.get("async_task_uuid")
 
                 # Only purge if we have the required keys
-                if entity_keys.get("function_name") and entity_keys.get("async_task_uuid"):
+                if entity_keys.get("function_name") and entity_keys.get(
+                    "async_task_uuid"
+                ):
                     purge_entity_cascading_cache(
                         args[0].context.get("logger"),
                         entity_type="async_task",
@@ -115,24 +119,18 @@ def purge_cache():
     return actual_decorator
 
 
-def create_async_task_table(logger: logging.Logger) -> bool:
-    """Create the AsyncTask table if it doesn't exist."""
-    if not AsyncTaskModel.exists():
-        # Create with on-demand billing (PAY_PER_REQUEST)
-        AsyncTaskModel.create_table(billing_mode="PAY_PER_REQUEST", wait=True)
-        logger.info("The AsyncTask table has been created.")
-    return True
-
-
 @retry(
     reraise=True,
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
 )
 @method_cache(
-    ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name("models", "async_task")
+    ttl=Config.get_cache_ttl(),
+    cache_name=Config.get_cache_name("models", "async_task"),
+    cache_enabled=Config.is_cache_enabled,
 )
 def get_async_task(function_name: str, async_task_uuid: str) -> AsyncTaskModel:
+
     async_task = AsyncTaskModel.get(function_name, async_task_uuid)
     return async_task
 

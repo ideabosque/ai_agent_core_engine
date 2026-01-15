@@ -36,7 +36,7 @@ class Config:
 
     # Cache Configuration
     CACHE_TTL = 1800  # 30 minutes default TTL
-    CACHE_ENABLED = False
+    CACHE_ENABLED: bool = True
 
     # Cache name patterns for different modules
     CACHE_NAMES = {
@@ -326,6 +326,10 @@ class Config:
         """
         cls.xml_convert = setting.get("xml_convert", False)
 
+        # Set cache enabled flag (defaults to True if not specified)
+        if "cache_enabled" in setting:
+            cls.CACHE_ENABLED = setting.get("cache_enabled", True)
+
     @classmethod
     def _initialize_aws_services(cls, setting: Dict[str, Any]) -> None:
         """
@@ -414,10 +418,10 @@ class Config:
     @classmethod
     def _initialize_tables(cls, logger: logging.Logger) -> None:
         """
-        Initialize database tables by calling the utils._initialize_tables() method.
+        Initialize database tables by calling the utils.initialize_tables() method.
         This is an internal method used during configuration setup.
         """
-        utils._initialize_tables(logger)
+        utils.initialize_tables(logger)
 
     @classmethod
     def get_cache_name(cls, module_type: str, model_name: str) -> str:

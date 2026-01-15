@@ -18,12 +18,16 @@ from ..types.fine_tuning_message import FineTuningMessageListType, FineTuningMes
 
 def resolve_fine_tuning_message(
     info: ResolveInfo, **kwargs: Dict[str, Any]
-) -> FineTuningMessageType:
+) -> FineTuningMessageType | None:
     return fine_tuning_message.resolve_fine_tuning_message(info, **kwargs)
 
 
-@method_cache(ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name('queries', 'fine_tuning_message'))
+@method_cache(
+    ttl=Config.get_cache_ttl(),
+    cache_name=Config.get_cache_name("queries", "fine_tuning_message"),
+    cache_enabled=Config.is_cache_enabled,
+)
 def resolve_fine_tuning_message_list(
     info: ResolveInfo, **kwargs: Dict[str, Any]
-) -> FineTuningMessageListType:
+) -> FineTuningMessageListType | None:
     return fine_tuning_message.resolve_fine_tuning_message_list(info, **kwargs)

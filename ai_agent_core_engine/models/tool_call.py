@@ -5,7 +5,6 @@ from __future__ import print_function
 __author__ = "bibow"
 
 import functools
-import logging
 import traceback
 from typing import Any, Dict
 
@@ -13,8 +12,6 @@ import pendulum
 from graphene import ResolveInfo
 from pynamodb.attributes import NumberAttribute, UnicodeAttribute, UTCDateTimeAttribute
 from pynamodb.indexes import AllProjection, LocalSecondaryIndex
-from tenacity import retry, stop_after_attempt, wait_exponential
-
 from silvaengine_dynamodb_base import (
     BaseModel,
     delete_decorator,
@@ -23,6 +20,7 @@ from silvaengine_dynamodb_base import (
     resolve_list_decorator,
 )
 from silvaengine_utility import Serializer, method_cache
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
 from ..types.tool_call import ToolCallListType, ToolCallType
@@ -98,7 +96,9 @@ def purge_cache():
                 entity = kwargs.get("entity")
                 if entity:
                     entity_keys["thread_uuid"] = getattr(entity, "thread_uuid", None)
-                    entity_keys["tool_call_uuid"] = getattr(entity, "tool_call_uuid", None)
+                    entity_keys["tool_call_uuid"] = getattr(
+                        entity, "tool_call_uuid", None
+                    )
 
                 # Fallback to kwargs (for creates/deletes)
                 if not entity_keys.get("thread_uuid"):
@@ -127,22 +127,15 @@ def purge_cache():
     return actual_decorator
 
 
-def create_tool_call_table(logger: logging.Logger) -> bool:
-    """Create the ToolCall table if it doesn't exist."""
-    if not ToolCallModel.exists():
-        # Create with on-demand billing (PAY_PER_REQUEST)
-        ToolCallModel.create_table(billing_mode="PAY_PER_REQUEST", wait=True)
-        logger.info("The ToolCall table has been created.")
-    return True
-
-
 @retry(
     reraise=True,
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
 )
 @method_cache(
-    ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name("models", "tool_call")
+    ttl=Config.get_cache_ttl(),
+    cache_name=Config.get_cache_name("models", "tool_call"),
+    cache_enabled=Config.is_cache_enabled,
 )
 def get_tool_call(thread_uuid: str, tool_call_uuid: str) -> ToolCallModel:
     return ToolCallModel.get(thread_uuid, tool_call_uuid)
@@ -326,13 +319,16 @@ def delete_tool_call(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
     kwargs.get("entity").delete()
     return True
 
+
 @retry(
     reraise=True,
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
 )
 @method_cache(
-    ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name("models", "tool_call")
+    ttl=Config.get_cache_ttl(),
+    cache_name=Config.get_cache_name("models", "tool_call"),
+    cache_enabled=Config.is_cache_enabled(),
 )
 def get_tool_calls_by_run(run_uuid: str) -> Any:
     tool_calls = []
@@ -342,16 +338,20 @@ def get_tool_calls_by_run(run_uuid: str) -> Any:
         tool_calls.append(tool_call)
     return tool_calls
 
+
 @retry(
     reraise=True,
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
 )
 @method_cache(
-    ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name("models", "tool_call")
+    ttl=Config.get_cache_ttl(),
+    cache_name=Config.get_cache_name("models", "tool_call"),
+    cache_enabled=Config.is_cache_enabled,
 )
 def get_tool_calls_by_thread(thread_uuid: str) -> Any:
     # Only retrieve tool calls from the past 24 hours
+
     updated_at_gt = pendulum.now("UTC").subtract(hours=24)
     tool_calls = []
     for tool_call in ToolCallModel.updated_at_index.query(

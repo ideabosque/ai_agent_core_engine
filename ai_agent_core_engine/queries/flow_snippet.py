@@ -16,10 +16,18 @@ from ..models import flow_snippet
 from ..types.flow_snippet import FlowSnippetListType, FlowSnippetType
 
 
-def resolve_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> FlowSnippetType:
+def resolve_flow_snippet(
+    info: ResolveInfo, **kwargs: Dict[str, Any]
+) -> FlowSnippetType | None:
     return flow_snippet.resolve_flow_snippet(info, **kwargs)
 
 
-@method_cache(ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name('queries', 'flow_snippet'))
-def resolve_flow_snippet_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> FlowSnippetListType:
+@method_cache(
+    ttl=Config.get_cache_ttl(),
+    cache_name=Config.get_cache_name("queries", "flow_snippet"),
+    cache_enabled=Config.is_cache_enabled,
+)
+def resolve_flow_snippet_list(
+    info: ResolveInfo, **kwargs: Dict[str, Any]
+) -> FlowSnippetListType | None:
     return flow_snippet.resolve_flow_snippet_list(info, **kwargs)

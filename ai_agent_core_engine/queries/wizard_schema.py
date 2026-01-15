@@ -16,10 +16,18 @@ from ..models import wizard_schema
 from ..types.wizard_schema import WizardSchemaListType, WizardSchemaType
 
 
-def resolve_wizard_schema(info: ResolveInfo, **kwargs: Dict[str, Any]) -> WizardSchemaType:
+def resolve_wizard_schema(
+    info: ResolveInfo, **kwargs: Dict[str, Any]
+) -> WizardSchemaType | None:
     return wizard_schema.resolve_wizard_schema(info, **kwargs)
 
 
-@method_cache(ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name('queries', 'wizard_schema'))
-def resolve_wizard_schema_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> WizardSchemaListType:
+@method_cache(
+    ttl=Config.get_cache_ttl(),
+    cache_name=Config.get_cache_name("queries", "wizard_schema"),
+    cache_enabled=Config.is_cache_enabled,
+)
+def resolve_wizard_schema_list(
+    info: ResolveInfo, **kwargs: Dict[str, Any]
+) -> WizardSchemaListType | None:
     return wizard_schema.resolve_wizard_schema_list(info, **kwargs)

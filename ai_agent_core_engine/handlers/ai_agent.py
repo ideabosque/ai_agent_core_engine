@@ -158,7 +158,7 @@ def _get_agent(info: ResolveInfo, agent_uuid: str):
     agent.llm = llm_dict
 
     if isinstance(agent.mcp_server_uuids, Iterable):
-        from ..models.utils import _get_mcp_servers
+        from ..models.utils import get_mcp_servers
 
         mcp_servers = [
             {"mcp_server_uuid": mcp_server_uuid}

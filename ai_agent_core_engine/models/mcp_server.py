@@ -6,7 +6,6 @@ __author__ = "bibow"
 
 import asyncio
 import functools
-import logging
 import traceback
 from typing import Any, Dict
 
@@ -126,22 +125,15 @@ def purge_cache():
     return actual_decorator
 
 
-def create_mcp_server_table(logger: logging.Logger) -> bool:
-    """Create the MCPServer table if it doesn't exist."""
-    if not MCPServerModel.exists():
-        # Create with on-demand billing (PAY_PER_REQUEST)
-        MCPServerModel.create_table(billing_mode="PAY_PER_REQUEST", wait=True)
-        logger.info("The MCPServer table has been created.")
-    return True
-
-
 @retry(
     reraise=True,
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
 )
 @method_cache(
-    ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name("models", "mcp_server")
+    ttl=Config.get_cache_ttl(),
+    cache_name=Config.get_cache_name("models", "mcp_server"),
+    cache_enabled=Config.is_cache_enabled,
 )
 def get_mcp_server(partition_key: str, mcp_server_uuid: str) -> MCPServerModel:
     return MCPServerModel.get(partition_key, mcp_server_uuid)
@@ -156,6 +148,7 @@ def get_mcp_server_count(partition_key: str, mcp_server_uuid: str) -> int:
 @method_cache(
     ttl=Config.get_cache_ttl(),
     cache_name=Config.get_cache_name("models", "mcp_server_tools"),
+    cache_enabled=Config.is_cache_enabled,
 )
 async def _run_list_tools(
     info: ResolveInfo, mcp_server: MCPServerModel | Dict[str, Any]

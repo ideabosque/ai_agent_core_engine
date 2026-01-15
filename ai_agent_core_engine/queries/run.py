@@ -16,10 +16,16 @@ from ..models import run
 from ..types.run import RunListType, RunType
 
 
-def resolve_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> RunType:
+def resolve_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> RunType | None:
     return run.resolve_run(info, **kwargs)
 
 
-@method_cache(ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name('queries', 'run'))
-def resolve_run_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> RunListType:
+@method_cache(
+    ttl=Config.get_cache_ttl(),
+    cache_name=Config.get_cache_name("queries", "run"),
+    cache_enabled=Config.is_cache_enabled,
+)
+def resolve_run_list(
+    info: ResolveInfo, **kwargs: Dict[str, Any]
+) -> RunListType | None:
     return run.resolve_run_list(info, **kwargs)
