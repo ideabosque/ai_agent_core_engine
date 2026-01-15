@@ -7,7 +7,7 @@ import logging
 import traceback
 from typing import Any, Dict
 
-from silvaengine_utility import Serializer
+from silvaengine_utility import Debugger, Serializer
 
 from ..models.tool_call import insert_update_tool_call, resolve_tool_call_list
 from ..utils.listener import create_listener_info
@@ -86,20 +86,21 @@ def async_insert_update_tool_call(
         info, **{k: v for k, v in tool_call_params.items() if v is not None}
     )
 
-    logger.info(f"Tool Call: {tool_call.__dict__}.")
-
 
 def send_data_to_stream(logger: logging.Logger, **kwargs: Dict[str, Any]) -> bool:
     try:
         # Send the message to the WebSocket client using the connection ID
         connection_id = kwargs["connection_id"]
         data = kwargs["data"]
-        Config.apigw_client.post_to_connection(
+
+        Config.get_api_gateway_client().post_to_connection(
             ConnectionId=connection_id, Data=Serializer.json_dumps(data)
         )
 
         return True
-    except Exception as e:
+    except Exception:
         log = traceback.format_exc()
         logger.error(log)
-        raise e
+        raise
+
+    return False

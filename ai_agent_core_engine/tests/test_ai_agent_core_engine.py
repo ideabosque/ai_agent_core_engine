@@ -6,6 +6,7 @@ AI Agent Core Engine Tests
 Pytest-based test suite for AI Agent Core Engine GraphQL operations.
 Refactored to follow the pattern in ai_marketing_engine (Lifecycle Flow Tests).
 """
+
 from __future__ import print_function
 
 __author__ = "bibow"

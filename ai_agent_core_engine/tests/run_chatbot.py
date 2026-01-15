@@ -9,6 +9,7 @@ Usage:
     python run_chatbot.py --mode local --agent-uuid agent-1764104706-a4356066
     python run_chatbot.py --mode local --user-id user@example.com --updated-by admin
 """
+
 from __future__ import print_function
 
 __author__ = "bibow"
@@ -147,17 +148,10 @@ class ChatbotRunner:
         self.user_id = user_id or os.getenv("DEFAULT_USER_ID", "bibo72@outlook.com")
         self.updated_by = updated_by or os.getenv("DEFAULT_UPDATED_BY", "XYZ")
 
-        logger.info(f"Using agent UUID: {self.agent_uuid}")
-        logger.info(f"Using user ID: {self.user_id}")
-        logger.info(f"Updated by: {self.updated_by}")
-
     def run_chatbot_on_local(self):
         """Run chatbot test on local mode."""
-        logger.info("Starting chatbot on local usage mode...")
-        logger.info(f"Using agent: {self.agent_uuid}")
-        logger.info('Type "exit" or "quit" to stop the chatbot.\n')
-
         thread_uuid = None
+
         while True:
             user_input = input("User: ")
             if user_input.strip().lower() in ["exit", "quit"]:
@@ -166,7 +160,6 @@ class ChatbotRunner:
                 break
 
             query = Graphql.generate_graphql_operation("askModel", "Query", self.schema)
-            logger.info(f"Query: {query}")
             payload = {
                 "query": query,
                 "variables": {
@@ -187,7 +180,6 @@ class ChatbotRunner:
             query = Graphql.generate_graphql_operation(
                 "asyncTask", "Query", self.schema
             )
-            logger.info(f"Query: {query}")
             payload = {
                 "query": query,
                 "variables": {
@@ -204,10 +196,6 @@ class ChatbotRunner:
 
     def run_chatbot_by_request(self):
         """Run chatbot test by request mode."""
-        logger.info("Starting chatbot by request usage mode...")
-        logger.info(f"Using agent: {self.agent_uuid}")
-        logger.info('Type "exit" or "quit" to stop the chatbot.\n')
-
         import requests
 
         url = os.getenv("api_url")

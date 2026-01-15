@@ -115,8 +115,10 @@ class AgentType(AgentTypeBase):
             return None
 
         loaders = get_loaders(info.context)
-        return loaders.llm_loader.load((llm_provider, llm_name)).then(
-            lambda llm_dict: LlmType(**llm_dict) if llm_dict else None
+
+        return (
+            loaders.llm_loader.load((llm_provider, llm_name))
+            .then(lambda llm_dict: LlmType(**llm_dict) if llm_dict else None)
         )
 
     def resolve_mcp_servers(parent, info):
@@ -152,31 +154,34 @@ class AgentType(AgentTypeBase):
 
         # Check if already embedded
         existing = getattr(parent, "flow_snippet", None)
+
         if isinstance(existing, dict):
             return [
-                normalize_to_json(flow_snippet_dict) for flow_snippet_dict in existing
+                FlowSnippetType(**flow_snippet_dict) for flow_snippet_dict in existing
             ]
 
         # Fetch flow snippet if version UUID exists
         # MIGRATION: Extract partition_key from context (was: endpoint_id)
         partition_key = info.context.get("partition_key")
         flow_snippet_version_uuid = getattr(parent, "flow_snippet_version_uuid", None)
+
         if not partition_key or not flow_snippet_version_uuid:
             return None
 
         loaders = get_loaders(info.context)
         # Load using (partition_key, version_uuid) tuple
-        return loaders.flow_snippet_loader.load(
-            (partition_key, flow_snippet_version_uuid)
-        ).then(
-            lambda flow_snippet_dict: (
-                normalize_to_json(flow_snippet_dict) if flow_snippet_dict else None
+        return (
+            loaders.flow_snippet_loader.load((partition_key, flow_snippet_version_uuid))
+            .then(
+                lambda flow_snippet_dict: (
+                    FlowSnippetType(**flow_snippet_dict) if flow_snippet_dict else None
+                )
             )
         )
 
 
 class AgentListType(ListObjectType):
-    agent_list = List(AgentTypeBase)
+    agent_list = List(AgentType)
 
 
 # Import at end to avoid circular dependency

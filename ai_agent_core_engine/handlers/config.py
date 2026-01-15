@@ -5,11 +5,12 @@ __author__ = "bibow"
 
 import logging
 import sys
+import threading
 import traceback
 from typing import Any, Dict, List
 
 import boto3
-from silvaengine_utility import Graphql
+from silvaengine_utility import Debugger, Graphql
 
 from ..models import utils
 
@@ -20,6 +21,10 @@ class Config:
     Manages shared configuration variables across the application.
     """
 
+    _initialized: bool = False
+    _lock: threading.RLock = threading.RLock()
+    _logger: logging.Logger | None = None
+    _setting: Dict[str, Any] = {}
     aws_lambda = None
     aws_sqs = None
     aws_s3 = None
@@ -162,11 +167,6 @@ class Config:
         },
     }
 
-    @classmethod
-    def get_cache_entity_config(cls) -> Dict[str, Dict[str, Any]]:
-        """Get cache configuration metadata for each entity type."""
-        return cls.CACHE_ENTITY_CONFIG
-
     # Entity cache dependency relationships
     CACHE_RELATIONSHIPS = {
         "agent": [
@@ -279,27 +279,43 @@ class Config:
     }
 
     @classmethod
-    def initialize(cls, logger: logging.Logger, **setting: Dict[str, Any]) -> None:
+    def get_cache_entity_config(cls) -> Dict[str, Dict[str, Any]]:
+        """Get cache configuration metadata for each entity type."""
+        return cls.CACHE_ENTITY_CONFIG
+
+    @classmethod
+    def initialize(cls, logger: logging.Logger, setting: Dict[str, Any]) -> None:
         """
         Initialize configuration setting.
         Args:
             logger (logging.Logger): Logger instance for logging.
             **setting (Dict[str, Any]): Configuration dictionary.
         """
-        try:
-            cls._set_parameters(setting)
-            cls._initialize_aws_services(setting)
-            cls._initialize_task_queue(setting)
-            cls._initialize_apigw_client(setting)
-            cls._initialize_internal_mcp(setting)
-            if setting.get("initialize_tables"):
-                cls._initialize_tables(logger)
-            logger.info("Configuration initialized successfully.")
-        except Exception as e:
-            sys.stderr.write(f"Config Initialize Error: {e}\n")
-            traceback.print_exc(file=sys.stderr)
-            logger.exception("Failed to initialize configuration.")
-            raise e
+        if not setting:
+            raise RuntimeError("`setting` is required")
+        elif cls._initialized:
+            return
+
+        with cls._lock:
+            if not cls._initialized:
+                try:
+                    cls._logger = logger
+                    cls._setting = setting
+                    cls._set_parameters(setting)
+                    cls._initialize_aws_services(setting)
+                    cls._initialize_task_queue(setting)
+                    cls._initialize_apigw_client(setting)
+                    cls._initialize_internal_mcp(setting)
+
+                    if setting.get("initialize_tables"):
+                        cls._initialize_tables(logger)
+
+                    cls._initialized = True
+                except Exception as e:
+                    sys.stderr.write(f"Config Initialize Error: {e}\n")
+                    traceback.print_exc(file=sys.stderr)
+                    logger.exception("Failed to initialize configuration.")
+                    raise e
 
     @classmethod
     def _set_parameters(cls, setting: Dict[str, Any]) -> None:
@@ -445,6 +461,13 @@ class Config:
         return cls.CACHE_RELATIONSHIPS.get(entity_type, [])
 
     @classmethod
+    def get_setting(cls) -> Dict[str, Any]:
+        if not cls._initialized:
+            raise RuntimeError("Configuration not initialized")
+
+        return cls._setting
+
+    @classmethod
     def fetch_graphql_schema(
         cls,
         context: Dict[str, Any],
@@ -463,12 +486,14 @@ class Config:
             Dict containing the GraphQL schema
         """
         # Check if schema exists in cache, if not fetch and store it
+
         if Config.schemas.get(function_name) is None:
             Config.schemas[function_name] = Graphql.fetch_graphql_schema(
                 context,
                 function_name,
                 aws_lambda=Config.aws_lambda,
             )
+
         return Config.schemas[function_name]
 
     @classmethod
@@ -486,3 +511,18 @@ class Config:
         if part_id and "headers" in internal_mcp:
             internal_mcp["headers"]["Part-ID"] = part_id
         return internal_mcp
+
+    @classmethod
+    def get_api_gateway_client(cls):
+        if not cls._initialized:
+            raise RuntimeError("Configuration not initialized")
+        elif not cls.apigw_client:
+            raise ValueError("Invalid api gateway client")
+        return cls.apigw_client
+
+    @classmethod
+    def get_logger(cls):
+        if cls._logger:
+            return cls._logger
+
+        return logging.getLogger()

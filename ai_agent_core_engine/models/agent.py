@@ -19,15 +19,17 @@ from pynamodb.attributes import (
     UTCDateTimeAttribute,
 )
 from pynamodb.indexes import AllProjection, LocalSecondaryIndex
+from tenacity import retry, stop_after_attempt, wait_exponential
+
 from silvaengine_dynamodb_base import (
     BaseModel,
+    complete_table_name_decorator,
     delete_decorator,
     insert_update_decorator,
     monitor_decorator,
     resolve_list_decorator,
 )
 from silvaengine_utility import Serializer, convert_decimal_to_number, method_cache
-from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
 from ..types.agent import AgentListType, AgentType
@@ -74,6 +76,7 @@ class UpdatedAtIndex(LocalSecondaryIndex):
     updated_at = UnicodeAttribute(range_key=True)
 
 
+# @complete_table_name_decorator
 class AgentModel(BaseModel):
     """
     Agent Model - Reference Implementation for partition_key Migration
@@ -244,7 +247,10 @@ def get_agent_count(partition_key: str, agent_version_uuid: str) -> int:
 
 def get_agent_type(info: ResolveInfo, agent: AgentModel) -> AgentType:
     try:
-        agent_dict: Dict = agent.__dict__["attribute_values"]
+        agent_dict: Dict = {}
+
+        if agent:
+            agent_dict = agent.__dict__["attribute_values"]
         # Keep foreign keys for nested resolvers
         # No need to fetch llm, mcp_servers, or flow_snippet here
     except Exception as e:

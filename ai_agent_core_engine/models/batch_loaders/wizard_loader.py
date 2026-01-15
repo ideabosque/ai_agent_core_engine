@@ -10,7 +10,7 @@ from promise import Promise
 from silvaengine_utility.cache import HybridCacheEngine
 
 from ...handlers.config import Config
-from .base import SafeDataLoader, normalize_model, Key
+from .base import Key, SafeDataLoader, normalize_model
 
 
 class WizardLoader(SafeDataLoader):
@@ -25,17 +25,16 @@ class WizardLoader(SafeDataLoader):
             cache_meta = Config.get_cache_entity_config().get("wizard")
             self.cache_func_prefix = ""
             if cache_meta:
-                self.cache_func_prefix = ".".join([cache_meta.get("module"), cache_meta.get("getter")])
+                self.cache_func_prefix = ".".join(
+                    [cache_meta.get("module"), cache_meta.get("getter")]
+                )
 
     def generate_cache_key(self, key: Key) -> str:
         if not isinstance(key, tuple):
             key = (key,)
         key_data = ":".join([str(key), str({})])
-        return self.cache._generate_key(
-            self.cache_func_prefix,
-            key_data
-        )
-    
+        return self.cache._generate_key(self.cache_func_prefix, key_data)
+
     def get_cache_data(self, key: Key) -> Dict[str, Any] | None | List[Dict[str, Any]]:
         cache_key = self.generate_cache_key(key)
         cached_item = self.cache.get(cache_key)
@@ -53,6 +52,7 @@ class WizardLoader(SafeDataLoader):
 
     def batch_load_fn(self, keys: List[Key]) -> Promise:
         from ..wizard import WizardModel
+
         unique_keys = list(dict.fromkeys(keys))
         key_map: Dict[Key, Dict[str, Any]] = {}
         uncached_keys = []
@@ -61,6 +61,7 @@ class WizardLoader(SafeDataLoader):
         if self.cache_enabled:
             for key in unique_keys:
                 cached_item = self.get_cache_data(key)
+
                 if cached_item:
                     key_map[key] = cached_item
                 else:
@@ -77,8 +78,8 @@ class WizardLoader(SafeDataLoader):
                     # Cache the result if enabled
                     if self.cache_enabled:
                         self.set_cache_data(key, wizard)
-                    normalized = normalize_model(wizard)
-                    key_map[key] = normalized
+
+                    key_map[key] = normalize_model(wizard)
 
             except Exception as exc:  # pragma: no cover - defensive
                 if self.logger:

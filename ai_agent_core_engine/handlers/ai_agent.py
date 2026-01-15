@@ -5,12 +5,13 @@ __author__ = "bibow"
 
 import threading
 import traceback
+from collections.abc import Iterable
 from queue import Queue
 from typing import Any, Dict, List
 
 import pendulum
 from graphene import ResolveInfo
-from silvaengine_utility import Serializer
+from silvaengine_utility import Debugger, Serializer
 
 from ..models.agent import resolve_agent
 from ..models.async_task import insert_update_async_task
@@ -45,15 +46,7 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
     """
     try:
         # Log request details
-        info.context.get("logger").info(
-            f"endpoint_id: {info.context.get('endpoint_id')}"
-        )
-        info.context.get("logger").info(
-            f"connection_id: {info.context.get('connection_id')}"
-        )
-
         thread = _get_thread(info, **kwargs)
-
         # Create new run instance for this request
         run = insert_update_run(
             info,
@@ -62,7 +55,6 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
                 "updated_by": kwargs["updated_by"],
             },
         )
-
         # Prepare arguments for async processing
         arguments = {
             "thread_uuid": thread.thread_uuid,
@@ -72,6 +64,7 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
             "stream": kwargs.get("stream", False),
             "updated_by": kwargs["updated_by"],
         }
+
         if "input_files" in kwargs:
             arguments["input_files"] = kwargs["input_files"]
 
@@ -111,18 +104,17 @@ def _get_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType | Non
         Dict[str, Any]: Thread data
     """
     try:
-        if "thread_uuid" in kwargs:
-            thread = resolve_thread(
+        # Only query for thread if thread_uuid is a valid non-empty string
+        if "thread_uuid" in kwargs and kwargs["thread_uuid"]:
+            return resolve_thread(
                 info,
                 **{"thread_uuid": kwargs["thread_uuid"]},
             )
-            return thread
 
         if "user_id" in kwargs:
             # Only retrieve threads from the past 'thread_life_minutes' minutes
             thread_life_minutes = kwargs.get("thread_life_minutes", 30)
             created_at_gt = pendulum.now("UTC").subtract(minutes=thread_life_minutes)
-
             thread_list: ThreadListType = resolve_thread_list(
                 info,
                 **{
@@ -131,6 +123,7 @@ def _get_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType | Non
                     "created_at_gt": created_at_gt,
                 },
             )
+
             if thread_list.total > 0:
                 # Return the latest thread based on updated_time or created_time
                 latest_thread = max(thread_list.thread_list, key=lambda t: t.created_at)
@@ -156,29 +149,33 @@ def _get_agent(info: ResolveInfo, agent_uuid: str):
 
     agent = resolve_agent(info, **{"agent_uuid": agent_uuid})
 
+    if not agent:
+        return None
+
     # Use the DataLoader to fetch LLM data (triggers nested resolver)
     loaders = get_loaders(info.context)
     llm_dict = loaders.llm_loader.load((agent.llm_provider, agent.llm_name)).get()
     agent.llm = llm_dict
 
-    from ..models.utils import get_mcp_servers
+    if isinstance(agent.mcp_server_uuids, Iterable):
+        from ..models.utils import get_mcp_servers
 
-    mcp_servers = [
-        {"mcp_server_uuid": mcp_server_uuid}
-        for mcp_server_uuid in agent.mcp_server_uuids
-    ]
+        mcp_servers = [
+            {"mcp_server_uuid": mcp_server_uuid}
+            for mcp_server_uuid in agent.mcp_server_uuids
+        ]
 
-    agent.mcp_servers = [
-        {
-            "name": mcp_server["mcp_label"],
-            "mcp_server_uuid": mcp_server["mcp_server_uuid"],
-            "setting": {
-                "base_url": mcp_server["mcp_server_url"],
-                "headers": mcp_server["headers"],
-            },
-        }
-        for mcp_server in get_mcp_servers(info, mcp_servers)
-    ]
+        agent.mcp_servers = [
+            {
+                "name": mcp_server["mcp_label"],
+                "mcp_server_uuid": mcp_server["mcp_server_uuid"],
+                "setting": {
+                    "base_url": mcp_server["mcp_server_url"],
+                    "headers": mcp_server["headers"],
+                },
+            }
+            for mcp_server in _get_mcp_servers(info, mcp_servers)
+        ]
 
     return agent
 
@@ -199,19 +196,13 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
     """
     try:
         # Log endpoint and connection IDs for tracing
-        info.context.get("logger").info(
-            f"endpoint_id: {info.context.get('endpoint_id')}"
-        )
-        info.context.get("logger").info(
-            f"connection_id: {info.context.get('connection_id')}"
-        )
         async_task_uuid = kwargs["async_task_uuid"]
         arguments = kwargs["arguments"]
 
+        if not async_task_uuid or not arguments:
+            raise Exception("Missing required parameter(s)")
+
         # Initialize async task as in-progress
-        info.context.get("logger").info(
-            f"async_task_uuid: {async_task_uuid}/in_progress."
-        )
         async_task = insert_update_async_task(
             info,
             **{
@@ -225,11 +216,14 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
         # Retrieve AI agent configuration with LLM details
         agent = _get_agent(info, arguments["agent_uuid"])
 
+        if not agent:
+            raise ValueError("Not found any agent")
+
         # Build conversation history and add new user query
         input_messages = get_input_messages(
             info,
             arguments["thread_uuid"],
-            int(agent.num_of_messages),
+            int(agent.num_of_messages) if agent.num_of_messages is not None else 0,
             agent.tool_call_role,
         )
         input_messages.append({"role": "user", "content": arguments["user_query"]})
@@ -253,7 +247,6 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
                 "updated_by": arguments["updated_by"],
             },
         )
-        info.context.get("logger").info(f"User Message: {user_message.__dict__}.")
 
         # Initialize run record
         run = insert_update_run(
@@ -290,6 +283,7 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
             stream_queue = Queue()
             stream_event = threading.Event()
             args = [input_messages, stream_queue, stream_event]
+
             if "input_files" in arguments:
                 args.append(arguments["input_files"])
 
@@ -303,11 +297,9 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
             current_run = stream_queue.get()
             if current_run["name"] == "run_id":
                 run_id = current_run["value"]
-                info.context["logger"].info(f"Current Run ID: {current_run['value']}")
 
             # Wait until streaming is done, timeout after 60 second
             stream_event.wait(timeout=120)
-            info.context["logger"].info("Streaming ask_model finished.")
         else:
             # Process query through AI model
             if "input_files" in arguments:
@@ -321,7 +313,9 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
         assert isinstance(ai_agent_handler.final_output, dict) and all(
             key in ai_agent_handler.final_output and ai_agent_handler.final_output[key]
             for key in ["message_id", "role", "content"]
-        ), "final_output must be a dict containing non-empty values for message_id, role and content fields"
+        ), (
+            "final_output must be a dict containing non-empty values for message_id, role and content fields"
+        )
 
         if ai_agent_handler.uploaded_files:
             _update_user_message_with_files(
@@ -343,9 +337,6 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
                 "message": ai_agent_handler.final_output["content"],
                 "updated_by": arguments["updated_by"],
             },
-        )
-        info.context.get("logger").info(
-            f"Assistant Message: {assistant_message.__dict__}."
         )
 
         # Update run with completion details
@@ -373,8 +364,6 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
                 "updated_by": arguments["updated_by"],
             },
         )
-
-        info.context.get("logger").info(f"Async Task: {async_task.__dict__}.")
 
         # TODO: Implement MCP Prompt and update system prmompt by analyzing user query and assistant response.
         # TODO: Invoke execute_ask_model with the updated system prompt by dispatching thread.
@@ -459,7 +448,6 @@ def _update_user_message_with_files(
 def upload_file(info: ResolveInfo, **kwargs: Dict[str, Any]) -> FileType:
     # Retrieve AI agent configuration
     agent = _get_agent(info, kwargs["agent_uuid"])
-
     ai_agent_handler_class = getattr(
         __import__(agent.llm["module_name"]),
         agent.llm["class_name"],
@@ -471,10 +459,9 @@ def upload_file(info: ResolveInfo, **kwargs: Dict[str, Any]) -> FileType:
     )
     ai_agent_handler.endpoint_id = info.context["endpoint_id"]
     ai_agent_handler.part_id = info.context.get("part_id")
-
     file = ai_agent_handler.insert_file(**kwargs["arguments"])
+
     if agent.llm["llm_name"] == "gemini":
-        info.context["logger"].info(f"File: {file.__dict__}.")
         return FileType(
             **{
                 "identity": "file_name",
@@ -483,7 +470,6 @@ def upload_file(info: ResolveInfo, **kwargs: Dict[str, Any]) -> FileType:
             }
         )
     elif agent.llm["llm_name"] == "gpt":
-        info.context["logger"].info(f"File: {file}.")
         return FileType(**{"identity": "id", "value": file["id"], "file_detail": file})
     else:
         raise Exception(f"Unsupported LLM: {agent.llm['llm_name']}")

@@ -154,13 +154,34 @@ def get_thread_type(info: ResolveInfo, thread: ThreadModel) -> ThreadType:
 
 
 def resolve_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType | None:
-    count = get_thread_count(info.context["partition_key"], kwargs["thread_uuid"])
+    partition_key = info.context.get("partition_key")
+    thread_uuid = kwargs.get("thread_uuid")
+
+    # Validate parameters before querying - must be non-empty strings
+    if not partition_key or not isinstance(partition_key, str):
+        info.context.get("logger").warning(
+            f"resolve_thread: Invalid partition_key: {partition_key}"
+        )
+        return None
+    if not thread_uuid or not isinstance(thread_uuid, str):
+        info.context.get("logger").warning(
+            f"resolve_thread: Invalid thread_uuid: {thread_uuid}"
+        )
+        return None
+
+    # Additional validation: partition_key should not contain "None"
+    if "None" in partition_key:
+        info.context.get("logger").warning(
+            f"resolve_thread: partition_key contains 'None': {partition_key}"
+        )
+        return None
+
+    count = get_thread_count(partition_key, thread_uuid)
+
     if count == 0:
         return None
 
-    return get_thread_type(
-        info, get_thread(info.context["partition_key"], kwargs["thread_uuid"])
-    )
+    return get_thread_type(info, get_thread(partition_key, thread_uuid))
 
 
 @monitor_decorator
@@ -177,7 +198,7 @@ def resolve_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType | 
     scan_index_forward=False,
 )
 def resolve_thread_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
-    partition_key = info.context["partition_key"]
+    partition_key = info.context.get("partition_key")
     agent_uuid = kwargs.get("agent_uuid", None)
     user_id = kwargs.get("user_id", None)
     created_at_gt = kwargs.get("created_at_gt", None)
@@ -187,8 +208,8 @@ def resolve_thread_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     inquiry_funct = ThreadModel.scan
     count_funct = ThreadModel.count
     range_key_condition = None
-    if partition_key:
 
+    if partition_key:
         # Build range key condition for created_at when using created_at_index
         if created_at_gt is not None and created_at_lt is not None:
             range_key_condition = ThreadModel.created_at.between(
@@ -209,6 +230,7 @@ def resolve_thread_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
             count_funct = ThreadModel.agent_uuid_index.count
 
     the_filters = None
+
     if agent_uuid and range_key_condition is not None:
         the_filters &= ThreadModel.agent_uuid == agent_uuid
     if user_id is not None:
@@ -233,8 +255,10 @@ def resolve_thread_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
 )
 @purge_cache()
 def insert_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
-    partition_key = kwargs.get("partition_key")
+    # partition_key = kwargs.get("partition_key")
+    partition_key = info.context.get("partition_key")
     thread_uuid = kwargs.get("thread_uuid")
+
     if kwargs.get("entity") is None:
         cols = {
             "agent_uuid": kwargs["agent_uuid"],
@@ -265,7 +289,6 @@ def insert_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
 )
 @purge_cache()
 def delete_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
-
     run_list = resolve_run_list(
         info,
         **{
