@@ -119,7 +119,7 @@ def start_async_task(
 
         setting = (
             info.context.get("setting")
-            if type(info.context.get("setting")) is dict
+            if isinstance(info.context.get("setting"), dict)
             else {}
         )
 
@@ -130,15 +130,29 @@ def start_async_task(
         )
 
         try:
-            Invoker.resolve_proxied_callable(
-                module_name="ai_agent_core_engine",
-                function_name=function_name,
-                class_name="AIAgentCoreEngine",
-                constructor_parameters={
-                    "logger": info.context.get("logger"),
-                    **setting,
-                },
-            )(**params)
+            # Invoker.resolve_proxied_callable(
+            #     module_name="ai_agent_core_engine",
+            #     function_name=function_name,
+            #     class_name="AIAgentCoreEngine",
+            #     constructor_parameters={
+            #         "logger": info.context.get("logger"),
+            #         **setting,
+            #     },
+            # )(**params)
+            Invoker.sync_call_async_compatible(
+                coroutine_task=Invoker.create_async_task(
+                    task=Invoker.resolve_proxied_callable(
+                        module_name="ai_agent_core_engine",
+                        function_name=function_name,
+                        class_name="AIAgentCoreEngine",
+                        constructor_parameters={
+                            "logger": info.context.get("logger"),
+                            **setting,
+                        },
+                    ),
+                    parameters=params,
+                )
+            )
         except Exception as e:
             Debugger.info(
                 variable=e,
