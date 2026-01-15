@@ -174,7 +174,7 @@ def _get_agent(info: ResolveInfo, agent_uuid: str):
                     "headers": mcp_server["headers"],
                 },
             }
-            for mcp_server in _get_mcp_servers(info, mcp_servers)
+            for mcp_server in get_mcp_servers(info, mcp_servers)
         ]
 
     return agent
@@ -313,9 +313,7 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
         assert isinstance(ai_agent_handler.final_output, dict) and all(
             key in ai_agent_handler.final_output and ai_agent_handler.final_output[key]
             for key in ["message_id", "role", "content"]
-        ), (
-            "final_output must be a dict containing non-empty values for message_id, role and content fields"
-        )
+        ), "final_output must be a dict containing non-empty values for message_id, role and content fields"
 
         if ai_agent_handler.uploaded_files:
             _update_user_message_with_files(
