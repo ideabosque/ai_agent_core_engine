@@ -212,9 +212,6 @@ class AIAgentCoreEngine(Graphql):
             logger (logging.Logger): The logger instance to be used for logging.
             **setting (Dict[str, Any]): A dictionary of settings required to initialize the engine.
         """
-        if isinstance(setting, dict) and isinstance(setting.get("setting"), dict):
-            setting = setting.get("setting", {})
-
         Graphql.__init__(self, logger, **setting)
 
         if (
@@ -300,12 +297,6 @@ class AIAgentCoreEngine(Graphql):
                     params["context"]["partition_key"] = f"{endpoint_id}#{part_id}"
             else:
                 params["context"]["partition_key"] = f"{endpoint_id}#{part_id}"
-
-        if "logger" in params:
-            params.pop("logger")
-
-        if "setting" in params:
-            params.pop("setting")
 
     def async_execute_ask_model(self, **params: Dict[str, Any]) -> Any:
         """
