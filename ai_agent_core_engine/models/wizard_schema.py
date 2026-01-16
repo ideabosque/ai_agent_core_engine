@@ -5,23 +5,18 @@ from __future__ import print_function
 __author__ = "bibow"
 
 import functools
-import logging
 import traceback
 from typing import Any, Dict
 
 import pendulum
 from graphene import ResolveInfo
 from pynamodb.attributes import (
-    BooleanAttribute,
     ListAttribute,
     MapAttribute,
-    NumberAttribute,
     UnicodeAttribute,
     UTCDateTimeAttribute,
 )
 from pynamodb.indexes import AllProjection, LocalSecondaryIndex
-from tenacity import retry, stop_after_attempt, wait_exponential
-
 from silvaengine_dynamodb_base import (
     BaseModel,
     delete_decorator,
@@ -30,6 +25,7 @@ from silvaengine_dynamodb_base import (
     resolve_list_decorator,
 )
 from silvaengine_utility import Serializer, method_cache
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
 from ..types.wizard_schema import WizardSchemaListType, WizardSchemaType
@@ -43,7 +39,7 @@ attributes_fn = lambda attributes: [
         "pattern": attribute.get("pattern", ""),
         "col": attribute.get("col", ""),
         "label": attribute.get("label", ""),
-        "group_name": attribute.get("group_name", "")
+        "group_name": attribute.get("group_name", ""),
     }
     for attribute in attributes
 ]
@@ -140,15 +136,6 @@ def purge_cache():
     return actual_decorator
 
 
-def create_wizard_schema_table(logger: logging.Logger) -> bool:
-    """Create the WizardSchema table if it doesn't exist."""
-    if not WizardSchemaModel.exists():
-        # Create with on-demand billing (PAY_PER_REQUEST)
-        WizardSchemaModel.create_table(billing_mode="PAY_PER_REQUEST", wait=True)
-        logger.info("The WizardSchema table has been created.")
-    return True
-
-
 @retry(
     reraise=True,
     wait=wait_exponential(multiplier=1, max=60),
@@ -157,6 +144,7 @@ def create_wizard_schema_table(logger: logging.Logger) -> bool:
 @method_cache(
     ttl=Config.get_cache_ttl(),
     cache_name=Config.get_cache_name("models", "wizard_schema"),
+    cache_enabled=Config.is_cache_enabled,
 )
 def get_wizard_schema(
     wizard_schema_type: str, wizard_schema_name: str
@@ -173,6 +161,7 @@ def _get_wizard_schema(
     wizard_schema_type: str, wizard_schema_name: str
 ) -> WizardSchemaModel:
     return WizardSchemaModel.get(wizard_schema_type, wizard_schema_name)
+
 
 def get_wizard_schema_count(wizard_schema_type: str, wizard_schema_name: str) -> int:
     return WizardSchemaModel.count(
@@ -291,10 +280,7 @@ def insert_update_wizard_schema(info: ResolveInfo, **kwargs: Dict[str, Any]) -> 
         "wizard_schema_description": WizardSchemaModel.wizard_schema_description,
     }
 
-    fn_map = {
-        "attributes": attributes_fn,
-        "attribute_groups": attribute_groups_fn
-    }
+    fn_map = {"attributes": attributes_fn, "attribute_groups": attribute_groups_fn}
 
     for key, field in field_map.items():
         if key in kwargs:

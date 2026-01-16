@@ -5,7 +5,6 @@ from __future__ import print_function
 __author__ = "bibow"
 
 import functools
-import logging
 import traceback
 from typing import Any, Dict
 
@@ -137,24 +136,18 @@ def purge_cache():
     return actual_decorator
 
 
-def create_element_table(logger: logging.Logger) -> bool:
-    """Create the Element table if it doesn't exist."""
-    if not ElementModel.exists():
-        # Create with on-demand billing (PAY_PER_REQUEST)
-        ElementModel.create_table(billing_mode="PAY_PER_REQUEST", wait=True)
-        logger.info("The Element table has been created.")
-    return True
-
-
 @retry(
     reraise=True,
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
 )
 @method_cache(
-    ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name("models", "element")
+    ttl=Config.get_cache_ttl(),
+    cache_name=Config.get_cache_name("models", "element"),
+    cache_enabled=Config.is_cache_enabled,
 )
 def get_element(partition_key: str, element_uuid: str) -> ElementModel:
+
     return ElementModel.get(partition_key, element_uuid)
 
 

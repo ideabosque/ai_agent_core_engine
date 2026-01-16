@@ -5,7 +5,6 @@ from __future__ import print_function
 __author__ = "bibow"
 
 import functools
-import logging
 import traceback
 from typing import Any, Dict
 
@@ -109,22 +108,15 @@ def purge_cache():
     return actual_decorator
 
 
-def create_run_table(logger: logging.Logger) -> bool:
-    """Create the Run table if it doesn't exist."""
-    if not RunModel.exists():
-        # Create with on-demand billing (PAY_PER_REQUEST)
-        RunModel.create_table(billing_mode="PAY_PER_REQUEST", wait=True)
-        logger.info("The Run table has been created.")
-    return True
-
-
 @retry(
     reraise=True,
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
 )
 @method_cache(
-    ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name("models", "run")
+    ttl=Config.get_cache_ttl(),
+    cache_name=Config.get_cache_name("models", "run"),
+    cache_enabled=Config.is_cache_enabled,
 )
 def get_run(thread_uuid: str, run_uuid: str) -> RunModel:
     return RunModel.get(thread_uuid, run_uuid)
@@ -327,10 +319,13 @@ def delete_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
     stop=stop_after_attempt(5),
 )
 @method_cache(
-    ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name("models", "run")
+    ttl=Config.get_cache_ttl(),
+    cache_name=Config.get_cache_name("models", "run"),
+    cache_enabled=Config.is_cache_enabled,
 )
 def get_runs_by_thread(thread_uuid: str) -> Any:
     runs = []
     for run in RunModel.query(thread_uuid):
+
         runs.append(run)
     return runs

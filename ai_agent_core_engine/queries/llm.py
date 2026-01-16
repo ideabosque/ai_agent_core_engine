@@ -16,10 +16,16 @@ from ..models import llm
 from ..types.llm import LlmListType, LlmType
 
 
-def resolve_llm(info: ResolveInfo, **kwargs: Dict[str, Any]) -> LlmType:
+def resolve_llm(info: ResolveInfo, **kwargs: Dict[str, Any]) -> LlmType | None:
     return llm.resolve_llm(info, **kwargs)
 
 
-@method_cache(ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name('queries', 'llm'))
-def resolve_llm_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> LlmListType:
+@method_cache(
+    ttl=Config.get_cache_ttl(),
+    cache_name=Config.get_cache_name("queries", "llm"),
+    cache_enabled=Config.is_cache_enabled,
+)
+def resolve_llm_list(
+    info: ResolveInfo, **kwargs: Dict[str, Any]
+) -> LlmListType | None:
     return llm.resolve_llm_list(info, **kwargs)

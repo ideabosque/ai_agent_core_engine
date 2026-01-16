@@ -68,9 +68,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger()
 
-from silvaengine_utility import Graphql, Serializer
-
 from ai_agent_core_engine import AIAgentCoreEngine
+from silvaengine_utility import Graphql, Serializer
 
 
 class ChatbotRunner:
@@ -119,7 +118,7 @@ class ChatbotRunner:
                 "base_url": os.getenv("mcp_server_url"),
                 "bearer_token": os.getenv("bearer_token"),
                 "headers": {
-                    "x-api-key": os.getenv("x-api-key"),
+                    "X-Api-Key": os.getenv("x-api-key"),
                     "Content-Type": "application/json",
                 },
             },
@@ -133,6 +132,7 @@ class ChatbotRunner:
         self.ai_agent_core_engine = AIAgentCoreEngine(logger, **self.setting)
         context = {
             "endpoint_id": self.setting.get("endpoint_id"),
+            "part_id": self.setting.get("part_id"),
             "setting": self.setting,
             "logger": logger,
         }
@@ -172,7 +172,7 @@ class ChatbotRunner:
                 },
             }
             response = self.ai_agent_core_engine.ai_agent_core_graphql(**payload)
-            response = Serializer.json_loads(response["body"])
+            response = Serializer.json_loads(response["body"])["data"]
 
             if response["askModel"]["threadUuid"] is not None:
                 thread_uuid = response["askModel"]["threadUuid"]
@@ -189,7 +189,7 @@ class ChatbotRunner:
             }
 
             response = self.ai_agent_core_engine.ai_agent_core_graphql(**payload)
-            response = Serializer.json_loads(response["body"])
+            response = Serializer.json_loads(response["body"])["data"]
 
             # Print response to user
             print(f"Chatbot: {response['asyncTask']['result']}\n")

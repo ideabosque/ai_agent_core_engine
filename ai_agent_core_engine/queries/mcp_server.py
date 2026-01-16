@@ -16,10 +16,18 @@ from ..models import mcp_server
 from ..types.mcp_server import MCPServerListType, MCPServerType
 
 
-def resolve_mcp_server(info: ResolveInfo, **kwargs: Dict[str, Any]) -> MCPServerType:
+def resolve_mcp_server(
+    info: ResolveInfo, **kwargs: Dict[str, Any]
+) -> MCPServerType | None:
     return mcp_server.resolve_mcp_server(info, **kwargs)
 
 
-@method_cache(ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name('queries', 'mcp_server'))
-def resolve_mcp_server_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> MCPServerListType:
+@method_cache(
+    ttl=Config.get_cache_ttl(),
+    cache_name=Config.get_cache_name("queries", "mcp_server"),
+    cache_enabled=Config.is_cache_enabled,
+)
+def resolve_mcp_server_list(
+    info: ResolveInfo, **kwargs: Dict[str, Any]
+) -> MCPServerListType | None:
     return mcp_server.resolve_mcp_server_list(info, **kwargs)

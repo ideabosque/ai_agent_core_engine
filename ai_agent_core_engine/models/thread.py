@@ -5,7 +5,6 @@ from __future__ import print_function
 __author__ = "bibow"
 
 import functools
-import logging
 import traceback
 from typing import Any, Dict
 
@@ -124,22 +123,15 @@ def purge_cache():
     return actual_decorator
 
 
-def create_thread_table(logger: logging.Logger) -> bool:
-    """Create the Thread table if it doesn't exist."""
-    if not ThreadModel.exists():
-        # Create with on-demand billing (PAY_PER_REQUEST)
-        ThreadModel.create_table(billing_mode="PAY_PER_REQUEST", wait=True)
-        logger.info("The Thread table has been created.")
-    return True
-
-
 @retry(
     reraise=True,
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
 )
 @method_cache(
-    ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name("models", "thread")
+    ttl=Config.get_cache_ttl(),
+    cache_name=Config.get_cache_name("models", "thread"),
+    cache_enabled=Config.is_cache_enabled,
 )
 def get_thread(partition_key: str, thread_uuid: str) -> ThreadModel:
     return ThreadModel.get(partition_key, thread_uuid)

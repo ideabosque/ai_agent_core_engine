@@ -5,7 +5,6 @@ from __future__ import print_function
 __author__ = "bibow"
 
 import functools
-import logging
 import traceback
 from typing import Any, Dict
 
@@ -13,8 +12,6 @@ import pendulum
 from graphene import ResolveInfo
 from pynamodb.attributes import UnicodeAttribute, UTCDateTimeAttribute
 from pynamodb.indexes import AllProjection, LocalSecondaryIndex
-from tenacity import retry, stop_after_attempt, wait_exponential
-
 from silvaengine_dynamodb_base import (
     BaseModel,
     delete_decorator,
@@ -23,6 +20,7 @@ from silvaengine_dynamodb_base import (
     resolve_list_decorator,
 )
 from silvaengine_utility import Serializer, method_cache
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
 from ..types.message import MessageListType, MessageType
@@ -123,22 +121,15 @@ def purge_cache():
     return actual_decorator
 
 
-def create_message_table(logger: logging.Logger) -> bool:
-    """Create the Message table if it doesn't exist."""
-    if not MessageModel.exists():
-        # Create with on-demand billing (PAY_PER_REQUEST)
-        MessageModel.create_table(billing_mode="PAY_PER_REQUEST", wait=True)
-        logger.info("The Message table has been created.")
-    return True
-
-
 @retry(
     reraise=True,
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
 )
 @method_cache(
-    ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name("models", "message")
+    ttl=Config.get_cache_ttl(),
+    cache_name=Config.get_cache_name("models", "message"),
+    cache_enabled=Config.is_cache_enabled,
 )
 def get_message(thread_uuid: str, message_uuid: str) -> MessageModel:
     return MessageModel.get(thread_uuid, message_uuid)
@@ -304,10 +295,13 @@ def delete_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
     stop=stop_after_attempt(5),
 )
 @method_cache(
-    ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name("models", "message")
+    ttl=Config.get_cache_ttl(),
+    cache_name=Config.get_cache_name("models", "message"),
+    cache_enabled=Config.is_cache_enabled,
 )
 def get_messages_by_thread(thread_uuid: str) -> Any:
     messages = []
+
     # Only retrieve messages from the past 24 hours
     updated_at_gt = pendulum.now("UTC").subtract(hours=24)
 

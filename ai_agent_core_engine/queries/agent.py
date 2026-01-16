@@ -16,10 +16,16 @@ from ..models import agent
 from ..types.agent import AgentListType, AgentType
 
 
-def resolve_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AgentType:
+def resolve_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AgentType | None:
     return agent.resolve_agent(info, **kwargs)
 
 
-@method_cache(ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name('queries', 'agent'))
-def resolve_agent_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AgentListType:
+@method_cache(
+    ttl=Config.get_cache_ttl(),
+    cache_name=Config.get_cache_name("queries", "agent"),
+    cache_enabled=Config.is_cache_enabled,
+)
+def resolve_agent_list(
+    info: ResolveInfo, **kwargs: Dict[str, Any]
+) -> AgentListType | None:
     return agent.resolve_agent_list(info, **kwargs)

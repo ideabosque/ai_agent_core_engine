@@ -9,45 +9,56 @@ from typing import Any, Dict, List
 from graphene import ResolveInfo
 
 
-def _initialize_tables(logger: logging.Logger) -> None:
-    from .agent import create_agent_table
-    from .async_task import create_async_task_table
-    from .element import create_element_table
-    from .fine_tuning_message import create_fine_tuning_message_table
-    from .flow_snippet import create_flow_snippet_table
-    from .llm import create_llm_table
-    from .mcp_server import create_mcp_server_table
-    from .message import create_message_table
-    from .prompt_template import create_prompt_template_table
-    from .run import create_run_table
-    from .thread import create_thread_table
-    from .tool_call import create_tool_call_table
-    from .ui_component import create_ui_component_table
-    from .wizard import create_wizard_table
-    from .wizard_group import create_wizard_group_table
-    from .wizard_group_filter import create_wizard_group_filter_table
-    from .wizard_schema import create_wizard_schema_table
+def initialize_tables(logger: logging.Logger) -> None:
+    from .agent import AgentModel
+    from .async_task import AsyncTaskModel
+    from .element import ElementModel
+    from .fine_tuning_message import FineTuningMessageModel
+    from .flow_snippet import FlowSnippetModel
+    from .llm import LlmModel
+    from .mcp_server import MCPServerModel
+    from .message import MessageModel
+    from .prompt_template import PromptTemplateModel
+    from .run import RunModel
+    from .thread import ThreadModel
+    from .tool_call import ToolCallModel
+    from .ui_component import UIComponentModel
+    from .wizard import WizardModel
+    from .wizard_group import WizardGroupModel
+    from .wizard_group_filter import WizardGroupFilterModel
+    from .wizard_schema import WizardSchemaModel
 
-    create_llm_table(logger)
-    create_agent_table(logger)
-    create_thread_table(logger)
-    create_run_table(logger)
-    create_tool_call_table(logger)
-    create_message_table(logger)
-    create_async_task_table(logger)
-    create_fine_tuning_message_table(logger)
-    create_element_table(logger)
-    create_wizard_table(logger)
-    create_wizard_schema_table(logger)
-    create_wizard_group_table(logger)
-    create_wizard_group_filter_table(logger)
-    create_mcp_server_table(logger)
-    create_ui_component_table(logger)
-    create_flow_snippet_table(logger)
-    create_prompt_template_table(logger)
+    models: List = [
+        AgentModel,
+        AsyncTaskModel,
+        ElementModel,
+        FineTuningMessageModel,
+        FlowSnippetModel,
+        LlmModel,
+        MCPServerModel,
+        MessageModel,
+        PromptTemplateModel,
+        RunModel,
+        ThreadModel,
+        ToolCallModel,
+        UIComponentModel,
+        WizardModel,
+        WizardGroupModel,
+        WizardGroupFilterModel,
+        WizardSchemaModel,
+    ]
+
+    for model in models:
+        if model.exists():
+            continue
+
+        table_name = model.Meta.table_name
+        # Create with on-demand billing (PAY_PER_REQUEST)
+        model.create_table(billing_mode="PAY_PER_REQUEST", wait=True)
+        logger.info(f"The {table_name} table has been created.")
 
 
-def _get_element(endpoint_id: str, element_uuid: str) -> Dict[str, Any]:
+def get_element(endpoint_id: str, element_uuid: str) -> Dict[str, Any]:
     from .element import get_element
 
     element = get_element(endpoint_id, element_uuid)
@@ -65,21 +76,21 @@ def _get_element(endpoint_id: str, element_uuid: str) -> Dict[str, Any]:
     }
 
 
-def _get_wizard(endpoint_id: str, wizard_uuid: str) -> Dict[str, Any]:
+def get_wizard(endpoint_id: str, wizard_uuid: str) -> Dict[str, Any]:
     from silvaengine_utility import Serializer
 
     from .wizard import get_wizard
 
     wizard = get_wizard(endpoint_id, wizard_uuid)
 
-    wizard_schema = _get_wizard_schema(
+    wizard_schema = get_wizard_schema(
         wizard.wizard_schema_type, wizard.wizard_schema_name
     )
 
     wizard_elements = []
     for wizard_element in wizard.wizard_elements:
         wizard_element = Serializer.json_normalize(wizard_element)
-        element = _get_element(endpoint_id, wizard_element.pop("element_uuid"))
+        element = get_element(endpoint_id, wizard_element.pop("element_uuid"))
         wizard_element["element"] = element
         wizard_elements.append(wizard_element)
 
@@ -97,7 +108,7 @@ def _get_wizard(endpoint_id: str, wizard_uuid: str) -> Dict[str, Any]:
     }
 
 
-def _get_flow_snippet(endpoint_id: str, flow_snippet_uuid: str) -> Dict[str, Any]:
+def get_flow_snippet(endpoint_id: str, flow_snippet_uuid: str) -> Dict[str, Any]:
     from .flow_snippet import get_flow_snippet
 
     flow_snippet = get_flow_snippet(endpoint_id, flow_snippet_uuid)
@@ -113,21 +124,21 @@ def _get_flow_snippet(endpoint_id: str, flow_snippet_uuid: str) -> Dict[str, Any
     }
 
 
-def _get_mcp_servers(
+def get_mcp_servers(
     info: ResolveInfo, mcp_servers: List[Dict[str, Any]]
 ) -> List[Dict[str, Any]]:
     from ..handlers.config import Config
     from .mcp_server import get_mcp_server_type, resolve_mcp_server
 
-    mcp_servers = [
-        resolve_mcp_server(info, **{"mcp_server_uuid": mcp_server["mcp_server_uuid"]})
-        for mcp_server in mcp_servers
-        if "mcp_server_uuid" in mcp_server
+    resolved_servers = [
+        resolve_mcp_server(info, **{"mcp_server_uuid": server["mcp_server_uuid"]})
+        for server in mcp_servers
+        if "mcp_server_uuid" in server
     ]
-    mcp_servers = [
+    resolved_servers = [
         {
             k: v
-            for k, v in mcp_server.__dict__.items()
+            for k, v in server.__dict__.items()
             if k
             not in [
                 "partition_key",
@@ -138,13 +149,15 @@ def _get_mcp_servers(
                 "updated_at",
             ]
         }
-        for mcp_server in mcp_servers
-        if mcp_server is not None
+        for server in resolved_servers
+        if server is not None
     ]
 
-    internal_mcp = Config.get_internal_mcp(info.context["endpoint_id"])
+    internal_mcp = Config.get_internal_mcp(
+        info.context["endpoint_id"], part_id=info.context.get("part_id")
+    )
     if internal_mcp:
-        mcp_server = get_mcp_server_type(
+        internal_server = get_mcp_server_type(
             info,
             {
                 "headers": internal_mcp["headers"],
@@ -152,39 +165,39 @@ def _get_mcp_servers(
                 "mcp_server_url": internal_mcp["base_url"],
             },
         )
-        mcp_servers.append(mcp_server.__dict__)
+        resolved_servers.append(internal_server.__dict__)
 
-    return mcp_servers
+    return resolved_servers
 
 
-def _get_ui_components(
+def get_ui_components(
     info: ResolveInfo, ui_components: List[Dict[str, Any]]
 ) -> List[Dict[str, Any]]:
     from .ui_component import resolve_ui_component
 
-    ui_components = [
+    resolved_components = [
         resolve_ui_component(
             info,
             **{
-                "ui_component_type": ui_component["ui_component_type"],
-                "ui_component_uuid": ui_component["ui_component_uuid"],
+                "ui_component_type": component["ui_component_type"],
+                "ui_component_uuid": component["ui_component_uuid"],
             },
         )
-        for ui_component in ui_components
-        if "ui_component_type" in ui_component and "ui_component_uuid" in ui_component
+        for component in ui_components
+        if "ui_component_type" in component and "ui_component_uuid" in component
     ]
-    ui_components = [
+    resolved_components = [
         {
             k: v
             for k, v in component.__dict__.items()
             if k not in ["endpoint_id", "updated_by", "created_at", "updated_at"]
         }
-        for component in ui_components
+        for component in resolved_components
     ]
-    return ui_components
+    return resolved_components
 
 
-def _get_wizard_schema(
+def get_wizard_schema(
     wizard_schema_type: str, wizard_schema_name: str
 ) -> Dict[str, Any]:
     from .wizard_schema import get_wizard_schema
@@ -206,7 +219,7 @@ def _get_wizard_schema(
     }
 
 
-def _get_prompt_template(info: ResolveInfo, prompt_uuid: str) -> Dict[str, Any]:
+def get_prompt_template(info: ResolveInfo, prompt_uuid: str) -> Dict[str, Any]:
     from .prompt_template import _get_active_prompt_template
 
     prompt_template = _get_active_prompt_template(
@@ -221,13 +234,13 @@ def _get_prompt_template(info: ResolveInfo, prompt_uuid: str) -> Dict[str, Any]:
         "prompt_description": prompt_template.prompt_description,
         "template_context": prompt_template.template_context,
         "variables": prompt_template.variables,
-        "mcp_servers": _get_mcp_servers(info, prompt_template.mcp_servers),
-        "ui_components": _get_ui_components(info, prompt_template.ui_components),
+        "mcp_servers": get_mcp_servers(info, prompt_template.mcp_servers),
+        "ui_components": get_ui_components(info, prompt_template.ui_components),
         "status": prompt_template.status,
     }
 
 
-def _update_agents_by_flow_snippet(
+def update_agents_by_flow_snippet(
     info: ResolveInfo,
     flow_snippet_version_uuid: str,
     updated_flow_snippet_version_uuid: str,
