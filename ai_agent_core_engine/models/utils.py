@@ -153,7 +153,9 @@ def get_mcp_servers(
         if server is not None
     ]
 
-    internal_mcp = Config.get_internal_mcp(info.context["endpoint_id"])
+    internal_mcp = Config.get_internal_mcp(
+        info.context["endpoint_id"], part_id=info.context.get("part_id")
+    )
     if internal_mcp:
         internal_server = get_mcp_server_type(
             info,

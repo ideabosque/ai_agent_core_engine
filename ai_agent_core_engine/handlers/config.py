@@ -10,6 +10,7 @@ import traceback
 from typing import Any, Dict, List
 
 import boto3
+
 from silvaengine_utility import Debugger, Graphql
 
 from ..models import utils
@@ -509,7 +510,7 @@ class Config:
             endpoint_id=endpoint_id
         )
         if part_id and "headers" in internal_mcp:
-            internal_mcp["headers"]["Part-ID"] = part_id
+            internal_mcp["headers"]["Part-Id"] = part_id
         return internal_mcp
 
     @classmethod
