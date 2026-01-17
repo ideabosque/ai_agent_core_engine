@@ -218,7 +218,7 @@ def resolve_mcp_server(
 
 @monitor_decorator
 @resolve_list_decorator(
-    attributes_to_get=["partition_key", "mcp_server_uuid"],
+    attributes_to_get=["partition_key", "mcp_server_uuid", "updated_at"],
     list_type_class=MCPServerListType,
     type_funct=get_mcp_server_type,
 )

@@ -182,7 +182,7 @@ def resolve_fine_tuning_message(
 
 @monitor_decorator
 @resolve_list_decorator(
-    attributes_to_get=["agent_uuid", "message_uuid"],
+    attributes_to_get=["agent_uuid", "message_uuid", "timestamp"],
     list_type_class=FineTuningMessageListType,
     type_funct=get_fine_tuning_message_type,
 )
