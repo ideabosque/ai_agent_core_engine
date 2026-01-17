@@ -137,7 +137,7 @@ def resolve_llm(info: ResolveInfo, **kwargs: Dict[str, Any]) -> LlmType | None:
 
 @monitor_decorator
 @resolve_list_decorator(
-    attributes_to_get=["llm_provider", "llm_name"],
+    attributes_to_get=["llm_provider", "llm_name", "updated_at"],
     list_type_class=LlmListType,
     type_funct=get_llm_type,
 )

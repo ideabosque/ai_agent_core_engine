@@ -199,7 +199,7 @@ def resolve_wizard_schema(
 
 @monitor_decorator
 @resolve_list_decorator(
-    attributes_to_get=["wizard_schema_type", "wizard_schema_name"],
+    attributes_to_get=["wizard_schema_type", "wizard_schema_name", "updated_at"],
     list_type_class=WizardSchemaListType,
     type_funct=get_wizard_schema_type,
 )
