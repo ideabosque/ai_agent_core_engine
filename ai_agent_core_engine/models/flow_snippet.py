@@ -13,6 +13,8 @@ import pendulum
 from graphene import ResolveInfo
 from pynamodb.attributes import UnicodeAttribute, UTCDateTimeAttribute
 from pynamodb.indexes import AllProjection, LocalSecondaryIndex
+from tenacity import retry, stop_after_attempt, wait_exponential
+
 from silvaengine_dynamodb_base import (
     BaseModel,
     delete_decorator,
@@ -21,7 +23,6 @@ from silvaengine_dynamodb_base import (
     resolve_list_decorator,
 )
 from silvaengine_utility import Serializer, convert_decimal_to_number, method_cache
-from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.ai_agent_utility import convert_flow_snippet_xml
 from ..handlers.config import Config
@@ -279,6 +280,7 @@ def resolve_flow_snippet(
         "partition_key",
         "flow_snippet_version_uuid",
         "flow_snippet_uuid",
+        "updated_at",
     ],
     list_type_class=FlowSnippetListType,
     type_funct=get_flow_snippet_list_type,
