@@ -159,7 +159,7 @@ def resolve_ui_component(
 
 @monitor_decorator
 @resolve_list_decorator(
-    attributes_to_get=["ui_component_type", "ui_component_uuid"],
+    attributes_to_get=["ui_component_type", "ui_component_uuid", "updated_at"],
     list_type_class=UIComponentListType,
     type_funct=get_ui_component_type,
 )

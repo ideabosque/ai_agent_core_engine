@@ -257,7 +257,12 @@ def resolve_prompt_template(
 
 @monitor_decorator
 @resolve_list_decorator(
-    attributes_to_get=["partition_key", "prompt_version_uuid", "prompt_uuid"],
+    attributes_to_get=[
+        "partition_key",
+        "prompt_version_uuid",
+        "prompt_uuid",
+        "updated_at",
+    ],
     list_type_class=PromptTemplateListType,
     type_funct=get_prompt_template_type,
 )
