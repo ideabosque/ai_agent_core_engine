@@ -51,12 +51,6 @@ def get_ai_agent_handler(info: ResolveInfo, agent: AgentType):
     ):
         raise RuntimeError("LLM is required")
 
-    Debugger.info(
-        variable=f"Module Name: {agent.llm.get('module_name')}\nClass Name: {agent.llm.get('class_name')}\nSetting: {info.context.get('setting', {})}\n",
-        stage=f"{__name__}:get_ai_agent_handler",
-        delimiter="#",
-    )
-
     # Dynamically load and initialize AI agent handler
     ai_agent_handler = Invoker.resolve_proxied_callable(
         module_name=agent.llm.get("module_name"),
@@ -66,6 +60,12 @@ def get_ai_agent_handler(info: ResolveInfo, agent: AgentType):
             "agent": agent.__dict__,
             **info.context.get("setting", {}),
         },
+    )
+
+    Debugger.info(
+        variable=f"Module Name: {agent.llm.get('module_name')}\nClass Name: {agent.llm.get('class_name')}\nSetting: {info.context.get('setting', {})}\n, Type: {type(ai_agent_handler)}",
+        stage=f"{__name__}:get_ai_agent_handler",
+        delimiter="#",
     )
 
     if not ai_agent_handler:
