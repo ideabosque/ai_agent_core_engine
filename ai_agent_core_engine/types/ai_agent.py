@@ -6,7 +6,7 @@ __author__ = "bibow"
 
 from graphene import Boolean, DateTime, Int, List, ObjectType, String
 
-from silvaengine_utility import JSON
+from silvaengine_utility import JSONCamelCase
 
 
 class AskModelType(ObjectType):
@@ -21,7 +21,7 @@ class AskModelType(ObjectType):
 class FileType(ObjectType):
     identity = String()
     value = String()
-    file_detail = JSON()
+    file_detail = Field(JSONCamelCase)
 
 
 class PresignedAWSS3UrlType(ObjectType):

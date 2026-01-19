@@ -6,7 +6,7 @@ __author__ = "bibow"
 
 from graphene import DateTime, List, ObjectType, String
 from silvaengine_dynamodb_base import ListObjectType
-from silvaengine_utility import JSON
+from silvaengine_utility import JSONCamelCase
 
 
 class MCPServerType(ObjectType):
@@ -16,8 +16,8 @@ class MCPServerType(ObjectType):
     mcp_server_uuid = String()
     mcp_label = String()
     mcp_server_url = String()
-    headers = JSON()
-    tools = List(JSON)
+    headers = Field(JSONCamelCase)
+    tools = List(JSONCamelCase)
     updated_by = String()
     created_at = DateTime()
     updated_at = DateTime()

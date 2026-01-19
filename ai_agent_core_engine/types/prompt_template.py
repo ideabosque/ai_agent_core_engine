@@ -7,7 +7,7 @@ __author__ = "bibow"
 from graphene import DateTime, List, ObjectType, String
 from promise import Promise
 from silvaengine_dynamodb_base import ListObjectType
-from silvaengine_utility import JSON
+from silvaengine_utility import JSONCamelCase
 
 from ..types.mcp_server import MCPServerType
 from ..types.ui_component import UIComponentType
@@ -24,7 +24,7 @@ class PromptTemplateBaseType(ObjectType):
     prompt_name = String()
     prompt_description = String()
     template_context = String()
-    variables = List(JSON)
+    variables = List(JSONCamelCase)
     status = String()
     updated_by = String()
     created_at = DateTime()
@@ -32,9 +32,9 @@ class PromptTemplateBaseType(ObjectType):
 
 
 class PromptTemplateType(PromptTemplateBaseType):
-    mcp_servers = List(JSON)  # List of {mcp_server_uuid: ...}
+    mcp_servers = List(JSONCamelCase)  # List of {mcp_server_uuid: ...}
     ui_components = List(
-        JSON
+        JSONCamelCase
     )  # List of {ui_component_type: ..., ui_component_uuid: ...}
 
     # Override mcp_servers and ui_components to return full entity data via DataLoader

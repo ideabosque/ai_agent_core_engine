@@ -7,14 +7,14 @@ __author__ = "bibow"
 from graphene import Boolean, DateTime, List, ObjectType, String
 
 from silvaengine_dynamodb_base import ListObjectType
-from silvaengine_utility import JSON
+from silvaengine_utility import JSONCamelCase
 
 
 class UIComponentType(ObjectType):
     ui_component_type = String()
     ui_component_uuid = String()
     tag_name = String()
-    parameters = List(JSON)
+    parameters = List(JSONCamelCase)
     wait_for = String()
     updated_by = String()
     created_at = DateTime()

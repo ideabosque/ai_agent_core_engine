@@ -50,10 +50,9 @@ class AgentTypeBase(ObjectType):
     llm_name = String()  # FK for resolve_llm
     mcp_server_uuids = List(String)  # FKs for resolve_mcp_servers
     flow_snippet_version_uuid = String()  # FK for resolve_flow_snippet
-
     instructions = String()
-    configuration = JSON()
-    variables = List(JSON)
+    configuration = Field(JSONCamelCase)
+    variables = List(JSONCamelCase)
     num_of_messages = Int()
     tool_call_role = String()
     status = String()

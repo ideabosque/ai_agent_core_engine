@@ -7,7 +7,7 @@ __author__ = "bibow"
 from graphene import DateTime, Field, List, ObjectType, String
 from promise import Promise
 from silvaengine_dynamodb_base import ListObjectType
-from silvaengine_utility import JSON
+from silvaengine_utility import JSONCamelCase
 
 from ..utils.normalization import normalize_to_json
 
@@ -23,8 +23,8 @@ class ThreadType(ObjectType):
 
     # Nested resolvers: strongly-typed nested relationships
     agent = Field(lambda: AgentType)
-    messages = List(JSON)
-    tool_calls = List(JSON)
+    messages = List(JSONCamelCase)
+    tool_calls = List(JSONCamelCase)
 
     # ------- Nested resolvers -------
 

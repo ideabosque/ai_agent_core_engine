@@ -5,10 +5,8 @@ __author__ = "bibow"
 
 import traceback
 from typing import Any, Dict
-
 from graphene import Boolean, Field, List, Mutation, String
-
-from silvaengine_utility import JSON
+from silvaengine_utility import JSONCamelCase
 
 from ..models.wizard_schema import (
     delete_wizard_schema,
@@ -24,8 +22,8 @@ class InsertUpdateWizardSchema(Mutation):
         wizard_schema_type = String(required=True)
         wizard_schema_name = String(required=True)
         wizard_schema_description = String(required=False)
-        attributes = List(JSON, required=False)
-        attribute_groups = List(JSON, required=False)
+        attributes = List(JSONCamelCase, required=False)
+        attribute_groups = List(JSONCamelCase, required=False)
         updated_by = String(required=True)
 
     @staticmethod

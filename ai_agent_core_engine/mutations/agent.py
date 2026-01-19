@@ -5,10 +5,8 @@ __author__ = "bibow"
 
 import traceback
 from typing import Any, Dict
-
 from graphene import Boolean, Field, Int, List, Mutation, String
-
-from silvaengine_utility import JSON
+from silvaengine_utility import JSONCamelCase
 
 from ..models.agent import delete_agent, insert_update_agent
 from ..types.agent import AgentType
@@ -25,9 +23,9 @@ class InsertUpdateAgent(Mutation):
         llm_provider = String(required=False)
         llm_name = String(required=False)
         instructions = String(required=False)
-        configuration = JSON(required=False)
+        configuration = JSONCamelCase(required=False)
         mcp_server_uuids = List(String, required=False)
-        variables = List(JSON, required=False)
+        variables = List(JSONCamelCase, required=False)
         num_of_messages = Int(required=False)
         tool_call_role = String(required=False)
         flow_snippet_version_uuid = String(required=False)

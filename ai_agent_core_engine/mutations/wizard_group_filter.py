@@ -5,10 +5,8 @@ __author__ = "bibow"
 
 import traceback
 from typing import Any, Dict
-
 from graphene import Boolean, Field, Int, Mutation, String
-
-from silvaengine_utility import JSON
+from silvaengine_utility import JSONCamelCase
 
 from ..models.wizard_group_filter import (
     delete_wizard_group_filter,
@@ -25,7 +23,7 @@ class InsertUpdateWizardGroupFilter(Mutation):
         wizard_group_filter_name = String(required=True)
         wizard_group_filter_description = String(required=False)
         region = String(required=True)
-        criteria = JSON(required=False)
+        criteria = JSONCamelCase(required=False)
         weight = Int(required=False)
         wizard_group_uuid = String(required=False)
         updated_by = String(required=True)

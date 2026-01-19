@@ -6,7 +6,7 @@ __author__ = "bibow"
 
 from graphene import DateTime, Field, Int, List, ObjectType, String
 from silvaengine_dynamodb_base import ListObjectType
-from silvaengine_utility import JSON
+from silvaengine_utility import JSONCamelCase
 
 from ..types.wizard_group import WizardGroupType
 
@@ -19,7 +19,7 @@ class WizardGroupFilterType(ObjectType):
     wizard_group_filter_name = String()
     wizard_group_filter_description = String()
     region = String()
-    criteria = JSON()
+    criteria = Field(JSONCamelCase)
     weight = Int()
     # Store foreign key for wizard_group
     wizard_group_uuid = String()

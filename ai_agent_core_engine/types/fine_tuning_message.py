@@ -7,7 +7,7 @@ __author__ = "bibow"
 from graphene import Boolean, DateTime, Float, Int, List, ObjectType, String
 
 from silvaengine_dynamodb_base import ListObjectType
-from silvaengine_utility import JSON
+from silvaengine_utility import JSONCamelCase
 
 
 class FineTuningMessageType(ObjectType):
@@ -17,7 +17,7 @@ class FineTuningMessageType(ObjectType):
     timestamp = Int()
     endpoint_id = String()
     role = String()
-    tool_calls = List(JSON)
+    tool_calls = List(JSONCamelCase)
     tool_call_uuid = String()
     content = String()
     weight = Float()

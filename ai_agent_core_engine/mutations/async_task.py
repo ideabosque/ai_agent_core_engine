@@ -5,10 +5,8 @@ __author__ = "bibow"
 
 import traceback
 from typing import Any, Dict
-
 from graphene import Boolean, Field, Int, List, Mutation, String
-
-from silvaengine_utility import JSON
+from silvaengine_utility import JSONCamelCase
 
 from ..models.async_task import delete_async_task, insert_update_async_task
 from ..types.async_task import AsyncTaskType
@@ -21,9 +19,9 @@ class InsertUpdateAsyncTask(Mutation):
         function_name = String(required=True)
         async_task_uuid = String(required=False)
         task_type = String(required=False)
-        arguments = JSON(required=False)
+        arguments = JSONCamelCase(required=False)
         result = String(required=False)
-        output_files = List(JSON, required=False)
+        output_files = List(JSONCamelCase, required=False)
         status = String(required=False)
         notes = String(required=False)
         updated_by = String(required=True)
