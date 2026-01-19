@@ -157,6 +157,12 @@ def _get_agent(info: ResolveInfo, agent_uuid: str):
     if not agent:
         return None
 
+    Debugger.info(
+        variable=agent,
+        stage=f"{__name__}:_get_agent",
+        setting=info.context.get("setting"),
+    )
+
     # Use the DataLoader to fetch LLM data (triggers nested resolver)
     loaders = get_loaders(info.context)
     llm_dict = loaders.llm_loader.load((agent.llm_provider, agent.llm_name)).get()
