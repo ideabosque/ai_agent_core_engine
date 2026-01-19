@@ -50,8 +50,11 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
         AskModelType containing thread, task and run identifiers
     """
     try:
+        Debugger.info(variable=info.context, stage=f"{__name__}:ask_model-1")
         # Log request details
         thread = _get_thread(info, **kwargs)
+
+        Debugger.info(variable=thread, stage=f"{__name__}:ask_model-2")
         # Create new run instance for this request
         run = insert_update_run(
             info,
@@ -73,6 +76,7 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
         if "input_files" in kwargs:
             arguments["input_files"] = kwargs["input_files"]
 
+        Debugger.info(variable=arguments, stage=f"{__name__}:ask_model-3")
         # Start async task and get identifiers
         function_name = "async_execute_ask_model"
         async_task_uuid = start_async_task(
@@ -80,6 +84,8 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
             function_name,
             **arguments,
         )
+
+        Debugger.info(variable=async_task_uuid, stage=f"{__name__}:ask_model-4")
 
         # Return response with all relevant IDs
         return AskModelType(
