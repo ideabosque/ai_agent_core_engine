@@ -51,25 +51,25 @@ def get_ai_agent_handler(info: ResolveInfo, agent: AgentType):
     ):
         raise RuntimeError("LLM is required")
 
-    # Dynamically load and initialize AI agent handler
-    ai_agent_handler = Invoker.resolve_proxied_callable(
-        module_name=agent.llm.get("module_name"),
-        class_name=agent.llm.get("class_name"),
-        constructor_parameters={
-            "logger": info.context.get("logger"),
-            "agent": agent.__dict__,
-            **info.context.get("setting", {}),
-        },
+    # # Dynamically load and initialize AI agent handler
+    # ai_agent_handler = Invoker.resolve_proxied_callable(
+    #     module_name=agent.llm.get("module_name"),
+    #     class_name=agent.llm.get("class_name"),
+    #     constructor_parameters={
+    #         "logger": info.context.get("logger"),
+    #         "agent": agent.__dict__,
+    #         **info.context.get("setting", {}),
+    #     },
+    # )
+    ai_agent_handler_class = getattr(
+        __import__(agent.llm.get("module_name")),
+        agent.llm.get("class_name"),
     )
-    # ai_agent_handler_class = getattr(
-    #     __import__(agent.llm.get("module_name")),
-    #     agent.llm.get("class_name"),
-    # )
-    # ai_agent_handler = ai_agent_handler_class(
-    #     info.context.get("logger"),
-    #     agent.__dict__,
-    #     **info.context.get("setting", {}),
-    # )
+    ai_agent_handler = ai_agent_handler_class(
+        info.context.get("logger"),
+        agent.__dict__,
+        **info.context.get("setting", {}),
+    )
 
     Debugger.info(
         variable=f"Module Name: {agent.llm.get('module_name')}\nClass Name: {agent.llm.get('class_name')}\nSetting: {info.context.get('setting', {})}\n, Type: {type(ai_agent_handler)}",
