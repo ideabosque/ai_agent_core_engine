@@ -21,6 +21,7 @@ from .tool_calls_by_thread_loader import ToolCallsByThreadLoader
 from .ui_component_loader import UIComponentLoader
 from .wizard_group_loader import WizardGroupLoader
 from .wizard_loader import WizardLoader
+from .mcp_server_tool_loader import McpServerToolLoader
 
 
 class RequestLoaders:
@@ -63,6 +64,9 @@ class RequestLoaders:
             logger=logger, cache_enabled=cache_enabled
         )
         self.tool_calls_by_thread_loader = ToolCallsByThreadLoader(
+            logger=logger, cache_enabled=cache_enabled
+        )
+        self.mcp_server_tool_loader = McpServerToolLoader(
             logger=logger, cache_enabled=cache_enabled
         )
 
@@ -149,6 +153,7 @@ class RequestLoaders:
                     (entity_keys.get("partition_key"), entity_keys["wizard_group_uuid"])
                 )
                 self.wizard_group_loader.cache.delete(cache_key)
+        
 
 
 def get_loaders(context: Dict[str, Any]) -> RequestLoaders:

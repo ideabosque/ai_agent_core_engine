@@ -4,7 +4,8 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
-import asyncio
+import logging
+# import asyncio
 import functools
 import traceback
 from typing import Any, Dict
@@ -151,7 +152,7 @@ def get_mcp_server_count(partition_key: str, mcp_server_uuid: str) -> int:
     cache_enabled=Config.is_cache_enabled,
 )
 async def _run_list_tools(
-    info: ResolveInfo, mcp_server: MCPServerModel | Dict[str, Any]
+    logger: logging.Logger, mcp_server: MCPServerModel | Dict[str, Any]
 ):
     if MCPHttpClient is None:
         raise ImportError("mcp_http_client is required to list MCP server tools.")
@@ -162,7 +163,7 @@ async def _run_list_tools(
         base_url = mcp_server["mcp_server_url"]
         headers = mcp_server["headers"]
     mcp_http_client = MCPHttpClient(
-        info.context["logger"],
+        logger,
         **{
             "base_url": base_url,
             "headers": headers,
@@ -171,13 +172,44 @@ async def _run_list_tools(
     async with mcp_http_client as client:
         return await client.list_tools()
 
+@method_cache(
+    ttl=Config.get_cache_ttl(),
+    cache_name=Config.get_cache_name("models", "mcp_server_tools"),
+    cache_enabled=Config.is_cache_enabled,
+)
+def _load_list_tools(
+    logger: logging.Logger, mcp_server: MCPServerModel | Dict[str, Any]
+):
+    try:
+        # tools = asyncio.run(_run_list_tools(info, mcp_server))
+        tools = Invoker.sync_call_async_compatible(_run_list_tools(logger, mcp_server))
+    except Exception as e:
+        mcp_server_uuid = "internal_mcp"
+        if isinstance(mcp_server, MCPServerModel):
+            if hasattr(mcp_server, "mcp_server_uuid"):
+                mcp_server_uuid = mcp_server.mcp_server_uuid
+        elif "mcp_server_uuid" in mcp_server:
+            mcp_server_uuid = mcp_server["mcp_server_uuid"]
+        logger.error(
+            f"Failed to list tools from MCP server {mcp_server_uuid}: {str(e)}"
+        )
+        tools = []
+    list_tools = [
+        {
+            "name": tool.name,
+            "description": tool.description,
+            "input_schema": tool.input_schema,
+        }
+        for tool in tools
+    ]
+    return list_tools
 
 def get_mcp_server_type(
     info: ResolveInfo, mcp_server: MCPServerModel | Dict[str, Any]
 ) -> MCPServerType:
     try:
         # tools = asyncio.run(_run_list_tools(info, mcp_server))
-        tools = Invoker.sync_call_async_compatible(_run_list_tools(info, mcp_server))
+        tools = Invoker.sync_call_async_compatible(_run_list_tools(info.context["logger"], mcp_server))
     except Exception as e:
         mcp_server_uuid = "internal_mcp"
         if isinstance(mcp_server, MCPServerModel):

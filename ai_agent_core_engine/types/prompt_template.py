@@ -32,7 +32,7 @@ class PromptTemplateBaseType(ObjectType):
 
 
 class PromptTemplateType(PromptTemplateBaseType):
-    mcp_servers = List(JSON)  # List of {mcp_server_uuid: ...}
+    mcp_servers = List(lambda: MCPServerType)  # List of {mcp_server_uuid: ...}
     ui_components = List(
         JSON
     )  # List of {ui_component_type: ..., ui_component_uuid: ...}
@@ -50,7 +50,7 @@ class PromptTemplateType(PromptTemplateBaseType):
             first_ref = mcp_server_refs[0]
             if isinstance(first_ref, dict) and len(first_ref) > 1:
                 # Has more than just mcp_server_uuid, likely full data
-                return [normalize_to_json(server) for server in mcp_server_refs]
+                return mcp_server_refs
 
         # Otherwise, load via DataLoader to get full entity data
         from ..models.batch_loaders import get_loaders
@@ -69,13 +69,7 @@ class PromptTemplateType(PromptTemplateBaseType):
             or isinstance(ref, str)
         ]
 
-        return Promise.all(promises).then(
-            lambda mcp_server_dicts: [
-                normalize_to_json(mcp_dict)
-                for mcp_dict in mcp_server_dicts
-                if mcp_dict is not None
-            ]
-        )
+        return Promise.all(promises)
 
     def resolve_ui_components(parent, info):
         # Get the UI component references from the model
