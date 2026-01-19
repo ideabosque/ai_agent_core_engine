@@ -61,7 +61,7 @@ def get_ai_agent_handler(info: ResolveInfo, agent: AgentType):
             **info.context.get("setting", {}),
         },
     )
-    ai_agent_handler_class = getattr(
+    # ai_agent_handler_class = getattr(
     #     __import__(agent.llm.get("module_name")),
     #     agent.llm.get("class_name"),
     # )
