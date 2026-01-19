@@ -41,11 +41,7 @@ from .config import Config
 
 
 def get_ai_agent_handler(info: ResolveInfo, agent: AgentType):
-    Debugger.info(
-        variable=agent,
-        stage=f"{__name__}:_get_agent",
-        setting=info.context.get("setting"),
-    )
+    Debugger.info(variable=agent, stage=f"{__name__}:_get_agent")
 
     if (
         not hasattr(agent, "llm")
