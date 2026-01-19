@@ -396,6 +396,7 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
 
         # Handle an existing agent if an ID is provided
         active_agent = None
+        
         if "agent_uuid" in kwargs:
             active_agent = _get_active_agent(partition_key, kwargs["agent_uuid"])
         if active_agent:

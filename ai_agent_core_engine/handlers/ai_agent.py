@@ -11,7 +11,7 @@ from typing import Any, Dict, List
 
 import pendulum
 from graphene import ResolveInfo
-from silvaengine_utility import Debugger, Serializer
+from silvaengine_utility import Debugger, Invoker, Serializer
 
 from ..models.agent import resolve_agent
 from ..models.async_task import insert_update_async_task
@@ -264,16 +264,37 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
             },
         )
 
+        if (
+            not hasattr(agent, "llm")
+            or not agent.llm.get("module_name")
+            or not agent.llm.get("class_name")
+        ):
+            raise RuntimeError("LLM is required")
+
         # Dynamically load and initialize AI agent handler
-        ai_agent_handler_class = getattr(
-            __import__(agent.llm["module_name"]),
-            agent.llm["class_name"],
+        ai_agent_handler = Invoker.resolve_proxied_callable(
+            module_name=agent.llm.get("module_name"),
+            class_name=agent.llm.get("class_name"),
+            constructor_parameters={
+                "logger": info.context.get("logger"),
+                "agent": agent.__dict__,
+                **info.context.get("setting", {}),
+            },
         )
-        ai_agent_handler = ai_agent_handler_class(
-            info.context.get("logger"),
-            agent.__dict__,
-            **info.context.get("setting", {}),
-        )
+
+        if not ai_agent_handler:
+            raise RuntimeError(
+                f"Can't import module `{agent.llm.get('module_name')}` or not class `{agent.llm.get('class_name')}`"
+            )
+        # ai_agent_handler_class = getattr(
+        #     __import__(agent.llm["module_name"]),
+        #     agent.llm["class_name"],
+        # )
+        # ai_agent_handler = ai_agent_handler_class(
+        #     info.context.get("logger"),
+        #     agent.__dict__,
+        #     **info.context.get("setting", {}),
+        # )
 
         ai_agent_handler.context = info.context
         ai_agent_handler.run = run.__dict__
@@ -313,7 +334,9 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
         assert isinstance(ai_agent_handler.final_output, dict) and all(
             key in ai_agent_handler.final_output and ai_agent_handler.final_output[key]
             for key in ["message_id", "role", "content"]
-        ), "final_output must be a dict containing non-empty values for message_id, role and content fields"
+        ), (
+            "final_output must be a dict containing non-empty values for message_id, role and content fields"
+        )
 
         if ai_agent_handler.uploaded_files:
             _update_user_message_with_files(
