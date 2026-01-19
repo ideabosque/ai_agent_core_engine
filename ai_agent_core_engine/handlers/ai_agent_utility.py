@@ -43,6 +43,7 @@ from .config import Config
 def get_ai_agent_handler(info: ResolveInfo, agent: AgentType):
     if (
         not hasattr(agent, "llm")
+        or not isinstance(agent.llm, dict)
         or not agent.llm.get("module_name")
         or not agent.llm.get("class_name")
     ):
