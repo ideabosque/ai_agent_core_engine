@@ -170,7 +170,7 @@ def start_async_task(
         )
 
         try:
-            fn = Invoker.resolve_proxied_callable(
+            Invoker.resolve_proxied_callable(
                 module_name="ai_agent_core_engine",
                 function_name=function_name,
                 class_name="AIAgentCoreEngine",
@@ -180,10 +180,6 @@ def start_async_task(
                 },
             )(**params)
 
-            Debugger.info(
-                variable=f"Function Name; {function_name}, Type: {type(fn)}, Logger: {fn.__self__.logger}, Setting: {fn.__self__.setting}",
-                stage=f"{__name__}:start_async_task",
-            )
             # Invoker.execute_async_task(
             #     task=Invoker.resolve_proxied_callable(
             #         module_name="ai_agent_core_engine",
