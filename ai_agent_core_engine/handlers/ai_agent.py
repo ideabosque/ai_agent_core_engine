@@ -11,7 +11,7 @@ from typing import Any, Dict, List
 
 import pendulum
 from graphene import ResolveInfo
-from silvaengine_utility import Debugger, Serializer
+from silvaengine_utility import Debugger, Invoker, Serializer
 
 from ..models.agent import resolve_agent
 from ..models.async_task import insert_update_async_task
@@ -21,7 +21,12 @@ from ..models.thread import insert_thread, resolve_thread, resolve_thread_list
 from ..types.ai_agent import AskModelType, FileType, PresignedAWSS3UrlType
 from ..types.message import MessageType
 from ..types.thread import ThreadListType, ThreadType
-from .ai_agent_utility import calculate_num_tokens, get_input_messages, start_async_task
+from .ai_agent_utility import (
+    calculate_num_tokens,
+    get_ai_agent_handler,
+    get_input_messages,
+    start_async_task,
+)
 from .config import Config
 
 
@@ -264,17 +269,17 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
             },
         )
 
-        # Dynamically load and initialize AI agent handler
-        ai_agent_handler_class = getattr(
-            __import__(agent.llm["module_name"]),
-            agent.llm["class_name"],
-        )
-        ai_agent_handler = ai_agent_handler_class(
-            info.context.get("logger"),
-            agent.__dict__,
-            **info.context.get("setting", {}),
-        )
+        # ai_agent_handler_class = getattr(
+        #     __import__(agent.llm["module_name"]),
+        #     agent.llm["class_name"],
+        # )
+        # ai_agent_handler = ai_agent_handler_class(
+        #     info.context.get("logger"),
+        #     agent.__dict__,
+        #     **info.context.get("setting", {}),
+        # )
 
+        ai_agent_handler = get_ai_agent_handler(info=info, agent=agent)
         ai_agent_handler.context = info.context
         ai_agent_handler.run = run.__dict__
         ai_agent_handler.task_queue = Config.task_queue
@@ -313,7 +318,9 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
         assert isinstance(ai_agent_handler.final_output, dict) and all(
             key in ai_agent_handler.final_output and ai_agent_handler.final_output[key]
             for key in ["message_id", "role", "content"]
-        ), "final_output must be a dict containing non-empty values for message_id, role and content fields"
+        ), (
+            "final_output must be a dict containing non-empty values for message_id, role and content fields"
+        )
 
         if ai_agent_handler.uploaded_files:
             _update_user_message_with_files(
@@ -446,15 +453,19 @@ def _update_user_message_with_files(
 def upload_file(info: ResolveInfo, **kwargs: Dict[str, Any]) -> FileType:
     # Retrieve AI agent configuration
     agent = _get_agent(info, kwargs["agent_uuid"])
-    ai_agent_handler_class = getattr(
-        __import__(agent.llm["module_name"]),
-        agent.llm["class_name"],
-    )
-    ai_agent_handler = ai_agent_handler_class(
-        info.context.get("logger"),
-        agent.__dict__,
-        **info.context.get("setting", {}),
-    )
+
+    if not agent:
+        raise ValueError("Invalid agent")
+    # ai_agent_handler_class = getattr(
+    #     __import__(agent.llm["module_name"]),
+    #     agent.llm["class_name"],
+    # )
+    # ai_agent_handler = ai_agent_handler_class(
+    #     info.context.get("logger"),
+    #     agent.__dict__,
+    #     **info.context.get("setting", {}),
+    # )
+    ai_agent_handler = get_ai_agent_handler(info=info, agent=agent)
     ai_agent_handler.endpoint_id = info.context["endpoint_id"]
     ai_agent_handler.part_id = info.context.get("part_id")
     file = ai_agent_handler.insert_file(**kwargs["arguments"])
@@ -477,15 +488,19 @@ def get_file(info: ResolveInfo, **kwargs: Dict[str, Any]) -> FileType:
     # Retrieve AI agent configuration
     agent = _get_agent(info, kwargs["agent_uuid"])
 
-    ai_agent_handler_class = getattr(
-        __import__(agent.llm["module_name"]),
-        agent.llm["class_name"],
-    )
-    ai_agent_handler = ai_agent_handler_class(
-        info.context.get("logger"),
-        agent.__dict__,
-        **info.context.get("setting", {}),
-    )
+    # ai_agent_handler_class = getattr(
+    #     __import__(agent.llm["module_name"]),
+    #     agent.llm["class_name"],
+    # )
+    # ai_agent_handler = ai_agent_handler_class(
+    #     info.context.get("logger"),
+    #     agent.__dict__,
+    #     **info.context.get("setting", {}),
+    # )
+    if not agent:
+        raise ValueError("Invalid agent")
+
+    ai_agent_handler = get_ai_agent_handler(info=info, agent=agent)
     ai_agent_handler.endpoint_id = info.context["endpoint_id"]
     ai_agent_handler.part_id = info.context.get("part_id")
 
@@ -509,15 +524,19 @@ def get_output_file(info: ResolveInfo, **kwargs: Dict[str, Any]) -> FileType:
     # Retrieve AI agent configuration
     agent = _get_agent(info, kwargs["agent_uuid"])
 
-    ai_agent_handler_class = getattr(
-        __import__(agent.llm["module_name"]),
-        agent.llm["class_name"],
-    )
-    ai_agent_handler = ai_agent_handler_class(
-        info.context.get("logger"),
-        agent.__dict__,
-        **info.context.get("setting", {}),
-    )
+    # ai_agent_handler_class = getattr(
+    #     __import__(agent.llm["module_name"]),
+    #     agent.llm["class_name"],
+    # )
+    # ai_agent_handler = ai_agent_handler_class(
+    #     info.context.get("logger"),
+    #     agent.__dict__,
+    #     **info.context.get("setting", {}),
+    # )
+    if not agent:
+        raise ValueError("Invalid agent")
+
+    ai_agent_handler = get_ai_agent_handler(info=info, agent=agent)
     ai_agent_handler.endpoint_id = info.context["endpoint_id"]
     ai_agent_handler.part_id = info.context.get("part_id")
 
