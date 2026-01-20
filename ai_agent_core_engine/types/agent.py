@@ -8,6 +8,8 @@ from graphene import DateTime, Field, Int, List, ObjectType, String
 from promise import Promise
 from silvaengine_dynamodb_base import ListObjectType
 from silvaengine_utility import JSONCamelCase
+
+from ..types.mcp_server import MCPServerType
 from ..utils.normalization import normalize_to_json
 
 
@@ -79,7 +81,7 @@ class AgentType(AgentTypeBase):
     llm = Field(
         lambda: LlmType
     )  # Resolved via resolve_llm using llm_provider + llm_name
-    mcp_servers = List(JSONCamelCase)  # Resolved via resolve_mcp_servers using mcp_server_uuids
+    mcp_servers = List(lambda: MCPServerType)  # Resolved via resolve_mcp_servers using mcp_server_uuids
     flow_snippet = Field(
         lambda: FlowSnippetType
     )  # Resolved via resolve_flow_snippet using flow_snippet_version_uuid
@@ -141,11 +143,7 @@ class AgentType(AgentTypeBase):
             for mcp_uuid in mcp_server_uuids
         ]
 
-        def filter_results(mcp_dicts):
-            # Keep payload JSON-ready; filter out missing lookups.
-            return [normalize_to_json(mcp_dict) for mcp_dict in mcp_dicts if mcp_dict]
-
-        return Promise.all(promises).then(filter_results)
+        return Promise.all(promises)
 
     def resolve_flow_snippet(parent, info):
         from ..models.batch_loaders import get_loaders

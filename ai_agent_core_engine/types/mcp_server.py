@@ -32,24 +32,30 @@ class MCPServerType(ObjectType):
         if isinstance(parent, dict):
             mcp_server_url = parent.get("mcp_server_url", None)
             headers = parent.get("headers", None)
+            endpoint_id = parent.get("endpoint_id", None)
+            part_id = parent.get("part_id", None)
         else:
-            mcp_server_url = getattr(parent, "prompt_uuid", None)
+            mcp_server_url = getattr(parent, "mcp_server_url", None)
             headers = getattr(parent, "headers", None)
+            endpoint_id = getattr(parent, "endpoint_id", None)
+            part_id = getattr(parent, "part_id", None)
 
         if not mcp_server_url or not headers:
             return None
+
         from ..models.batch_loaders import get_loaders
-
         loaders = get_loaders(info.context)
-
-        return loaders.mcp_server_tool_loader.load(
-            (mcp_server_url, tuple(headers.items()))
-        ).then(
-            lambda mcp_server_tool_dicts: [
-                normalize_to_json(mcp_tool_dict)
-                for mcp_tool_dict in mcp_server_tool_dicts
-                if mcp_tool_dict is not None
-            ]
+        mcp_server_tool_loader = loaders.mcp_server_tool_loader
+        mcp_server_tool_loader.set_internal_mcp(endpoint_id, part_id)
+        return (
+            mcp_server_tool_loader.load((mcp_server_url, tuple(headers.items())))
+            .then(
+                lambda mcp_server_tool_dicts: [
+                    normalize_to_json(mcp_tool_dict)
+                    for mcp_tool_dict in mcp_server_tool_dicts
+                    if mcp_tool_dict is not None
+                ]
+            )
         )
 
 

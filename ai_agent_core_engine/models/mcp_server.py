@@ -146,11 +146,11 @@ def get_mcp_server_count(partition_key: str, mcp_server_uuid: str) -> int:
     )
 
 
-@method_cache(
-    ttl=Config.get_cache_ttl(),
-    cache_name=Config.get_cache_name("models", "mcp_server_tools"),
-    cache_enabled=Config.is_cache_enabled,
-)
+# @method_cache(
+#     ttl=Config.get_cache_ttl(),
+#     cache_name=Config.get_cache_name("models", "mcp_server_tools"),
+#     cache_enabled=Config.is_cache_enabled,
+# )
 async def _run_list_tools(
     logger: logging.Logger, mcp_server: MCPServerModel | Dict[str, Any]
 ):
