@@ -7,7 +7,7 @@ __author__ = "bibow"
 from graphene import DateTime, Field, Int, List, ObjectType, String
 from promise import Promise
 from silvaengine_dynamodb_base import ListObjectType
-from silvaengine_utility import JSON
+from silvaengine_utility import JSONCamelCase
 
 from ..types.wizard_schema import WizardSchemaType
 from ..types.element import ElementType
@@ -25,9 +25,9 @@ class WizardType(ObjectType):
     # Store foreign keys for wizard_schema
     wizard_schema_type = String()
     wizard_schema_name = String()
-    wizard_attributes = List(JSON)
+    wizard_attributes = List(JSONCamelCase)
     # Store raw element references
-    wizard_element_refs = List(JSON)  # List of {element_uuid, required, placeholder}
+    wizard_element_refs = List(JSONCamelCase)  # List of {element_uuid, required, placeholder}
     priority = Int()
     updated_by = String()
     created_at = DateTime()
@@ -35,7 +35,7 @@ class WizardType(ObjectType):
 
     # Nested resolvers for strongly-typed relationships
     wizard_schema = Field(lambda: WizardSchemaType)
-    wizard_elements = List(JSON)  # Will include both element data and metadata
+    wizard_elements = List(JSONCamelCase)  # Will include both element data and metadata
 
     def resolve_wizard_schema(parent, info):
         """

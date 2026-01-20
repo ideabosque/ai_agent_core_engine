@@ -8,7 +8,7 @@ from typing import Any, Dict
 
 from graphene import Boolean, Field, Int, List, Mutation, String
 
-from silvaengine_utility import JSON
+from silvaengine_utility import JSONCamelCase
 
 from ..models.element import delete_element, insert_update_element
 from ..types.element import ElementType
@@ -24,8 +24,8 @@ class InsertUpdateElement(Mutation):
         priority = Int(required=False)
         attribute_name = String(required=True)
         attribute_type = String(required=True)
-        option_values = List(JSON, required=False)
-        conditions = List(JSON, required=False)
+        option_values = List(JSONCamelCase, required=False)
+        conditions = List(JSONCamelCase, required=False)
         pattern = String(required=False)
         updated_by = String(required=True)
 

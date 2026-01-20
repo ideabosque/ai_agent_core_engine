@@ -5,10 +5,8 @@ __author__ = "bibow"
 
 import traceback
 from typing import Any, Dict
-
 from graphene import Boolean, Field, List, Mutation, String
-
-from silvaengine_utility import JSON
+from silvaengine_utility import JSONCamelCase
 
 from ..models.ui_component import delete_ui_component, insert_update_ui_component
 from ..types.ui_component import UIComponentType
@@ -21,7 +19,7 @@ class InsertUpdateUIComponent(Mutation):
         ui_component_uuid = String(required=False)
         ui_component_type = String(required=True)
         tag_name = String(required=True)
-        parameters = List(JSON, required=False)
+        parameters = List(JSONCamelCase, required=False)
         wait_for = String(required=False)
         updated_by = String(required=True)
 

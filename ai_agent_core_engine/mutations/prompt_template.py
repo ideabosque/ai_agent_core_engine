@@ -5,10 +5,8 @@ __author__ = "bibow"
 
 import traceback
 from typing import Any, Dict
-
 from graphene import Boolean, Field, List, Mutation, String
-
-from silvaengine_utility import JSON
+from silvaengine_utility import JSONCamelCase
 
 from ..models.prompt_template import (
     delete_prompt_template,
@@ -27,9 +25,9 @@ class InsertUpdatePromptTemplate(Mutation):
         prompt_name = String(required=True)
         prompt_description = String(required=False)
         template_context = String(required=True)
-        variables = List(JSON, required=False)
-        mcp_servers = List(JSON, required=False)
-        ui_components = List(JSON, required=False)
+        variables = List(JSONCamelCase, required=False)
+        mcp_servers = List(JSONCamelCase, required=False)
+        ui_components = List(JSONCamelCase, required=False)
         status = String(required=False)
         duplicate = Boolean(required=False)
         updated_by = String(required=True)

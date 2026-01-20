@@ -17,8 +17,7 @@ from graphene import (
     ResolveInfo,
     String,
 )
-
-from silvaengine_utility import JSON
+from silvaengine_utility import JSONCamelCase
 
 from .mutations.agent import DeleteAgent, InsertUpdateAgent
 from .mutations.ai_agent import ExecuteAskModel, UploadFile
@@ -43,7 +42,6 @@ from .mutations.wizard_group_filter import (
     DeleteWizardGroupFilter,
     InsertUpdateWizardGroupFilter,
 )
-from .mutations.wizard_group_wizards import InsertUpdateWizardGroupWithWizards, DeleteWizardFromWizardGroup
 from .mutations.wizard_group_wizards import (
     DeleteWizardFromWizardGroup,
     InsertUpdateWizardGroupWithWizards,
@@ -293,7 +291,7 @@ class Query(ObjectType):
         thread_uuid=String(required=False),
         user_id=String(required=False),
         user_query=String(required=True),
-        input_files=List(JSON, required=False),
+        input_files=List(JSONCamelCase, required=False),
         stream=Boolean(required=False),
         thread_life_minutes=Int(required=False),
         updated_by=String(required=True),
@@ -302,13 +300,13 @@ class Query(ObjectType):
     uploaded_file = Field(
         FileType,
         agent_uuid=String(required=True),
-        arguments=JSON(required=True),
+        arguments=JSONCamelCase(required=True),
     )
 
     output_file = Field(
         FileType,
         agent_uuid=String(required=True),
-        arguments=JSON(required=True),
+        arguments=JSONCamelCase(required=True),
     )
 
     element = Field(

@@ -5,7 +5,7 @@ from typing import Any, Dict
 
 from graphene import Boolean, Field, List, Mutation, String
 
-from silvaengine_utility import JSON
+from silvaengine_utility import JSONCamelCase
 
 from ..models.thread import delete_thread, insert_thread
 from ..types.thread import ThreadType

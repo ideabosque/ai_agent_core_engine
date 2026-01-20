@@ -285,6 +285,11 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
         ai_agent_handler.run = run.__dict__
         ai_agent_handler.task_queue = Config.task_queue
 
+        Debugger.info(
+            variable=f"Connection ID: {info.context.get('connection_id')}, Stream: {arguments.get('stream', False)}",
+            stage=f"{__name__}:execute_ask_model",
+        )
+
         if info.context.get("connection_id") or arguments.get("stream", False):
             stream_queue = Queue()
             stream_event = threading.Event()
@@ -295,12 +300,16 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
 
             # Trigger a streaming ask_model in a separate thread if desired:
             stream_thread = threading.Thread(
-                target=ai_agent_handler.ask_model, args=args, daemon=True
+                target=ai_agent_handler.ask_model,
+                args=args,
+                daemon=True,
             )
+
             stream_thread.start()
 
             # Wait until we get the run_id from the queue
             current_run = stream_queue.get()
+
             if current_run["name"] == "run_id":
                 run_id = current_run["value"]
 
@@ -310,7 +319,8 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
             # Process query through AI model
             if "input_files" in arguments:
                 run_id = ai_agent_handler.ask_model(
-                    input_messages, input_files=arguments["input_files"]
+                    input_messages,
+                    input_files=arguments["input_files"],
                 )
             else:
                 run_id = ai_agent_handler.ask_model(input_messages)

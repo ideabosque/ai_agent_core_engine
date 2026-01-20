@@ -7,8 +7,7 @@ __author__ = "bibow"
 from graphene import DateTime, Field, Int, List, ObjectType, String
 from promise import Promise
 from silvaengine_dynamodb_base import ListObjectType
-from silvaengine_utility import JSON
-
+from silvaengine_utility import JSONCamelCase
 from ..utils.normalization import normalize_to_json
 
 
@@ -50,10 +49,9 @@ class AgentTypeBase(ObjectType):
     llm_name = String()  # FK for resolve_llm
     mcp_server_uuids = List(String)  # FKs for resolve_mcp_servers
     flow_snippet_version_uuid = String()  # FK for resolve_flow_snippet
-
     instructions = String()
-    configuration = JSON()
-    variables = List(JSON)
+    configuration = Field(JSONCamelCase)
+    variables = List(JSONCamelCase)
     num_of_messages = Int()
     tool_call_role = String()
     status = String()
@@ -81,7 +79,7 @@ class AgentType(AgentTypeBase):
     llm = Field(
         lambda: LlmType
     )  # Resolved via resolve_llm using llm_provider + llm_name
-    mcp_servers = List(JSON)  # Resolved via resolve_mcp_servers using mcp_server_uuids
+    mcp_servers = List(JSONCamelCase)  # Resolved via resolve_mcp_servers using mcp_server_uuids
     flow_snippet = Field(
         lambda: FlowSnippetType
     )  # Resolved via resolve_flow_snippet using flow_snippet_version_uuid

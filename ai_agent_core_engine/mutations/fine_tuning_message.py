@@ -8,7 +8,7 @@ from typing import Any, Dict
 
 from graphene import Boolean, Field, Int, List, Mutation, String
 
-from silvaengine_utility import JSON
+from silvaengine_utility import JSONCamelCase
 
 from ..models.fine_tuning_message import (
     delete_fine_tuning_message,
@@ -26,7 +26,7 @@ class InsertUpdateFineTuningMessage(Mutation):
         thread_uuid = String(required=False)
         timestamp = Int(required=False)
         role = String(required=False)
-        tool_calls = List(JSON, required=False)
+        tool_calls = List(JSONCamelCase, required=False)
         tool_call_uuid = String(required=False)
         content = String(required=False)
         weight = Int(required=False)
