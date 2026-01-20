@@ -27,8 +27,24 @@ class McpServerToolLoader(SafeDataLoader):
             cache_meta = Config.get_cache_entity_config().get("mcp_server")
             self.cache_func_prefix = ""
             if cache_meta:
-                self.cache_func_prefix = ".".join([cache_meta.get("module"), "_run_list_tools"])
+                self.cache_func_prefix = ".".join([cache_meta.get("module"), "_load_list_tools"])
+        self.internal_mcp = None
+        self.internal_mcp_tools = None
 
+    def set_internal_mcp(self, endpoint_id, part_id):
+        if self.internal_mcp is not None:  # pragma: no cover - defensive
+            return
+        self.internal_mcp = Config.get_internal_mcp(endpoint_id, part_id)
+
+    def get_internal_mcp_tools(self):
+        if self.internal_mcp is not None:
+            if self.internal_mcp_tools is not None:
+                return self.internal_mcp_tools
+            from ..mcp_server import _load_list_tools
+
+            self.internal_mcp_tools = _load_list_tools(self.logger, {"mcp_server_url":self.internal_mcp["base_url"], "headers": self.internal_mcp["headers"]})
+            return self.internal_mcp_tools
+        return None
     def generate_cache_key(self, key: Key) -> str:
         if not isinstance(key, tuple):
             key = (key,)
@@ -58,6 +74,7 @@ class McpServerToolLoader(SafeDataLoader):
         unique_keys = list(dict.fromkeys(keys))
         key_map: Dict[Key, Dict[str, Any]] = {}
         uncached_keys = []
+        
         # Check cache first if enabled
         if self.cache_enabled:
             for key in unique_keys:
@@ -68,14 +85,15 @@ class McpServerToolLoader(SafeDataLoader):
                     uncached_keys.append(key)
         else:
             uncached_keys = unique_keys
-            
+        
         # Batch fetch uncached items
         if uncached_keys:
+            internal_mcp_tools = self.get_internal_mcp_tools()
             try:
                 for mcp_server_url, headers_tuple in uncached_keys:
                     key = (mcp_server_url, headers_tuple)
                     mcp_server_tools = _load_list_tools(self.logger, {"mcp_server_url":mcp_server_url, "headers": dict(headers_tuple)})
-
+                    mcp_server_tools.extend(internal_mcp_tools)
                     if self.cache_enabled:
                             self.set_cache_data(key, mcp_server_tools)
                     key_map[key] = mcp_server_tools
