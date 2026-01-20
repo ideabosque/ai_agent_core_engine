@@ -41,8 +41,6 @@ from .config import Config
 
 
 def get_ai_agent_handler(info: ResolveInfo, agent: AgentType):
-    Debugger.info(variable=agent, stage=f"{__name__}:_get_agent")
-
     if (
         not hasattr(agent, "llm")
         or not isinstance(agent.llm, dict)
@@ -51,7 +49,7 @@ def get_ai_agent_handler(info: ResolveInfo, agent: AgentType):
     ):
         raise RuntimeError("LLM is required")
 
-    # # Dynamically load and initialize AI agent handler
+    # Dynamically load and initialize AI agent handler
     ai_agent_handler = Invoker.resolve_proxied_callable(
         module_name=agent.llm.get("module_name"),
         class_name=agent.llm.get("class_name"),
