@@ -61,15 +61,6 @@ def get_ai_agent_handler(info: ResolveInfo, agent: AgentType):
             **info.context.get("setting", {}),
         },
     )
-    # ai_agent_handler_class = getattr(
-    #     __import__(agent.llm.get("module_name")),
-    #     agent.llm.get("class_name"),
-    # )
-    # ai_agent_handler = ai_agent_handler_class(
-    #     info.context.get("logger"),
-    #     agent.__dict__,
-    #     **info.context.get("setting", {}),
-    # )
 
     if not ai_agent_handler:
         raise RuntimeError(
@@ -164,28 +155,28 @@ def start_async_task(
         )
 
         try:
-            Invoker.resolve_proxied_callable(
-                module_name="ai_agent_core_engine",
-                function_name=function_name,
-                class_name="AIAgentCoreEngine",
-                constructor_parameters={
-                    "logger": info.context.get("logger"),
-                    **setting,
-                },
-            )(**params)
+            # Invoker.resolve_proxied_callable(
+            #     module_name="ai_agent_core_engine",
+            #     function_name=function_name,
+            #     class_name="AIAgentCoreEngine",
+            #     constructor_parameters={
+            #         "logger": info.context.get("logger"),
+            #         **setting,
+            #     },
+            # )(**params)
 
-            # Invoker.execute_async_task(
-            #     task=Invoker.resolve_proxied_callable(
-            #         module_name="ai_agent_core_engine",
-            #         function_name=function_name,
-            #         class_name="AIAgentCoreEngine",
-            #         constructor_parameters={
-            #             "logger": info.context.get("logger"),
-            #             **setting,
-            #         },
-            #     ),
-            #     parameters=params,
-            # )
+            Invoker.execute_async_task(
+                task=Invoker.resolve_proxied_callable(
+                    module_name="ai_agent_core_engine",
+                    function_name=function_name,
+                    class_name="AIAgentCoreEngine",
+                    constructor_parameters={
+                        "logger": info.context.get("logger"),
+                        **setting,
+                    },
+                ),
+                parameters=params,
+            )
 
         except Exception as e:
             Debugger.info(
