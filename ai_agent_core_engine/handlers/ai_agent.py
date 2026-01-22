@@ -163,6 +163,12 @@ def _get_agent(info: ResolveInfo, agent_uuid: str):
     llm_dict = loaders.llm_loader.load((agent.llm_provider, agent.llm_name)).get()
     agent.llm = llm_dict
 
+    Debugger.info(
+        variable=llm_dict,
+        stage=f"{__name__}._get_agent",
+        delimiter="+",
+    )
+
     if isinstance(agent.mcp_server_uuids, Iterable):
         from ..models.utils import get_mcp_servers
 
