@@ -159,14 +159,10 @@ def _get_agent(info: ResolveInfo, agent_uuid: str):
         return None
 
     # Use the DataLoader to fetch LLM data (triggers nested resolver)
-    loaders = get_loaders(info.context)
-    llm_dict = loaders.llm_loader.load((agent.llm_provider, agent.llm_name)).get()
-    agent.llm = llm_dict
-
-    Debugger.info(
-        variable=llm_dict,
-        stage=f"{__name__}._get_agent.llm",
-        delimiter="+",
+    agent.llm = (
+        get_loaders(info.context)
+        .llm_loader.load((agent.llm_provider, agent.llm_name))
+        .get()
     )
 
     if isinstance(agent.mcp_server_uuids, Iterable):
@@ -188,12 +184,6 @@ def _get_agent(info: ResolveInfo, agent_uuid: str):
             }
             for mcp_server in get_mcp_servers(info, mcp_servers)
         ]
-
-        Debugger.info(
-            variable=agent.mcp_servers,
-            stage=f"{__name__}._get_agent.mcp_servers",
-            delimiter="+",
-        )
 
     return agent
 
