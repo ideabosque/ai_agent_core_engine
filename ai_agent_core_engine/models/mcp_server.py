@@ -202,18 +202,11 @@ def _load_list_tools(
             f"Failed to list tools from MCP server {mcp_server_uuid}: {str(e)}"
         )
 
-    for tool in tools:
-        Debugger.info(
-            variable=tool,
-            stage=f"{__name__}._load_list_tools.{tool.name}",
-            delimiter="??",
-        )
-
     return [
         {
             "name": tool.name,
             "description": tool.description,
-            "input_schema": tool.input_schema,
+            "input_schema": tool.inputSchema,
         }
         for tool in tools
     ]
