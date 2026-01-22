@@ -285,11 +285,6 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
         ai_agent_handler.run = run.__dict__
         ai_agent_handler.task_queue = Config.task_queue
 
-        Debugger.info(
-            variable=f"Connection ID: {info.context.get('connection_id')}, Stream: {arguments.get('stream', False)}",
-            stage=f"{__name__}:execute_ask_model",
-        )
-
         if info.context.get("connection_id") or arguments.get("stream", False):
             stream_queue = Queue()
             stream_event = threading.Event()
@@ -297,6 +292,11 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
 
             if "input_files" in arguments:
                 args.append(arguments["input_files"])
+
+            Debugger.info(
+                variable=args,
+                stage=f"{__name__}:execute_ask_model:stream",
+            )
 
             # Trigger a streaming ask_model in a separate thread if desired:
             stream_thread = threading.Thread(
@@ -324,12 +324,6 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
                 )
             else:
                 run_id = ai_agent_handler.ask_model(input_messages)
-
-        Debugger.info(
-            variable=ai_agent_handler.final_output,
-            stage=f"{__name__}:execute_ask_model",
-            delimiter="#",
-        )
 
         # Verify final_output is a dict and contains required fields message_id, role, content with non-empty values
         assert isinstance(ai_agent_handler.final_output, dict) and all(

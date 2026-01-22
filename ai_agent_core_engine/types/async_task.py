@@ -15,7 +15,7 @@ class AsyncTaskType(ObjectType):
     partition_key = String()
     arguments = Field(JSONCamelCase)
     result = String()
-    output_files = List(JSONCamelCase)
+    output_files = Field(JSONCamelCase)
     status = String()
     notes = String()
     time_spent = Int()
