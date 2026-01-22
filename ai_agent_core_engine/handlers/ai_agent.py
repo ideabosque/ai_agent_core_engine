@@ -165,7 +165,7 @@ def _get_agent(info: ResolveInfo, agent_uuid: str):
 
     Debugger.info(
         variable=llm_dict,
-        stage=f"{__name__}._get_agent",
+        stage=f"{__name__}._get_agent.llm",
         delimiter="+",
     )
 
@@ -191,7 +191,7 @@ def _get_agent(info: ResolveInfo, agent_uuid: str):
 
         Debugger.info(
             variable=agent.mcp_servers,
-            stage=f"{__name__}._get_agent",
+            stage=f"{__name__}._get_agent.mcp_servers",
             delimiter="+",
         )
 
