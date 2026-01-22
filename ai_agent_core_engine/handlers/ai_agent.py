@@ -183,6 +183,12 @@ def _get_agent(info: ResolveInfo, agent_uuid: str):
             for mcp_server in get_mcp_servers(info, mcp_servers)
         ]
 
+        Debugger.info(
+            variable=agent.mcp_servers,
+            stage=f"{__name__}._get_agent",
+            delimiter="+",
+        )
+
     return agent
 
 
