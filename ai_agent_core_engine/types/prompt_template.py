@@ -34,7 +34,7 @@ class PromptTemplateBaseType(ObjectType):
 class PromptTemplateType(PromptTemplateBaseType):
     mcp_servers = List(lambda: MCPServerType)  # List of {mcp_server_uuid: ...}
     ui_components = List(
-        JSONCamelCase
+        lambda: JSONCamelCase
     )  # List of {ui_component_type: ..., ui_component_uuid: ...}
 
     # Override mcp_servers and ui_components to return full entity data via DataLoader
@@ -54,6 +54,7 @@ class PromptTemplateType(PromptTemplateBaseType):
 
         # Otherwise, load via DataLoader to get full entity data
         from ..models.batch_loaders import get_loaders
+
         partition_key = parent.partition_key
         loaders = get_loaders(info.context)
 
