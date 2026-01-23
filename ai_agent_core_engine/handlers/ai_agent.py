@@ -340,6 +340,9 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
                 run_id = ai_agent_handler.ask_model(input_messages)
 
         # Verify final_output is a dict and contains required fields message_id, role, content with non-empty values
+        Debugger.info(
+            variable=ai_agent_handler.final_output, stage=f"{__name__}.final_output"
+        )
         assert isinstance(ai_agent_handler.final_output, dict) and all(
             key in ai_agent_handler.final_output and ai_agent_handler.final_output[key]
             for key in ["message_id", "role", "content"]
