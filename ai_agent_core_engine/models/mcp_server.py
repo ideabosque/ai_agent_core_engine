@@ -206,7 +206,9 @@ def _load_list_tools(
         {
             "name": tool.name,
             "description": tool.description,
-            "input_schema": tool.get("inputSchema", tool.get("input_schema", {})),
+            "input_schema": tool.get("inputSchema", tool.get("input_schema", {}))
+            if isinstance(tool, dict)
+            else getattr(tool, "input_schema", getattr(tool, "inputSchema")),
         }
         for tool in tools
     ]
