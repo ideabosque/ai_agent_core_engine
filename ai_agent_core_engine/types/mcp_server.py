@@ -26,7 +26,7 @@ class MCPServerType(ObjectType):
 
     def resolve_tools(parent, info):
         tools = getattr(parent, "tools", None)
-        
+
         if tools is not None:
             return tools
 
@@ -45,20 +45,11 @@ class MCPServerType(ObjectType):
             return None
 
         from ..models.batch_loaders import get_loaders
-        loaders = get_loaders(info.context)
-        mcp_server_tool_loader = loaders.mcp_server_tool_loader
+
+        mcp_server_tool_loader = get_loaders(info.context).mcp_server_tool_loader
         mcp_server_tool_loader.set_internal_mcp(endpoint_id, part_id)
 
-        return (
-            mcp_server_tool_loader.load((mcp_server_url, tuple(headers.items())))
-            .then(
-                lambda mcp_server_tool_dicts: [
-                    normalize_to_json(mcp_tool_dict)
-                    for mcp_tool_dict in mcp_server_tool_dicts
-                    if mcp_tool_dict is not None
-                ]
-            )
-        )
+        return mcp_server_tool_loader.load((mcp_server_url, tuple(headers.items())))
 
 
 class MCPServerListType(ListObjectType):

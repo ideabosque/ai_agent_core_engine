@@ -8,7 +8,6 @@ import logging
 from typing import Any, Dict, List
 
 from graphene import Schema
-
 from silvaengine_dynamodb_base import BaseModel
 from silvaengine_utility import Debugger, Graphql, Serializer
 
@@ -84,6 +83,14 @@ def deploy() -> List:
                         {
                             "action": "fineTuningMessageList",
                             "label": "View Fine Tuning Message List",
+                        },
+                        {
+                            "action": "promptTemplate",
+                            "label": "View Prompt Template",
+                        },
+                        {
+                            "action": "promptTemplateList",
+                            "label": "List Prompt Template",
                         },
                     ],
                     "mutation": [

@@ -184,12 +184,11 @@ async def _run_list_tools(
 def _load_list_tools(
     logger: logging.Logger, mcp_server: MCPServerModel | Dict[str, Any]
 ):
-    tools = []
-
     try:
         # tools = asyncio.run(_run_list_tools(info, mcp_server))
         tools = Invoker.sync_call_async_compatible(_run_list_tools(logger, mcp_server))
     except Exception as e:
+        tools = []
         mcp_server_uuid = "internal_mcp"
 
         if isinstance(mcp_server, MCPServerModel) and hasattr(

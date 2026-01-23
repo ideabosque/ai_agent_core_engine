@@ -4,10 +4,10 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
-from graphene import DateTime, List, ObjectType, String
+from graphene import DateTime, Field, List, ObjectType, String
 from promise import Promise
 from silvaengine_dynamodb_base import ListObjectType
-from silvaengine_utility import JSONCamelCase
+from silvaengine_utility import Debugger, JSONCamelCase
 
 from ..types.mcp_server import MCPServerType
 from ..types.ui_component import UIComponentType
@@ -24,7 +24,7 @@ class PromptTemplateBaseType(ObjectType):
     prompt_name = String()
     prompt_description = String()
     template_context = String()
-    variables = List(JSONCamelCase)
+    variables = Field(JSONCamelCase)
     status = String()
     updated_by = String()
     created_at = DateTime()
@@ -32,15 +32,14 @@ class PromptTemplateBaseType(ObjectType):
 
 
 class PromptTemplateType(PromptTemplateBaseType):
-    mcp_servers = List(lambda: MCPServerType)  # List of {mcp_server_uuid: ...}
-    ui_components = List(
-        lambda: JSONCamelCase
-    )  # List of {ui_component_type: ..., ui_component_uuid: ...}
+    mcp_servers = List(lambda: MCPServerType)
+    ui_components = Field(JSONCamelCase)
 
     # Override mcp_servers and ui_components to return full entity data via DataLoader
     def resolve_mcp_servers(parent, info):
         # Get the MCP server references from the model
         mcp_server_refs = getattr(parent, "mcp_servers", None)
+
         if not mcp_server_refs:
             return []
 
@@ -62,11 +61,11 @@ class PromptTemplateType(PromptTemplateBaseType):
             loaders.mcp_server_loader.load(
                 (
                     partition_key,
-                    ref["mcpServerUuid"] if isinstance(ref, dict) else ref,
+                    ref["mcp_server_uuid"] if isinstance(ref, dict) else ref,
                 )
             )
             for ref in mcp_server_refs
-            if (isinstance(ref, dict) and "mcpServerUuid" in ref)
+            if (isinstance(ref, dict) and "mcp_server_uuid" in ref)
             or isinstance(ref, str)
         ]
 
@@ -94,12 +93,12 @@ class PromptTemplateType(PromptTemplateBaseType):
 
         promises = [
             loaders.ui_component_loader.load(
-                (ref["uiComponentType"], ref["uiComponentUuid"])
+                (ref["ui_component_type"], ref["ui_component_uuid"])
             )
             for ref in ui_component_refs
             if isinstance(ref, dict)
-            and "uiComponentType" in ref
-            and "uiComponentUuid" in ref
+            and "ui_component_type" in ref
+            and "ui_component_uuid" in ref
         ]
 
         return Promise.all(promises).then(

@@ -53,7 +53,7 @@ class McpServerToolLoader(SafeDataLoader):
                 },
             )
             return self.internal_mcp_tools
-        return None
+        return []
 
     def generate_cache_key(self, key: Key) -> str:
         if not isinstance(key, tuple):
@@ -99,11 +99,12 @@ class McpServerToolLoader(SafeDataLoader):
 
         # Batch fetch uncached items
         if uncached_keys:
-            internal_mcp_tools = self.get_internal_mcp_tools()
+            internal_mcp_tools = self.get_internal_mcp_tools() or []
 
             try:
                 for mcp_server_url, headers_tuple in uncached_keys:
                     key = (mcp_server_url, headers_tuple)
+
                     mcp_server_tools = _load_list_tools(
                         self.logger,
                         {
@@ -111,6 +112,7 @@ class McpServerToolLoader(SafeDataLoader):
                             "headers": dict(headers_tuple),
                         },
                     )
+
                     mcp_server_tools.extend(internal_mcp_tools)
 
                     if self.cache_enabled:
