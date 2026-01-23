@@ -118,11 +118,7 @@ class McpServerToolLoader(SafeDataLoader):
                     if self.cache_enabled:
                         self.set_cache_data(key, mcp_server_tools)
                     key_map[key] = mcp_server_tools
-
             except Exception as e:  # pragma: no cover - defensive
-                Debugger.info(
-                    variable=e,
-                    stage=f"{__name__}.batch_load_fn",
-                )
+                raise e
 
         return Promise.resolve([key_map.get(key) for key in keys])
