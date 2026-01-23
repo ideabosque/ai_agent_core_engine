@@ -99,8 +99,6 @@ def send_data_to_stream(logger: logging.Logger, **kwargs: Dict[str, Any]) -> boo
 
         return True
     except Exception:
-        log = traceback.format_exc()
-        logger.error(log)
         raise
 
     return False
