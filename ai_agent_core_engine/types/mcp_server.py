@@ -26,6 +26,7 @@ class MCPServerType(ObjectType):
 
     def resolve_tools(parent, info):
         tools = getattr(parent, "tools", None)
+        
         if tools is not None:
             return tools
 

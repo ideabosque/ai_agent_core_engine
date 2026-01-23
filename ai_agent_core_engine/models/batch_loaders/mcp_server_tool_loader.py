@@ -7,6 +7,7 @@ __author__ = "bibow"
 from typing import Any, Dict, List
 
 from promise import Promise
+from silvaengine_utility import Debugger
 from silvaengine_utility.cache import HybridCacheEngine
 
 from ...handlers.config import Config
@@ -116,8 +117,10 @@ class McpServerToolLoader(SafeDataLoader):
                         self.set_cache_data(key, mcp_server_tools)
                     key_map[key] = mcp_server_tools
 
-            except Exception as exc:  # pragma: no cover - defensive
-                if self.logger:
-                    self.logger.exception(exc)
+            except Exception as e:  # pragma: no cover - defensive
+                Debugger.info(
+                    variable=e,
+                    stage=f"{__name__}.batch_load_fn",
+                )
 
         return Promise.resolve([key_map.get(key) for key in keys])

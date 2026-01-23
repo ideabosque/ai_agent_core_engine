@@ -4,6 +4,7 @@ from __future__ import print_function
 __author__ = "bibow"
 
 import threading
+import time
 import traceback
 from collections.abc import Iterable
 from queue import Queue
@@ -50,8 +51,14 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
         AskModelType containing thread, task and run identifiers
     """
     try:
+        start_time = time.perf_counter()
         # Log request details
         thread = _get_thread(info, **kwargs)
+
+        print(
+            f"\n{'*' * 20} Execute function `_get_thread` spent {time.perf_counter() - start_time} s."
+        )
+        start_time = time.perf_counter()
 
         # Create new run instance for this request
         run = insert_update_run(
@@ -61,6 +68,12 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
                 "updated_by": kwargs["updated_by"],
             },
         )
+
+        print(
+            f"\n{'*' * 20} Execute function `insert_update_run` spent {time.perf_counter() - start_time} s."
+        )
+        start_time = time.perf_counter()
+
         # Prepare arguments for async processing
         arguments = {
             "thread_uuid": thread.thread_uuid,
@@ -80,6 +93,10 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
             info,
             function_name,
             **arguments,
+        )
+
+        print(
+            f"\n{'*' * 20} Execute function `start_async_task` spent {time.perf_counter() - start_time} s."
         )
 
         # Return response with all relevant IDs

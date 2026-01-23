@@ -206,7 +206,7 @@ def _load_list_tools(
         {
             "name": tool.name,
             "description": tool.description,
-            "input_schema": tool.inputSchema,
+            "input_schema": tool.get("inputSchema", tool.get("input_schema", {})),
         }
         for tool in tools
     ]
@@ -231,6 +231,7 @@ def get_mcp_server_type(
             f"Failed to list tools from MCP server {mcp_server_uuid}: {str(e)}"
         )
         tools = []
+
     if isinstance(mcp_server, MCPServerModel):
         mcp_server = mcp_server.__dict__["attribute_values"]
     mcp_server["tools"] = [
