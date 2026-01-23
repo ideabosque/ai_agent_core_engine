@@ -202,15 +202,13 @@ def _load_list_tools(
             f"Failed to list tools from MCP server {mcp_server_uuid}: {str(e)}"
         )
 
-    Debugger.info(variable=tools, stage=f"{__name__}._load_list_tools")
-
     return [
         {
             "name": tool.name,
             "description": tool.description,
             "input_schema": tool.get("inputSchema", tool.get("input_schema", {}))
             if isinstance(tool, dict)
-            else getattr(tool, "input_schema", getattr(tool, "inputSchema")),
+            else tool.input_schema,
         }
         for tool in tools
     ]
