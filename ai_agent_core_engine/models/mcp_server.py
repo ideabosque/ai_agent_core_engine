@@ -202,6 +202,8 @@ def _load_list_tools(
             f"Failed to list tools from MCP server {mcp_server_uuid}: {str(e)}"
         )
 
+    Debugger.info(variable=tools, stage=f"{__name__}._load_list_tools")
+
     return [
         {
             "name": tool.name,
