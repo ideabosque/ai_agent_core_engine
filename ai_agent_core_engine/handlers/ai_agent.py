@@ -295,11 +295,6 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
             if "input_files" in arguments:
                 args.append(arguments["input_files"])
 
-            Debugger.info(
-                variable=args,
-                stage=f"{__name__}:execute_ask_model:stream",
-            )
-
             # Trigger a streaming ask_model in a separate thread if desired:
             stream_thread = threading.Thread(
                 target=ai_agent_handler.ask_model,

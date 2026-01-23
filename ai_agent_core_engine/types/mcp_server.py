@@ -47,6 +47,7 @@ class MCPServerType(ObjectType):
         loaders = get_loaders(info.context)
         mcp_server_tool_loader = loaders.mcp_server_tool_loader
         mcp_server_tool_loader.set_internal_mcp(endpoint_id, part_id)
+
         return (
             mcp_server_tool_loader.load((mcp_server_url, tuple(headers.items())))
             .then(
