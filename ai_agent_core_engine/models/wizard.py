@@ -25,11 +25,12 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Serializer, method_cache
+from silvaengine_utility import method_cache
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
 from ..types.wizard import WizardListType, WizardType
+from ..utils.normalization import normalize_to_json
 
 wizard_attributes_fn = lambda wizard_attributes: [
     {
@@ -190,7 +191,7 @@ def get_wizard_type(info: ResolveInfo, wizard: WizardModel) -> WizardType:
         # Keep the raw element references for nested resolvers
         wizard_dict["wizard_element_refs"] = wizard.wizard_elements
 
-        return WizardType(**Serializer.json_normalize(wizard_dict))
+        return WizardType(**normalize_to_json(wizard_dict))
     except Exception as e:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)

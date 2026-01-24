@@ -26,11 +26,12 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Serializer, method_cache
+from silvaengine_utility import method_cache
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
 from ..types.fine_tuning_message import FineTuningMessageListType, FineTuningMessageType
+from ..utils.normalization import normalize_to_json
 
 
 class ThreadIdIndex(LocalSecondaryIndex):
@@ -164,7 +165,7 @@ def get_fine_tuning_message_type(
     info: ResolveInfo, fine_tuning_message: FineTuningMessageModel
 ) -> FineTuningMessageType:
     fine_tuning_message = fine_tuning_message.__dict__["attribute_values"]
-    return FineTuningMessageType(**Serializer.json_normalize(fine_tuning_message))
+    return FineTuningMessageType(**normalize_to_json(fine_tuning_message))
 
 
 def resolve_fine_tuning_message(

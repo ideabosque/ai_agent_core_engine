@@ -24,11 +24,12 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Serializer, method_cache
+from silvaengine_utility import method_cache
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
 from ..types.wizard_schema import WizardSchemaListType, WizardSchemaType
+from ..utils.normalization import normalize_to_json
 
 attributes_fn = lambda attributes: [
     {
@@ -175,7 +176,7 @@ def get_wizard_schema_type(
 ) -> WizardSchemaType:
     try:
         wizard_schema_dict = wizard_schema.__dict__["attribute_values"]
-        return WizardSchemaType(**Serializer.json_normalize(wizard_schema_dict))
+        return WizardSchemaType(**normalize_to_json(wizard_schema_dict))
     except Exception as e:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)

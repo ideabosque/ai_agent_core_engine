@@ -19,11 +19,12 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Serializer, method_cache
+from silvaengine_utility import method_cache
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
 from ..types.llm import LlmListType, LlmType
+from ..utils.normalization import normalize_to_json
 from .agent import resolve_agent_list
 
 
@@ -124,7 +125,7 @@ def get_llm_count(llm_provider: str, llm_name: str) -> int:
 
 def get_llm_type(info: ResolveInfo, llm: LlmModel) -> LlmType:
     llm = llm.__dict__["attribute_values"]
-    return LlmType(**Serializer.json_normalize(llm))
+    return LlmType(**normalize_to_json(llm))
 
 
 def resolve_llm(info: ResolveInfo, **kwargs: Dict[str, Any]) -> LlmType | None:
