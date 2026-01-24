@@ -537,6 +537,7 @@ class Query(ObjectType):
     def resolve_ask_model(
         self, info: ResolveInfo, **kwargs: Dict[str, Any]
     ) -> AskModelType:
+        print(">>> ", __file__, "resolve_ask_model ................")
         return resolve_ask_model(info, **kwargs)
 
     def resolve_uploaded_file(

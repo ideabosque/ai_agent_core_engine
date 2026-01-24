@@ -56,7 +56,7 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
         thread = _get_thread(info, **kwargs)
 
         print(
-            f"\n{'*' * 20} Execute function `_get_thread` spent {time.perf_counter() - start_time} s."
+            f"\n{'*' * 20} Execute function `{__file__}._get_thread` spent {time.perf_counter() - start_time} s."
         )
         start_time = time.perf_counter()
 
@@ -70,7 +70,7 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
         )
 
         print(
-            f"\n{'*' * 20} Execute function `insert_update_run` spent {time.perf_counter() - start_time} s."
+            f"\n{'*' * 20} Execute function `{__file__}.insert_update_run` spent {time.perf_counter() - start_time} s."
         )
         start_time = time.perf_counter()
 
@@ -96,7 +96,7 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
         )
 
         print(
-            f"\n{'*' * 20} Execute function `start_async_task` spent {time.perf_counter() - start_time} s."
+            f"\n{'*' * 20} Execute function `{__file__}.start_async_task` spent {time.perf_counter() - start_time} s."
         )
 
         # Return response with all relevant IDs
