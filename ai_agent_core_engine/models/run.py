@@ -19,11 +19,12 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Serializer, method_cache
+from silvaengine_utility import method_cache
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
 from ..types.run import RunListType, RunType
+from ..utils.normalization import normalize_to_json
 from .message import resolve_message_list
 from .tool_call import resolve_tool_call_list
 
@@ -140,7 +141,7 @@ def get_run_type(info: ResolveInfo, run: RunModel) -> RunType:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)
         raise e
-    return RunType(**Serializer.json_normalize(run_dict))
+    return RunType(**normalize_to_json(run_dict))
 
 
 def resolve_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> RunType | None:

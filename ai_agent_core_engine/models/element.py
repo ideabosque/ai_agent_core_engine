@@ -25,11 +25,12 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Serializer, method_cache
+from silvaengine_utility import method_cache
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
 from ..types.element import ElementListType, ElementType
+from ..utils.normalization import normalize_to_json
 
 
 class DataTypeIndex(LocalSecondaryIndex):
@@ -171,7 +172,7 @@ def get_element_type(info: ResolveInfo, element: ElementModel) -> ElementType:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)
         raise e
-    return ElementType(**Serializer.json_normalize(element_dict))
+    return ElementType(**normalize_to_json(element_dict))
 
 
 def resolve_element(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ElementType | None:

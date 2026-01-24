@@ -8,6 +8,7 @@ from typing import Any, Dict, List
 
 from graphene import ResolveInfo
 
+from ..utils.normalization import normalize_to_json
 
 def initialize_tables(logger: logging.Logger) -> None:
     from .agent import AgentModel
@@ -77,8 +78,6 @@ def get_element(endpoint_id: str, element_uuid: str) -> Dict[str, Any]:
 
 
 def get_wizard(endpoint_id: str, wizard_uuid: str) -> Dict[str, Any]:
-    from silvaengine_utility import Serializer
-
     from .wizard import get_wizard
 
     wizard = get_wizard(endpoint_id, wizard_uuid)
@@ -89,7 +88,7 @@ def get_wizard(endpoint_id: str, wizard_uuid: str) -> Dict[str, Any]:
 
     wizard_elements = []
     for wizard_element in wizard.wizard_elements:
-        wizard_element = Serializer.json_normalize(wizard_element)
+        wizard_element = normalize_to_json(wizard_element)
         element = get_element(endpoint_id, wizard_element.pop("element_uuid"))
         wizard_element["element"] = element
         wizard_elements.append(wizard_element)
@@ -101,7 +100,7 @@ def get_wizard(endpoint_id: str, wizard_uuid: str) -> Dict[str, Any]:
         "wizard_type": wizard.wizard_type,
         "wizard_schema": wizard_schema,
         "wizard_attributes": [
-            Serializer.json_normalize(attr) for attr in wizard.wizard_attributes
+            normalize_to_json(attr) for attr in wizard.wizard_attributes
         ],
         "wizard_elements": wizard_elements,
         "priority": wizard.priority,

@@ -26,10 +26,11 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Invoker, Serializer, method_cache
+from silvaengine_utility import Invoker, method_cache
 
 from ..handlers.config import Config
 from ..types.mcp_server import MCPServerListType, MCPServerType
+from ..utils.normalization import normalize_to_json
 
 
 class UpdatedAtIndex(LocalSecondaryIndex):
@@ -199,7 +200,7 @@ def get_mcp_server_type(
         }
         for tool in tools
     ]
-    return MCPServerType(**Serializer.json_normalize(mcp_server))
+    return MCPServerType(**normalize_to_json(mcp_server))
 
 
 def resolve_mcp_server(
