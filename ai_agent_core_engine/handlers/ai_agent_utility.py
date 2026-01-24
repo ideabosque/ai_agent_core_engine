@@ -147,44 +147,38 @@ def start_async_task(
             if info.context.get(index):
                 params[index] = info.context.get(index)
 
-        # setting = (
-        #     info.context.get("setting")
-        #     if isinstance(info.context.get("setting"), dict)
-        #     else {}
-        # )
+        setting = (
+            info.context.get("setting")
+            if isinstance(info.context.get("setting"), dict)
+            else {}
+        )
 
         try:
-            # Invoker.execute_async_task(
-            #     task=Invoker.resolve_proxied_callable(
-            #         module_name="ai_agent_core_engine",
-            #         function_name=function_name,
-            #         class_name="AIAgentCoreEngine",
-            #         constructor_parameters={
-            #             "logger": info.context.get("logger"),
-            #             **setting,
-            #         },
-            #     ),
-            #     parameters=params,
-            # )
-            invoker = info.context.get("aws_lambda_invoker")
-
-            print("111111111111111111111111111111111111111111111111111111111111111111")
-
-            if callable(invoker):
-                print(
-                    "2222222222222222222222222222222222222222222222222222222222222222222"
-                )
-                invoker(
-                    function_name=info.context.get("aws_lambda_arn"),
-                    invocation_type=InvocationType.EVENT,
-                    payload=Invoker.build_invoker_payload(
-                        context=info.context,
-                        module_name="ai_agent_core_engine",
-                        function_name=function_name,
-                        class_name="AIAgentCoreEngine",
-                        parameters=params,
-                    ),
-                )
+            Invoker.execute_async_task(
+                task=Invoker.resolve_proxied_callable(
+                    module_name="ai_agent_core_engine",
+                    function_name=function_name,
+                    class_name="AIAgentCoreEngine",
+                    constructor_parameters={
+                        "logger": info.context.get("logger"),
+                        **setting,
+                    },
+                ),
+                parameters=params,
+            )
+            # invoker = info.context.get("aws_lambda_invoker")
+            # if callable(invoker):
+            #     invoker(
+            #         function_name=info.context.get("aws_lambda_arn"),
+            #         invocation_type=InvocationType.EVENT,
+            #         payload=Invoker.build_invoker_payload(
+            #             context=info.context,
+            #             module_name="ai_agent_core_engine",
+            #             function_name=function_name,
+            #             class_name="AIAgentCoreEngine",
+            #             parameters=params,
+            #         ),
+            #     )
 
         except Exception as e:
             Debugger.info(
