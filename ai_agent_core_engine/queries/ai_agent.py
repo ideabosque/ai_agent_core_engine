@@ -15,7 +15,6 @@ from ..types.ai_agent import AskModelType, FileType, PresignedAWSS3UrlType
 def resolve_ask_model(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> AskModelType | None:
-    print(">>> ", __file__, "resolve_ask_model ................")
     return ai_agent.ask_model(info, **kwargs)
 
 

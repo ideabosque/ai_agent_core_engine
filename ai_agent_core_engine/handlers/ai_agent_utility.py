@@ -120,13 +120,6 @@ def start_async_task(
         and triggers the Lambda function asynchronously using the Utility helper.
     """
     try:
-        Debugger.info(
-            variable=info.context,
-            stage=f"{__file__}.start_async_task",
-            delimiter="*",
-            enabled_trace=False,
-        )
-
         # Create task record in database
         async_task = insert_update_async_task(
             info,
@@ -175,7 +168,12 @@ def start_async_task(
             # )
             invoker = info.context.get("aws_lambda_invoker")
 
+            print("111111111111111111111111111111111111111111111111111111111111111111")
+
             if callable(invoker):
+                print(
+                    "2222222222222222222222222222222222222222222222222222222222222222222"
+                )
                 invoker(
                     function_name=info.context.get("aws_lambda_arn"),
                     invocation_type=InvocationType.EVENT,

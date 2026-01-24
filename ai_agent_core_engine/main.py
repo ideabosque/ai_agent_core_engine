@@ -367,14 +367,6 @@ class AIAgentCoreEngine(Graphql):
 
         self._apply_partition_defaults(params)
 
-        Debugger.info(
-            variable=params,
-            stage=f"{__file__}.async_execute_ask_model",
-            delimiter="()",
-            setting=self.setting,
-            enabled_trace=False,
-        )
-
         return self.execute(self.__class__.build_graphql_schema(), **params)
 
     @staticmethod
