@@ -30,10 +30,8 @@ def async_execute_ask_model(
             - connection_id: Connection identifier
             - setting: Additional settings dict
     """
-    info = create_listener_info(logger, "ask_model", setting, **kwargs)
-
     execute_ask_model(
-        info,
+        info=create_listener_info(logger, "ask_model", setting, **kwargs),
         **{
             "async_task_uuid": kwargs["async_task_uuid"],
             "arguments": kwargs["arguments"],

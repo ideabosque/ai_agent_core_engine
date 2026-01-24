@@ -119,6 +119,13 @@ def start_async_task(
         and triggers the Lambda function asynchronously using the Utility helper.
     """
     try:
+        Debugger.info(
+            variable=info.context,
+            stage=f"{__file__}._trigger_async_update",
+            delimiter="*",
+            enabled_trace=False,
+        )
+
         # Create task record in database
         async_task = insert_update_async_task(
             info,
@@ -153,16 +160,6 @@ def start_async_task(
         )
 
         try:
-            # Invoker.resolve_proxied_callable(
-            #     module_name="ai_agent_core_engine",
-            #     function_name=function_name,
-            #     class_name="AIAgentCoreEngine",
-            #     constructor_parameters={
-            #         "logger": info.context.get("logger"),
-            #         **setting,
-            #     },
-            # )(**params)
-
             Invoker.execute_async_task(
                 task=Invoker.resolve_proxied_callable(
                     module_name="ai_agent_core_engine",

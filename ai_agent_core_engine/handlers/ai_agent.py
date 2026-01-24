@@ -289,16 +289,6 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
             },
         )
 
-        # ai_agent_handler_class = getattr(
-        #     __import__(agent.llm["module_name"]),
-        #     agent.llm["class_name"],
-        # )
-        # ai_agent_handler = ai_agent_handler_class(
-        #     info.context.get("logger"),
-        #     agent.__dict__,
-        #     **info.context.get("setting", {}),
-        # )
-
         ai_agent_handler = get_ai_agent_handler(info=info, agent=agent)
         ai_agent_handler.context = info.context
         ai_agent_handler.run = run.__dict__
