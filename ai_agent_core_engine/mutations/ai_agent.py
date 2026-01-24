@@ -5,10 +5,8 @@ __author__ = "bibow"
 
 import traceback
 from typing import Any, Dict
-
 from graphene import Boolean, Field, Mutation, String
-
-from silvaengine_utility import JSON
+from silvaengine_utility import JSONCamelCase
 
 from ..handlers import ai_agent
 from ..types.ai_agent import FileType
@@ -19,7 +17,7 @@ class ExecuteAskModel(Mutation):
 
     class Arguments:
         async_task_uuid = String(required=True)
-        arguments = JSON(required=True)
+        arguments = JSONCamelCase(required=True)
 
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "ExecuteAskModel":
@@ -38,7 +36,7 @@ class UploadFile(Mutation):
 
     class Arguments:
         agent_uuid = String(required=True)
-        arguments = JSON(required=True)
+        arguments = JSONCamelCase(required=True)
 
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "UploadFile":

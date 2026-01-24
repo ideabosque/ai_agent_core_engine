@@ -10,6 +10,8 @@ import xml.etree.ElementTree as ET
 from typing import Any, Dict, List
 
 import pendulum
+from graphene import ResolveInfo
+from silvaengine_constants import InvocationType
 
 try:
     import tiktoken
@@ -37,6 +39,34 @@ from ..models.message import resolve_message_list
 from ..models.tool_call import resolve_tool_call_list
 from ..types.agent import AgentType
 from .config import Config
+
+
+def get_ai_agent_handler(info: ResolveInfo, agent: AgentType):
+    if (
+        not hasattr(agent, "llm")
+        or not isinstance(agent.llm, dict)
+        or not agent.llm.get("module_name")
+        or not agent.llm.get("class_name")
+    ):
+        raise RuntimeError("LLM is required")
+
+    # Dynamically load and initialize AI agent handler
+    ai_agent_handler = Invoker.resolve_proxied_callable(
+        module_name=agent.llm.get("module_name"),
+        class_name=agent.llm.get("class_name"),
+        constructor_parameters={
+            "logger": info.context.get("logger"),
+            "agent": agent.__dict__,
+            **info.context.get("setting", {}),
+        },
+    )
+
+    if not ai_agent_handler:
+        raise RuntimeError(
+            f"Can't import module `{agent.llm.get('module_name')}` or not class `{agent.llm.get('class_name')}`"
+        )
+
+    return ai_agent_handler
 
 
 def _load_runs_by_keys(
@@ -124,44 +154,40 @@ def start_async_task(
         )
 
         try:
-            Invoker.resolve_proxied_callable(
-                module_name="ai_agent_core_engine",
-                function_name=function_name,
-                class_name="AIAgentCoreEngine",
-                constructor_parameters={
-                    "logger": info.context.get("logger"),
-                    **setting,
-                },
-            )(**params)
-            # Invoker.execute_async_task(
-            #     task=Invoker.resolve_proxied_callable(
-            #         module_name="ai_agent_core_engine",
-            #         function_name=function_name,
-            #         class_name="AIAgentCoreEngine",
-            #         constructor_parameters={
-            #             "logger": info.context.get("logger"),
-            #             **setting,
-            #         },
-            #     ),
-            #     parameters=params,
-            # )
+            Invoker.execute_async_task(
+                task=Invoker.resolve_proxied_callable(
+                    module_name="ai_agent_core_engine",
+                    function_name=function_name,
+                    class_name="AIAgentCoreEngine",
+                    constructor_parameters={
+                        "logger": info.context.get("logger"),
+                        **setting,
+                    },
+                ),
+                parameters=params,
+            )
+            # invoker = info.context.get("aws_lambda_invoker")
+            # if callable(invoker):
+            #     invoker(
+            #         function_name=info.context.get("aws_lambda_arn"),
+            #         invocation_type=InvocationType.EVENT,
+            #         payload=Invoker.build_invoker_payload(
+            #             context=info.context,
+            #             module_name="ai_agent_core_engine",
+            #             function_name=function_name,
+            #             class_name="AIAgentCoreEngine",
+            #             parameters=params,
+            #         ),
+            #     )
 
         except Exception as e:
             Debugger.info(
                 variable=e,
                 stage="AI Agent Core Engine(resolve_proxied_callable)",
                 logger=info.context.get("logger"),
+                setting=info.context.get("setting"),
             )
             pass
-
-        # # Invoke Lambda function asynchronously
-        # Invoker.invoke_funct_on_aws_lambda(
-        #     info.context,
-        #     function_name,
-        #     params=params,
-        #     aws_lambda=Config.aws_lambda,
-        #     invocation_type="Event",
-        # )
 
         return async_task.async_task_uuid
     except Exception as e:

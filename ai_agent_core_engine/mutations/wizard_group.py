@@ -5,10 +5,8 @@ __author__ = "bibow"
 
 import traceback
 from typing import Any, Dict
-
 from graphene import Boolean, Field, Int, List, Mutation, String
-
-from silvaengine_utility import JSON
+from silvaengine_utility import JSONCamelCase
 
 from ..models.wizard_group import (
     delete_wizard_group,

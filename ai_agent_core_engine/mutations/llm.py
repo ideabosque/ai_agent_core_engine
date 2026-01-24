@@ -5,10 +5,8 @@ __author__ = "bibow"
 
 import traceback
 from typing import Any, Dict
-
 from graphene import Boolean, Field, List, Mutation, String
-
-from silvaengine_utility import JSON
+from silvaengine_utility import JSONCamelCase
 
 from ..models.llm import delete_llm, insert_update_llm
 from ..types.llm import LlmType
@@ -22,7 +20,7 @@ class InsertUpdateLlm(Mutation):
         llm_name = String(required=True)
         module_name = String(required=False)
         class_name = String(required=False)
-        configuration_schema = JSON(required=False)
+        configuration_schema = JSONCamelCase(required=False)
         updated_by = String(required=True)
 
     @staticmethod

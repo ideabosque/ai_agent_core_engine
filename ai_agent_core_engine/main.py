@@ -8,7 +8,6 @@ import logging
 from typing import Any, Dict, List
 
 from graphene import Schema
-
 from silvaengine_dynamodb_base import BaseModel
 from silvaengine_utility import Debugger, Graphql, Serializer
 
@@ -84,6 +83,14 @@ def deploy() -> List:
                         {
                             "action": "fineTuningMessageList",
                             "label": "View Fine Tuning Message List",
+                        },
+                        {
+                            "action": "promptTemplate",
+                            "label": "View Prompt Template",
+                        },
+                        {
+                            "action": "promptTemplateList",
+                            "label": "List Prompt Template",
                         },
                     ],
                     "mutation": [
@@ -310,6 +317,14 @@ class AIAgentCoreEngine(Graphql):
             Any: The result of the ask model execution.
         """
         self._apply_partition_defaults(params)
+
+        Debugger.info(
+            variable=params,
+            stage=f"{__file__}.async_execute_ask_model",
+            delimiter="<>",
+            setting=self.setting,
+            enabled_trace=False,
+        )
 
         return at_agent_listener.async_execute_ask_model(
             self.logger, self.setting, **params

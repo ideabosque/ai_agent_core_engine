@@ -7,7 +7,7 @@ __author__ = "bibow"
 from graphene import DateTime, Int, List, ObjectType, String
 from promise import Promise
 from silvaengine_dynamodb_base import ListObjectType
-from silvaengine_utility import JSON
+from silvaengine_utility import JSONCamelCase
 
 from ..types.wizard import WizardType
 from ..utils.normalization import normalize_to_json
@@ -28,7 +28,7 @@ class WizardGroupType(ObjectType):
     updated_at = DateTime()
 
     # Nested resolver for strongly-typed relationships
-    wizards = List(JSON)
+    wizards = List(JSONCamelCase)
     wizard_items = List(lambda: WizardType)
 
     def resolve_wizards(parent, info):

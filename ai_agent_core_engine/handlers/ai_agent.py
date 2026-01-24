@@ -4,6 +4,7 @@ from __future__ import print_function
 __author__ = "bibow"
 
 import threading
+import time
 import traceback
 from collections.abc import Iterable
 from queue import Queue
@@ -11,7 +12,7 @@ from typing import Any, Dict, List
 
 import pendulum
 from graphene import ResolveInfo
-from silvaengine_utility import Debugger, Serializer
+from silvaengine_utility import Debugger, Invoker, Serializer
 
 from ..models.agent import resolve_agent
 from ..models.async_task import insert_update_async_task
@@ -21,7 +22,12 @@ from ..models.thread import insert_thread, resolve_thread, resolve_thread_list
 from ..types.ai_agent import AskModelType, FileType, PresignedAWSS3UrlType
 from ..types.message import MessageType
 from ..types.thread import ThreadListType, ThreadType
-from .ai_agent_utility import calculate_num_tokens, get_input_messages, start_async_task
+from .ai_agent_utility import (
+    calculate_num_tokens,
+    get_ai_agent_handler,
+    get_input_messages,
+    start_async_task,
+)
 from .config import Config
 
 
@@ -45,8 +51,15 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
         AskModelType containing thread, task and run identifiers
     """
     try:
+        start_time = time.perf_counter()
         # Log request details
         thread = _get_thread(info, **kwargs)
+
+        print(
+            f"\n{'*' * 20} Execute function `{__file__}._get_thread` spent {time.perf_counter() - start_time} s."
+        )
+        start_time = time.perf_counter()
+
         # Create new run instance for this request
         run = insert_update_run(
             info,
@@ -55,6 +68,12 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
                 "updated_by": kwargs["updated_by"],
             },
         )
+
+        print(
+            f"\n{'*' * 20} Execute function `{__file__}.insert_update_run` spent {time.perf_counter() - start_time} s."
+        )
+        start_time = time.perf_counter()
+
         # Prepare arguments for async processing
         arguments = {
             "thread_uuid": thread.thread_uuid,
@@ -74,6 +93,10 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
             info,
             function_name,
             **arguments,
+        )
+
+        print(
+            f"\n{'*' * 20} Execute function `{__file__}.start_async_task` spent {time.perf_counter() - start_time} s."
         )
 
         # Return response with all relevant IDs
@@ -153,9 +176,11 @@ def _get_agent(info: ResolveInfo, agent_uuid: str):
         return None
 
     # Use the DataLoader to fetch LLM data (triggers nested resolver)
-    loaders = get_loaders(info.context)
-    llm_dict = loaders.llm_loader.load((agent.llm_provider, agent.llm_name)).get()
-    agent.llm = llm_dict
+    agent.llm = (
+        get_loaders(info.context)
+        .llm_loader.load((agent.llm_provider, agent.llm_name))
+        .get()
+    )
 
     if isinstance(agent.mcp_server_uuids, Iterable):
         from ..models.utils import get_mcp_servers
@@ -264,17 +289,7 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
             },
         )
 
-        # Dynamically load and initialize AI agent handler
-        ai_agent_handler_class = getattr(
-            __import__(agent.llm["module_name"]),
-            agent.llm["class_name"],
-        )
-        ai_agent_handler = ai_agent_handler_class(
-            info.context.get("logger"),
-            agent.__dict__,
-            **info.context.get("setting", {}),
-        )
-
+        ai_agent_handler = get_ai_agent_handler(info=info, agent=agent)
         ai_agent_handler.context = info.context
         ai_agent_handler.run = run.__dict__
         ai_agent_handler.task_queue = Config.task_queue
@@ -289,12 +304,16 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
 
             # Trigger a streaming ask_model in a separate thread if desired:
             stream_thread = threading.Thread(
-                target=ai_agent_handler.ask_model, args=args, daemon=True
+                target=ai_agent_handler.ask_model,
+                args=args,
+                daemon=True,
             )
+
             stream_thread.start()
 
             # Wait until we get the run_id from the queue
             current_run = stream_queue.get()
+
             if current_run["name"] == "run_id":
                 run_id = current_run["value"]
 
@@ -304,16 +323,23 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
             # Process query through AI model
             if "input_files" in arguments:
                 run_id = ai_agent_handler.ask_model(
-                    input_messages, input_files=arguments["input_files"]
+                    input_messages,
+                    input_files=arguments["input_files"],
                 )
             else:
                 run_id = ai_agent_handler.ask_model(input_messages)
 
         # Verify final_output is a dict and contains required fields message_id, role, content with non-empty values
-        assert isinstance(ai_agent_handler.final_output, dict) and all(
+        if not isinstance(ai_agent_handler.final_output, dict) or not all(
             key in ai_agent_handler.final_output and ai_agent_handler.final_output[key]
             for key in ["message_id", "role", "content"]
-        ), "final_output must be a dict containing non-empty values for message_id, role and content fields"
+        ):
+            Debugger.info(
+                variable=f"final_output must be a dict containing non-empty values for message_id, role and content fields: {ai_agent_handler.final_output}",
+                stage=f"{__name__}.final_output",
+                setting=info.context.get("setting", {"debug_mode": True}),
+            )
+            return False
 
         if ai_agent_handler.uploaded_files:
             _update_user_message_with_files(
@@ -446,15 +472,19 @@ def _update_user_message_with_files(
 def upload_file(info: ResolveInfo, **kwargs: Dict[str, Any]) -> FileType:
     # Retrieve AI agent configuration
     agent = _get_agent(info, kwargs["agent_uuid"])
-    ai_agent_handler_class = getattr(
-        __import__(agent.llm["module_name"]),
-        agent.llm["class_name"],
-    )
-    ai_agent_handler = ai_agent_handler_class(
-        info.context.get("logger"),
-        agent.__dict__,
-        **info.context.get("setting", {}),
-    )
+
+    if not agent:
+        raise ValueError("Invalid agent")
+    # ai_agent_handler_class = getattr(
+    #     __import__(agent.llm["module_name"]),
+    #     agent.llm["class_name"],
+    # )
+    # ai_agent_handler = ai_agent_handler_class(
+    #     info.context.get("logger"),
+    #     agent.__dict__,
+    #     **info.context.get("setting", {}),
+    # )
+    ai_agent_handler = get_ai_agent_handler(info=info, agent=agent)
     ai_agent_handler.endpoint_id = info.context["endpoint_id"]
     ai_agent_handler.part_id = info.context.get("part_id")
     file = ai_agent_handler.insert_file(**kwargs["arguments"])
@@ -477,15 +507,19 @@ def get_file(info: ResolveInfo, **kwargs: Dict[str, Any]) -> FileType:
     # Retrieve AI agent configuration
     agent = _get_agent(info, kwargs["agent_uuid"])
 
-    ai_agent_handler_class = getattr(
-        __import__(agent.llm["module_name"]),
-        agent.llm["class_name"],
-    )
-    ai_agent_handler = ai_agent_handler_class(
-        info.context.get("logger"),
-        agent.__dict__,
-        **info.context.get("setting", {}),
-    )
+    # ai_agent_handler_class = getattr(
+    #     __import__(agent.llm["module_name"]),
+    #     agent.llm["class_name"],
+    # )
+    # ai_agent_handler = ai_agent_handler_class(
+    #     info.context.get("logger"),
+    #     agent.__dict__,
+    #     **info.context.get("setting", {}),
+    # )
+    if not agent:
+        raise ValueError("Invalid agent")
+
+    ai_agent_handler = get_ai_agent_handler(info=info, agent=agent)
     ai_agent_handler.endpoint_id = info.context["endpoint_id"]
     ai_agent_handler.part_id = info.context.get("part_id")
 
@@ -509,15 +543,19 @@ def get_output_file(info: ResolveInfo, **kwargs: Dict[str, Any]) -> FileType:
     # Retrieve AI agent configuration
     agent = _get_agent(info, kwargs["agent_uuid"])
 
-    ai_agent_handler_class = getattr(
-        __import__(agent.llm["module_name"]),
-        agent.llm["class_name"],
-    )
-    ai_agent_handler = ai_agent_handler_class(
-        info.context.get("logger"),
-        agent.__dict__,
-        **info.context.get("setting", {}),
-    )
+    # ai_agent_handler_class = getattr(
+    #     __import__(agent.llm["module_name"]),
+    #     agent.llm["class_name"],
+    # )
+    # ai_agent_handler = ai_agent_handler_class(
+    #     info.context.get("logger"),
+    #     agent.__dict__,
+    #     **info.context.get("setting", {}),
+    # )
+    if not agent:
+        raise ValueError("Invalid agent")
+
+    ai_agent_handler = get_ai_agent_handler(info=info, agent=agent)
     ai_agent_handler.endpoint_id = info.context["endpoint_id"]
     ai_agent_handler.part_id = info.context.get("part_id")
 

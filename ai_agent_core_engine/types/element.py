@@ -7,7 +7,7 @@ __author__ = "bibow"
 from graphene import DateTime, Int, List, ObjectType, String
 
 from silvaengine_dynamodb_base import ListObjectType
-from silvaengine_utility import JSON
+from silvaengine_utility import JSONCamelCase
 
 
 class ElementType(ObjectType):
@@ -20,8 +20,8 @@ class ElementType(ObjectType):
     priority = Int()
     attribute_name = String()
     attribute_type = String()
-    option_values = List(JSON)
-    conditions = List(JSON)
+    option_values = List(JSONCamelCase)
+    conditions = List(JSONCamelCase)
     pattern = String()
     updated_by = String()
     created_at = DateTime()

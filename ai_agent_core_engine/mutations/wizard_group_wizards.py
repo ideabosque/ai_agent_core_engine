@@ -5,15 +5,12 @@ __author__ = "bibow"
 
 import traceback
 from typing import Any, Dict
-
 from graphene import Boolean, Field, Int, List, Mutation, String
-
-from silvaengine_utility import JSON
+from silvaengine_utility import JSONCamelCase
 
 # from ..models.wizard_group import delete_wizard_group, insert_update_wizard_group
 from ..handlers.wizard_group import insert_update_wizard_group_with_wizards, delete_wizard_from_wizard_group
 from ..types.wizard_group import WizardGroupType
-
 
 
 class InsertUpdateWizardGroupWithWizards(Mutation):
@@ -24,7 +21,7 @@ class InsertUpdateWizardGroupWithWizards(Mutation):
         wizard_group_name = String(required=True)
         wizard_group_description = String(required=False)
         weight = Int(required=False)
-        wizards = List(JSON, required=True)
+        wizards = List(JSONCamelCase, required=True)
         updated_by = String(required=True)
 
     @staticmethod

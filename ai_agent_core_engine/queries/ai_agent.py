@@ -24,9 +24,7 @@ def resolve_uploaded_file(
     return ai_agent.get_file(info, **kwargs)
 
 
-def resolve_output_file(
-    info: ResolveInfo, **kwargs: Dict[str, Any]
-) -> FileType | None:
+def resolve_output_file(info: ResolveInfo, **kwargs: Dict[str, Any]) -> FileType | None:
     return ai_agent.get_output_file(info, **kwargs)
 
 

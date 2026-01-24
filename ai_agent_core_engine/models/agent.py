@@ -19,8 +19,6 @@ from pynamodb.attributes import (
     UTCDateTimeAttribute,
 )
 from pynamodb.indexes import AllProjection, LocalSecondaryIndex
-from tenacity import retry, stop_after_attempt, wait_exponential
-
 from silvaengine_dynamodb_base import (
     BaseModel,
     complete_table_name_decorator,
@@ -30,6 +28,7 @@ from silvaengine_dynamodb_base import (
     resolve_list_decorator,
 )
 from silvaengine_utility import convert_decimal_to_number, method_cache
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
 from ..types.agent import AgentListType, AgentType
@@ -397,6 +396,7 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
 
         # Handle an existing agent if an ID is provided
         active_agent = None
+
         if "agent_uuid" in kwargs:
             active_agent = _get_active_agent(partition_key, kwargs["agent_uuid"])
         if active_agent:
@@ -456,6 +456,12 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
                     prmopt_template = get_prompt_template(
                         info, flow_snippet["prompt_uuid"]
                     )
+
+                    if (
+                        not isinstance(prmopt_template, dict)
+                        or len(prmopt_template) < 1
+                    ):
+                        continue
 
                     # replace variables
                     agent_variables = {

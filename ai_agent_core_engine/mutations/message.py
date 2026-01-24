@@ -8,7 +8,7 @@ from typing import Any, Dict
 
 from graphene import Boolean, Field, Int, List, Mutation, String
 
-from silvaengine_utility import JSON
+from silvaengine_utility import JSONCamelCase
 
 from ..models.message import (
     delete_message,
