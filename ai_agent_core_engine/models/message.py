@@ -19,11 +19,12 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Serializer, method_cache
+from silvaengine_utility import method_cache
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
 from ..types.message import MessageListType, MessageType
+from ..utils.normalization import normalize_to_json
 
 
 class RunIdIndex(LocalSecondaryIndex):
@@ -153,7 +154,7 @@ def get_message_type(info: ResolveInfo, message: MessageModel) -> MessageType:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)
         raise e
-    return MessageType(**Serializer.json_normalize(message_dict))
+    return MessageType(**normalize_to_json(message_dict))
 
 
 def resolve_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> MessageType | None:

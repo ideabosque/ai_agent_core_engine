@@ -19,11 +19,12 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Serializer, method_cache
+from silvaengine_utility import method_cache
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
 from ..types.tool_call import ToolCallListType, ToolCallType
+from ..utils.normalization import normalize_to_json
 
 
 class RunIdIndex(LocalSecondaryIndex):
@@ -161,7 +162,7 @@ def get_tool_call_type(info: ResolveInfo, tool_call: ToolCallModel) -> ToolCallT
         log = traceback.format_exc()
         info.context.get("logger").exception(log)
         raise e
-    return ToolCallType(**Serializer.json_normalize(tool_call_dict))
+    return ToolCallType(**normalize_to_json(tool_call_dict))
 
 
 def resolve_tool_call(

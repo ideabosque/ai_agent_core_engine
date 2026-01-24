@@ -24,11 +24,12 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Serializer, method_cache
+from silvaengine_utility import method_cache
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
 from ..types.ui_component import UIComponentListType, UIComponentType
+from ..utils.normalization import normalize_to_json
 
 
 class UpdatedAtIndex(LocalSecondaryIndex):
@@ -140,7 +141,7 @@ def get_ui_component_type(
     info: ResolveInfo, ui_component: UIComponentModel
 ) -> UIComponentType:
     ui_component = ui_component.__dict__["attribute_values"]
-    return UIComponentType(**Serializer.json_normalize(ui_component))
+    return UIComponentType(**normalize_to_json(ui_component))
 
 
 def resolve_ui_component(

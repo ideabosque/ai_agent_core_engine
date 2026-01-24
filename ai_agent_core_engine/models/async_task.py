@@ -25,11 +25,12 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Serializer, method_cache
+from silvaengine_utility import method_cache
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
 from ..types.async_task import AsyncTaskListType, AsyncTaskType
+from ..utils.normalization import normalize_to_json
 
 
 class PartitionKeyUpdatedAtIndex(GlobalSecondaryIndex):
@@ -143,7 +144,7 @@ def get_async_task_count(partition_key: str, async_task_uuid: str) -> int:
 
 def get_async_task_type(info: ResolveInfo, async_task: AsyncTaskModel) -> AsyncTaskType:
     async_task = async_task.__dict__["attribute_values"]
-    return AsyncTaskType(**Serializer.json_normalize(async_task))
+    return AsyncTaskType(**normalize_to_json(async_task))
 
 
 def resolve_async_task(

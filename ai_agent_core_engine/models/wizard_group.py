@@ -24,11 +24,12 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Serializer, method_cache
+from silvaengine_utility import method_cache
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
 from ..types.wizard_group import WizardGroupListType, WizardGroupType
+from ..utils.normalization import normalize_to_json
 
 
 class UpdatedAtIndex(LocalSecondaryIndex):
@@ -164,7 +165,7 @@ def get_wizard_group_type(
         if wizard_group:
             wizard_group_dict = wizard_group.__dict__["attribute_values"]
 
-        return WizardGroupType(**Serializer.json_normalize(wizard_group_dict))
+        return WizardGroupType(**normalize_to_json(wizard_group_dict))
     except Exception as e:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)
@@ -184,7 +185,7 @@ def get_wizard_group_list_type(
 
         if wizard_group:
             wizard_group_dict = wizard_group.__dict__["attribute_values"]
-        return WizardGroupType(**Serializer.json_normalize(wizard_group_dict))
+        return WizardGroupType(**normalize_to_json(wizard_group_dict))
     except Exception as e:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)

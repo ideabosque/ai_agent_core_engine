@@ -27,11 +27,12 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Serializer, convert_decimal_to_number, method_cache
+from silvaengine_utility import convert_decimal_to_number, method_cache
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
 from ..types.agent import AgentListType, AgentType
+from ..utils.normalization import normalize_to_json
 from .thread import resolve_thread_list
 from .utils import get_flow_snippet, get_prompt_template
 
@@ -256,7 +257,7 @@ def get_agent_type(info: ResolveInfo, agent: AgentModel) -> AgentType:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)
         raise e
-    return AgentType(**Serializer.json_normalize(agent_dict))
+    return AgentType(**normalize_to_json(agent_dict))
 
 
 def resolve_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AgentType | None:

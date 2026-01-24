@@ -19,11 +19,12 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Serializer, method_cache
+from silvaengine_utility import method_cache
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
 from ..types.thread import ThreadListType, ThreadType
+from ..utils.normalization import normalize_to_json
 from .run import resolve_run_list
 
 
@@ -150,7 +151,7 @@ def get_thread_type(info: ResolveInfo, thread: ThreadModel) -> ThreadType:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)
         raise e
-    return ThreadType(**Serializer.json_normalize(thread_dict))
+    return ThreadType(**normalize_to_json(thread_dict))
 
 
 def resolve_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType | None:
