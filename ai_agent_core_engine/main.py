@@ -318,6 +318,14 @@ class AIAgentCoreEngine(Graphql):
         """
         self._apply_partition_defaults(params)
 
+        Debugger.info(
+            variable=params,
+            stage=f"{__file__}.async_execute_ask_model",
+            delimiter="<>",
+            setting=self.setting,
+            enabled_trace=False,
+        )
+
         return at_agent_listener.async_execute_ask_model(
             self.logger, self.setting, **params
         )
