@@ -51,6 +51,11 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
         AskModelType containing thread, task and run identifiers
     """
     try:
+        required_keys = {"updated_by", "agent_uuid", "user_query"}
+
+        if not required_keys.issubset(kwargs.keys()):
+            raise ValueError("Missing required parameter(s)")
+
         start_time = time.perf_counter()
         # Log request details
         thread = _get_thread(info=info, **kwargs)
@@ -59,7 +64,7 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
             raise ValueError("Not found any thread")
 
         print(
-            f"\n{'*' * 20} Execute function `{__file__}._get_thread` spent {time.perf_counter() - start_time} s."
+            f"\n{'*' * 20} `{__file__}._get_thread` spent {time.perf_counter() - start_time} s."
         )
         start_time = time.perf_counter()
 
@@ -76,7 +81,7 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
             raise ValueError("Invalid run entity")
 
         print(
-            f"\n{'*' * 20} Execute function `{__file__}.insert_update_run` spent {time.perf_counter() - start_time} s."
+            f"\n{'*' * 20} `{__file__}.insert_update_run` spent {time.perf_counter() - start_time} s."
         )
         start_time = time.perf_counter()
 
@@ -102,7 +107,7 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
         )
 
         print(
-            f"\n{'*' * 20} Execute function `{__file__}.start_async_task` spent {time.perf_counter() - start_time} s."
+            f"\n{'*' * 20}`{__file__}.start_async_task` spent {time.perf_counter() - start_time} s."
         )
 
         # Return response with all relevant IDs
