@@ -65,7 +65,7 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
 
         # Create new run instance for this request
         run = insert_update_run(
-            info=info,
+            info,
             **{
                 "thread_uuid": thread.thread_uuid,
                 "updated_by": kwargs.get("updated_by"),

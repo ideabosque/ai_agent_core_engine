@@ -286,7 +286,6 @@ def insert_update_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
 
     # Update the run
     run.update(actions=actions)
-
     return
 
 
