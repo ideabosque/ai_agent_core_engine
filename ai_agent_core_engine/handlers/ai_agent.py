@@ -53,7 +53,10 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
     try:
         start_time = time.perf_counter()
         # Log request details
-        thread = _get_thread(info, **kwargs)
+        thread = _get_thread(info=info, **kwargs)
+
+        if not thread:
+            raise ValueError("Not found any thread")
 
         print(
             f"\n{'*' * 20} Execute function `{__file__}._get_thread` spent {time.perf_counter() - start_time} s."
@@ -62,12 +65,15 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
 
         # Create new run instance for this request
         run = insert_update_run(
-            info,
+            info=info,
             **{
                 "thread_uuid": thread.thread_uuid,
-                "updated_by": kwargs["updated_by"],
+                "updated_by": kwargs.get("updated_by"),
             },
         )
+
+        if not run:
+            raise ValueError("Invalid run entity")
 
         print(
             f"\n{'*' * 20} Execute function `{__file__}.insert_update_run` spent {time.perf_counter() - start_time} s."
