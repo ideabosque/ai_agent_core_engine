@@ -164,8 +164,9 @@ def get_fine_tuning_message_count(agent_uuid: str, message_uuid: str) -> int:
 def get_fine_tuning_message_type(
     info: ResolveInfo, fine_tuning_message: FineTuningMessageModel
 ) -> FineTuningMessageType:
-    fine_tuning_message = fine_tuning_message.__dict__["attribute_values"]
-    return FineTuningMessageType(**normalize_to_json(fine_tuning_message))
+    _ = info  # Keep for signature compatibility with decorators
+    fine_tuning_message_dict = fine_tuning_message.__dict__["attribute_values"].copy()
+    return FineTuningMessageType(**normalize_to_json(fine_tuning_message_dict))
 
 
 def resolve_fine_tuning_message(

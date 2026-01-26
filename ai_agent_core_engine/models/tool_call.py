@@ -149,19 +149,8 @@ def get_tool_call_count(thread_uuid: str, tool_call_uuid: str) -> int:
 
 
 def get_tool_call_type(info: ResolveInfo, tool_call: ToolCallModel) -> ToolCallType:
-    """
-    Nested resolver approach: return minimal tool_call data.
-    - Do NOT embed 'run'.
-    This is resolved lazily by ToolCallType.resolve_run.
-    """
-    try:
-        tool_call_dict: Dict = tool_call.__dict__["attribute_values"]
-        # Keep foreign keys for nested resolvers
-        # No need to fetch run here
-    except Exception as e:
-        log = traceback.format_exc()
-        info.context.get("logger").exception(log)
-        raise e
+    _ = info  # Keep for signature compatibility with decorators
+    tool_call_dict = tool_call.__dict__["attribute_values"].copy()
     return ToolCallType(**normalize_to_json(tool_call_dict))
 
 

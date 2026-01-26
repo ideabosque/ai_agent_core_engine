@@ -124,8 +124,9 @@ def get_llm_count(llm_provider: str, llm_name: str) -> int:
 
 
 def get_llm_type(info: ResolveInfo, llm: LlmModel) -> LlmType:
-    llm = llm.__dict__["attribute_values"]
-    return LlmType(**normalize_to_json(llm))
+    _ = info  # Keep for signature compatibility with decorators
+    llm_dict = llm.__dict__["attribute_values"].copy()
+    return LlmType(**normalize_to_json(llm_dict))
 
 
 def resolve_llm(info: ResolveInfo, **kwargs: Dict[str, Any]) -> LlmType | None:

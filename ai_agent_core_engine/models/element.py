@@ -166,12 +166,8 @@ def get_element_count(partition_key: str, element_uuid: str) -> int:
 
 
 def get_element_type(info: ResolveInfo, element: ElementModel) -> ElementType:
-    try:
-        element_dict = element.__dict__["attribute_values"]
-    except Exception as e:
-        log = traceback.format_exc()
-        info.context.get("logger").exception(log)
-        raise e
+    _ = info  # Keep for signature compatibility with decorators
+    element_dict = element.__dict__["attribute_values"].copy()
     return ElementType(**normalize_to_json(element_dict))
 
 

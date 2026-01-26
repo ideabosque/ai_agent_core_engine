@@ -215,39 +215,20 @@ def get_flow_snippet_count(partition_key: str, flow_snippet_version_uuid: str) -
 def get_flow_snippet_type(
     info: ResolveInfo, flow_snippet: FlowSnippetModel
 ) -> FlowSnippetType:
-    """
-    Nested resolver approach: return minimal flow snippet data.
-    - Do NOT embed 'prompt_template'.
-    - Keep 'prompt_uuid' as foreign key.
-    - This is resolved lazily by FlowSnippetType.resolve_prompt_template.
-    """
-    try:
-        flow_snippet_dict: Dict = flow_snippet.__dict__["attribute_values"]
-        return FlowSnippetType(**normalize_to_json(flow_snippet_dict))
-    except Exception as e:
-        log = traceback.format_exc()
-        info.context.get("logger").exception(log)
-        raise e
+    _ = info  # Keep for signature compatibility with decorators
+    flow_snippet_dict = flow_snippet.__dict__["attribute_values"].copy()
+    return FlowSnippetType(**normalize_to_json(flow_snippet_dict))
 
 
 def get_flow_snippet_list_type(
     info: ResolveInfo, flow_snippet: FlowSnippetModel
 ) -> FlowSnippetBaseType:
-    """
-    Nested resolver approach: return minimal flow snippet data.
-    - Do NOT embed 'prompt_template'.
-    - Keep 'prompt_uuid' as foreign key.
-    """
-    try:
-        flow_snippet_dict: Dict = flow_snippet.__dict__["attribute_values"]
-        # Remove detailed fields for list view
-        flow_snippet_dict.pop("flow_context", None)
-        flow_snippet_dict.pop("flow_relationship", None)
-        return FlowSnippetBaseType(**normalize_to_json(flow_snippet_dict))
-    except Exception as e:
-        log = traceback.format_exc()
-        info.context.get("logger").exception(log)
-        raise e
+    _ = info  # Keep for signature compatibility with decorators
+    flow_snippet_dict = flow_snippet.__dict__["attribute_values"].copy()
+    # Remove detailed fields for list view
+    flow_snippet_dict.pop("flow_context", None)
+    flow_snippet_dict.pop("flow_relationship", None)
+    return FlowSnippetBaseType(**normalize_to_json(flow_snippet_dict))
 
 
 def resolve_flow_snippet(

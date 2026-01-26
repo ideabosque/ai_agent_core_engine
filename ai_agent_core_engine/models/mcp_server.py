@@ -27,7 +27,7 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Debugger, Invoker, method_cache
+from silvaengine_utility import Invoker, method_cache
 
 from ..handlers.config import Config
 from ..types.mcp_server import MCPServerListType, MCPServerType
@@ -147,11 +147,6 @@ def get_mcp_server_count(partition_key: str, mcp_server_uuid: str) -> int:
     )
 
 
-# @method_cache(
-#     ttl=Config.get_cache_ttl(),
-#     cache_name=Config.get_cache_name("models", "mcp_server_tools"),
-#     cache_enabled=Config.is_cache_enabled,
-# )
 async def _run_list_tools(
     logger: logging.Logger, mcp_server: MCPServerModel | Dict[str, Any]
 ):
@@ -182,11 +177,10 @@ async def _run_list_tools(
     cache_name=Config.get_cache_name("models", "mcp_server_tools"),
     cache_enabled=Config.is_cache_enabled,
 )
-def _load_list_tools(
+def load_list_tools(
     logger: logging.Logger, mcp_server: MCPServerModel | Dict[str, Any]
 ):
     try:
-        # tools = asyncio.run(_run_list_tools(info, mcp_server))
         tools = Invoker.sync_call_async_compatible(_run_list_tools(logger, mcp_server))
     except Exception as e:
         tools = []
@@ -196,7 +190,7 @@ def _load_list_tools(
             mcp_server, "mcp_server_uuid"
         ):
             mcp_server_uuid = mcp_server.mcp_server_uuid
-        elif "mcp_server_uuid" in mcp_server:
+        elif isinstance(mcp_server, dict) and "mcp_server_uuid" in mcp_server:
             mcp_server_uuid = mcp_server["mcp_server_uuid"]
         logger.error(
             f"Failed to list tools from MCP server {mcp_server_uuid}: {str(e)}"
@@ -206,45 +200,21 @@ def _load_list_tools(
         {
             "name": tool.name,
             "description": tool.description,
-            "input_schema": tool.get("inputSchema", tool.get("input_schema", {}))
-            if isinstance(tool, dict)
-            else getattr(tool, "input_schema", getattr(tool, "inputSchema", {})),
+            "input_schema": (
+                tool.get("inputSchema", tool.get("input_schema", {}))
+                if isinstance(tool, dict)
+                else getattr(tool, "input_schema", getattr(tool, "inputSchema", {}))
+            ),
         }
         for tool in tools
     ]
 
 
-def get_mcp_server_type(
-    info: ResolveInfo, mcp_server: MCPServerModel | Dict[str, Any]
-) -> MCPServerType:
-    try:
-        # tools = asyncio.run(_run_list_tools(info, mcp_server))
-        tools = Invoker.sync_call_async_compatible(
-            _run_list_tools(info.context["logger"], mcp_server)
-        )
-    except Exception as e:
-        mcp_server_uuid = "internal_mcp"
-        if isinstance(mcp_server, MCPServerModel):
-            if hasattr(mcp_server, "mcp_server_uuid"):
-                mcp_server_uuid = mcp_server.mcp_server_uuid
-        elif "mcp_server_uuid" in mcp_server:
-            mcp_server_uuid = mcp_server["mcp_server_uuid"]
-        info.context["logger"].error(
-            f"Failed to list tools from MCP server {mcp_server_uuid}: {str(e)}"
-        )
-        tools = []
-
-    if isinstance(mcp_server, MCPServerModel):
-        mcp_server = mcp_server.__dict__["attribute_values"]
-    mcp_server["tools"] = [
-        {
-            "name": tool.name,
-            "description": tool.description,
-            "input_schema": tool.input_schema,
-        }
-        for tool in tools
-    ]
-    return MCPServerType(**normalize_to_json(mcp_server))
+def get_mcp_server_type(info: ResolveInfo, mcp_server: MCPServerModel) -> MCPServerType:
+    _ = info  # Keep for signature compatibility with decorators
+    mcp_server_dict = mcp_server.__dict__["attribute_values"].copy()
+    # Keep all fields including FKs - nested resolvers will handle lazy loading
+    return MCPServerType(**normalize_to_json(mcp_server_dict))
 
 
 def resolve_mcp_server(

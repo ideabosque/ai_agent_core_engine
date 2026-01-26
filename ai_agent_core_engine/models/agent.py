@@ -246,17 +246,8 @@ def get_agent_count(partition_key: str, agent_version_uuid: str) -> int:
 
 
 def get_agent_type(info: ResolveInfo, agent: AgentModel) -> AgentType:
-    try:
-        agent_dict: Dict = {}
-
-        if agent:
-            agent_dict = agent.__dict__["attribute_values"]
-        # Keep foreign keys for nested resolvers
-        # No need to fetch llm, mcp_servers, or flow_snippet here
-    except Exception as e:
-        log = traceback.format_exc()
-        info.context.get("logger").exception(log)
-        raise e
+    _ = info  # Keep for signature compatibility with decorators
+    agent_dict = agent.__dict__["attribute_values"].copy()
     return AgentType(**normalize_to_json(agent_dict))
 
 

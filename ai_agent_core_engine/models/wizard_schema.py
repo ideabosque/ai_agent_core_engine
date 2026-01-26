@@ -174,13 +174,9 @@ def get_wizard_schema_count(wizard_schema_type: str, wizard_schema_name: str) ->
 def get_wizard_schema_type(
     info: ResolveInfo, wizard_schema: WizardSchemaModel
 ) -> WizardSchemaType:
-    try:
-        wizard_schema_dict = wizard_schema.__dict__["attribute_values"]
-        return WizardSchemaType(**normalize_to_json(wizard_schema_dict))
-    except Exception as e:
-        log = traceback.format_exc()
-        info.context.get("logger").exception(log)
-        raise e
+    _ = info  # Keep for signature compatibility with decorators
+    wizard_schema_dict = wizard_schema.__dict__["attribute_values"].copy()
+    return WizardSchemaType(**normalize_to_json(wizard_schema_dict))
 
 
 def resolve_wizard_schema(

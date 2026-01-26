@@ -107,9 +107,9 @@ def test_llm_lifecycle_flow(
         "insert_llm",
     )
     assert error is None, f"Insert LLM failed: {error}"
-    assert result.get("data", {}).get("insertUpdateLlm", {}).get("llm"), (
-        "Insert LLM failed - llm object missing in response"
-    )
+    assert (
+        result.get("data", {}).get("insertUpdateLlm", {}).get("llm")
+    ), "Insert LLM failed - llm object missing in response"
 
     # 2. Get (Verify)
     get_query = Graphql.generate_graphql_operation("llm", "Query", schema)
@@ -165,9 +165,9 @@ def test_llm_lifecycle_flow(
         "delete_llm",
     )
     assert error is None, f"Delete LLM failed: {error}"
-    assert result.get("data", {}).get("deleteLlm", {}).get("ok"), (
-        "Delete LLM failed - ok flag missing/false"
-    )
+    assert (
+        result.get("data", {}).get("deleteLlm", {}).get("ok")
+    ), "Delete LLM failed - ok flag missing/false"
 
 
 @pytest.mark.integration
@@ -239,9 +239,9 @@ def test_agent_lifecycle_flow(
         "delete_agent",
     )
     assert error is None, f"Delete Agent failed: {error}"
-    assert result.get("data", {}).get("deleteAgent", {}).get("ok"), (
-        "Delete Agent failed - ok flag missing/false"
-    )
+    assert (
+        result.get("data", {}).get("deleteAgent", {}).get("ok")
+    ), "Delete Agent failed - ok flag missing/false"
 
 
 @pytest.mark.integration
@@ -311,9 +311,9 @@ def test_thread_lifecycle_flow(
         "delete_thread",
     )
     assert error is None, f"Delete Thread failed: {error}"
-    assert result.get("data", {}).get("deleteThread", {}).get("ok"), (
-        "Delete Thread failed - ok flag missing/false"
-    )
+    assert (
+        result.get("data", {}).get("deleteThread", {}).get("ok")
+    ), "Delete Thread failed - ok flag missing/false"
 
 
 @pytest.mark.integration
@@ -383,9 +383,9 @@ def test_run_lifecycle_flow(
         "delete_run",
     )
     assert error is None, f"Delete Run failed: {error}"
-    assert result.get("data", {}).get("deleteRun", {}).get("ok"), (
-        "Delete Run failed - ok flag missing/false"
-    )
+    assert (
+        result.get("data", {}).get("deleteRun", {}).get("ok")
+    ), "Delete Run failed - ok flag missing/false"
 
 
 @pytest.mark.integration
@@ -443,9 +443,9 @@ def test_message_lifecycle_flow(
         "delete_message",
     )
     assert error is None, f"Delete Message failed: {error}"
-    assert result.get("data", {}).get("deleteMessage", {}).get("ok"), (
-        "Delete Message failed - ok flag missing/false"
-    )
+    assert (
+        result.get("data", {}).get("deleteMessage", {}).get("ok")
+    ), "Delete Message failed - ok flag missing/false"
 
 
 @pytest.mark.integration
@@ -502,9 +502,9 @@ def test_tool_call_lifecycle_flow(
         "delete_tool_call",
     )
     assert error is None, f"Delete Tool Call failed: {error}"
-    assert result.get("data", {}).get("deleteToolCall", {}).get("ok"), (
-        "Delete Tool Call failed - ok flag missing/false"
-    )
+    assert (
+        result.get("data", {}).get("deleteToolCall", {}).get("ok")
+    ), "Delete Tool Call failed - ok flag missing/false"
 
 
 @pytest.mark.integration
@@ -546,9 +546,9 @@ def test_fine_tuning_message_lifecycle_flow(
         "get_fine_tuning_message",
     )
     assert error is None, f"Get Fine Tuning Message failed: {error}"
-    assert result.get("data", {}).get("fineTuningMessage"), (
-        "Fine Tuning Message not found after insertion"
-    )
+    assert result.get("data", {}).get(
+        "fineTuningMessage"
+    ), "Fine Tuning Message not found after insertion"
 
     if not int(os.getenv("full_lifecycle_flow", "0")):
         return
@@ -564,9 +564,9 @@ def test_fine_tuning_message_lifecycle_flow(
         "delete_fine_tuning_message",
     )
     assert error is None, f"Delete Fine Tuning Message failed: {error}"
-    assert result.get("data", {}).get("deleteFineTuningMessage", {}).get("ok"), (
-        "Delete Fine Tuning Message failed - ok flag missing/false"
-    )
+    assert (
+        result.get("data", {}).get("deleteFineTuningMessage", {}).get("ok")
+    ), "Delete Fine Tuning Message failed - ok flag missing/false"
 
 
 @pytest.mark.integration
@@ -608,9 +608,9 @@ def test_async_task_lifecycle_flow(
         "get_async_task",
     )
     assert error is None, f"Get Async Task failed: {error}"
-    assert result.get("data", {}).get("asyncTask"), (
-        "Async Task not found after insertion"
-    )
+    assert result.get("data", {}).get(
+        "asyncTask"
+    ), "Async Task not found after insertion"
 
     if not int(os.getenv("full_lifecycle_flow", "0")):
         return
@@ -626,9 +626,9 @@ def test_async_task_lifecycle_flow(
         "delete_async_task",
     )
     assert error is None, f"Delete Async Task failed: {error}"
-    assert result.get("data", {}).get("deleteAsyncTask", {}).get("ok"), (
-        "Delete Async Task failed - ok flag missing/false"
-    )
+    assert (
+        result.get("data", {}).get("deleteAsyncTask", {}).get("ok")
+    ), "Delete Async Task failed - ok flag missing/false"
 
 
 @pytest.mark.integration
@@ -683,9 +683,9 @@ def test_element_lifecycle_flow(
         "delete_element",
     )
     assert error is None, f"Delete Element failed: {error}"
-    assert result.get("data", {}).get("deleteElement", {}).get("ok"), (
-        "Delete Element failed - ok flag missing/false"
-    )
+    assert (
+        result.get("data", {}).get("deleteElement", {}).get("ok")
+    ), "Delete Element failed - ok flag missing/false"
 
 
 @pytest.mark.integration
@@ -739,9 +739,9 @@ def test_wizard_lifecycle_flow(
         "delete_wizard",
     )
     assert error is None, f"Delete Wizard failed: {error}"
-    assert result.get("data", {}).get("deleteWizard", {}).get("ok"), (
-        "Delete Wizard failed - ok flag missing/false"
-    )
+    assert (
+        result.get("data", {}).get("deleteWizard", {}).get("ok")
+    ), "Delete Wizard failed - ok flag missing/false"
 
 
 @pytest.mark.integration
@@ -788,9 +788,9 @@ def test_wizard_schema_lifecycle_flow(
         "get_wizard_schema",
     )
     assert error is None, f"Get Wizard Schema failed: {error}"
-    assert result.get("data", {}).get("wizardSchema"), (
-        "Wizard Schema not found after insertion"
-    )
+    assert result.get("data", {}).get(
+        "wizardSchema"
+    ), "Wizard Schema not found after insertion"
 
     if not int(os.getenv("full_lifecycle_flow", "0")):
         return
@@ -809,9 +809,9 @@ def test_wizard_schema_lifecycle_flow(
         "delete_wizard_schema",
     )
     assert error is None, f"Delete Wizard Schema failed: {error}"
-    assert result.get("data", {}).get("deleteWizardSchema", {}).get("ok"), (
-        "Delete Wizard Schema failed - ok flag missing/false"
-    )
+    assert (
+        result.get("data", {}).get("deleteWizardSchema", {}).get("ok")
+    ), "Delete Wizard Schema failed - ok flag missing/false"
 
 
 @pytest.mark.integration
@@ -851,9 +851,9 @@ def test_wizard_group_lifecycle_flow(
         "get_wizard_group",
     )
     assert error is None, f"Get Wizard Group failed: {error}"
-    assert result.get("data", {}).get("wizardGroup"), (
-        "Wizard Group not found after insertion"
-    )
+    assert result.get("data", {}).get(
+        "wizardGroup"
+    ), "Wizard Group not found after insertion"
 
     if not int(os.getenv("full_lifecycle_flow", "0")):
         return
@@ -869,9 +869,9 @@ def test_wizard_group_lifecycle_flow(
         "delete_wizard_group",
     )
     assert error is None, f"Delete Wizard Group failed: {error}"
-    assert result.get("data", {}).get("deleteWizardGroup", {}).get("ok"), (
-        "Delete Wizard Group failed - ok flag missing/false"
-    )
+    assert (
+        result.get("data", {}).get("deleteWizardGroup", {}).get("ok")
+    ), "Delete Wizard Group failed - ok flag missing/false"
 
 
 @pytest.mark.integration
@@ -915,9 +915,9 @@ def test_wizard_group_filter_lifecycle_flow(
         "get_wizard_group_filter",
     )
     assert error is None, f"Get Wizard Group Filter failed: {error}"
-    assert result.get("data", {}).get("wizardGroupFilter"), (
-        "Wizard Group Filter not found after insertion"
-    )
+    assert result.get("data", {}).get(
+        "wizardGroupFilter"
+    ), "Wizard Group Filter not found after insertion"
 
     if not int(os.getenv("full_lifecycle_flow", "0")):
         return
@@ -933,9 +933,9 @@ def test_wizard_group_filter_lifecycle_flow(
         "delete_wizard_group_filter",
     )
     assert error is None, f"Delete Wizard Group Filter failed: {error}"
-    assert result.get("data", {}).get("deleteWizardGroupFilter", {}).get("ok"), (
-        "Delete Wizard Group Filter failed - ok flag missing/false"
-    )
+    assert (
+        result.get("data", {}).get("deleteWizardGroupFilter", {}).get("ok")
+    ), "Delete Wizard Group Filter failed - ok flag missing/false"
 
 
 @pytest.mark.integration
@@ -980,9 +980,9 @@ def test_ui_component_lifecycle_flow(
         "get_ui_component",
     )
     assert error is None, f"Get UI Component failed: {error}"
-    assert result.get("data", {}).get("uiComponent"), (
-        "UI Component not found after insertion"
-    )
+    assert result.get("data", {}).get(
+        "uiComponent"
+    ), "UI Component not found after insertion"
 
     if not int(os.getenv("full_lifecycle_flow", "0")):
         return
@@ -1001,9 +1001,9 @@ def test_ui_component_lifecycle_flow(
         "delete_ui_component",
     )
     assert error is None, f"Delete UI Component failed: {error}"
-    assert result.get("data", {}).get("deleteUiComponent", {}).get("ok"), (
-        "Delete UI Component failed - ok flag missing/false"
-    )
+    assert (
+        result.get("data", {}).get("deleteUiComponent", {}).get("ok")
+    ), "Delete UI Component failed - ok flag missing/false"
 
 
 @pytest.mark.integration
@@ -1043,9 +1043,9 @@ def test_mcp_server_lifecycle_flow(
         "get_mcp_server",
     )
     assert error is None, f"Get MCP Server failed: {error}"
-    assert result.get("data", {}).get("mcpServer"), (
-        "MCP Server not found after insertion"
-    )
+    assert result.get("data", {}).get(
+        "mcpServer"
+    ), "MCP Server not found after insertion"
 
     if not int(os.getenv("full_lifecycle_flow", "0")):
         return
@@ -1061,9 +1061,9 @@ def test_mcp_server_lifecycle_flow(
         "delete_mcp_server",
     )
     assert error is None, f"Delete MCP Server failed: {error}"
-    assert result.get("data", {}).get("deleteMcpServer", {}).get("ok"), (
-        "Delete MCP Server failed - ok flag missing/false"
-    )
+    assert (
+        result.get("data", {}).get("deleteMcpServer", {}).get("ok")
+    ), "Delete MCP Server failed - ok flag missing/false"
 
 
 @pytest.mark.integration
@@ -1111,9 +1111,9 @@ def test_prompt_template_lifecycle_flow(
         "get_prompt_template",
     )
     assert error is None, f"Get Prompt Template failed: {error}"
-    assert result.get("data", {}).get("promptTemplate"), (
-        "Prompt Template not found after insertion"
-    )
+    assert result.get("data", {}).get(
+        "promptTemplate"
+    ), "Prompt Template not found after insertion"
 
     if not int(os.getenv("full_lifecycle_flow", "0")):
         return
@@ -1129,9 +1129,9 @@ def test_prompt_template_lifecycle_flow(
         "delete_prompt_template",
     )
     assert error is None, f"Delete Prompt Template failed: {error}"
-    assert result.get("data", {}).get("deletePromptTemplate", {}).get("ok"), (
-        "Delete Prompt Template failed - ok flag missing/false"
-    )
+    assert (
+        result.get("data", {}).get("deletePromptTemplate", {}).get("ok")
+    ), "Delete Prompt Template failed - ok flag missing/false"
 
 
 @pytest.mark.integration
@@ -1178,9 +1178,9 @@ def test_flow_snippet_lifecycle_flow(
         "get_flow_snippet",
     )
     assert error is None, f"Get Flow Snippet failed: {error}"
-    assert result.get("data", {}).get("flowSnippet"), (
-        "Flow Snippet not found after insertion"
-    )
+    assert result.get("data", {}).get(
+        "flowSnippet"
+    ), "Flow Snippet not found after insertion"
 
     # 3. Get List (Verify)
     list_query = Graphql.generate_graphql_operation("flowSnippetList", "Query", schema)
@@ -1209,9 +1209,9 @@ def test_flow_snippet_lifecycle_flow(
         "delete_flow_snippet",
     )
     assert error is None, f"Delete Flow Snippet failed: {error}"
-    assert result.get("data", {}).get("deleteFlowSnippet", {}).get("ok"), (
-        "Delete Flow Snippet failed - ok flag missing/false"
-    )
+    assert (
+        result.get("data", {}).get("deleteFlowSnippet", {}).get("ok")
+    ), "Delete Flow Snippet failed - ok flag missing/false"
 
 
 if __name__ == "__main__":
