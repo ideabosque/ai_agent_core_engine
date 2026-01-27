@@ -19,16 +19,16 @@ from pynamodb.attributes import (
     UTCDateTimeAttribute,
 )
 from pynamodb.indexes import AllProjection, LocalSecondaryIndex
+from tenacity import retry, stop_after_attempt, wait_exponential
+
 from silvaengine_dynamodb_base import (
     BaseModel,
-    complete_table_name_decorator,
     delete_decorator,
     insert_update_decorator,
     monitor_decorator,
     resolve_list_decorator,
 )
 from silvaengine_utility import convert_decimal_to_number, method_cache
-from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
 from ..types.agent import AgentListType, AgentType
@@ -76,7 +76,6 @@ class UpdatedAtIndex(LocalSecondaryIndex):
     updated_at = UnicodeAttribute(range_key=True)
 
 
-# @complete_table_name_decorator
 class AgentModel(BaseModel):
     """
     Agent Model - Reference Implementation for partition_key Migration
