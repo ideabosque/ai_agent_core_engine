@@ -10,6 +10,7 @@ from graphene import ResolveInfo
 
 from ..utils.normalization import normalize_to_json
 
+
 def initialize_tables(logger: logging.Logger) -> None:
     from .agent import AgentModel
     from .async_task import AsyncTaskModel
@@ -127,7 +128,7 @@ def get_mcp_servers(
     info: ResolveInfo, mcp_servers: List[Dict[str, Any]]
 ) -> List[Dict[str, Any]]:
     from ..handlers.config import Config
-    from .mcp_server import get_mcp_server_type, resolve_mcp_server
+    from .mcp_server import load_list_tools, resolve_mcp_server
 
     resolved_servers = [
         resolve_mcp_server(info, **{"mcp_server_uuid": server["mcp_server_uuid"]})
@@ -156,15 +157,15 @@ def get_mcp_servers(
         info.context["endpoint_id"], part_id=info.context.get("part_id")
     )
     if internal_mcp:
-        internal_server = get_mcp_server_type(
-            info,
-            {
-                "headers": internal_mcp["headers"],
-                "mcp_label": internal_mcp["name"],
-                "mcp_server_url": internal_mcp["base_url"],
-            },
+        internal_server = {
+            "headers": internal_mcp["headers"],
+            "mcp_label": internal_mcp["name"],
+            "mcp_server_url": internal_mcp["base_url"],
+        }
+        internal_server["tools"] = load_list_tools(
+            info.context["logger"], internal_server
         )
-        resolved_servers.append(internal_server.__dict__)
+        resolved_servers.append(internal_server)
 
     return resolved_servers
 
