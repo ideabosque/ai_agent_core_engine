@@ -178,24 +178,9 @@ def get_wizard_count(partition_key: str, wizard_uuid: str) -> int:
 
 
 def get_wizard_type(info: ResolveInfo, wizard: WizardModel) -> WizardType:
-    """
-    Nested resolver approach: return minimal wizard data.
-    - Do NOT embed 'wizard_schema', 'wizard_elements'.
-    - Keep foreign keys 'wizard_schema_type', 'wizard_schema_name'.
-    - Store raw element references as 'wizard_element_refs'.
-    - These are resolved lazily by WizardType.resolve_wizard_schema, resolve_wizard_elements.
-    """
-    try:
-        wizard_dict: Dict = wizard.__dict__["attribute_values"]
-
-        # Keep the raw element references for nested resolvers
-        wizard_dict["wizard_element_refs"] = wizard.wizard_elements
-
-        return WizardType(**normalize_to_json(wizard_dict))
-    except Exception as e:
-        log = traceback.format_exc()
-        info.context.get("logger").exception(log)
-        raise e
+    _ = info  # Keep for signature compatibility with decorators
+    wizard_dict = wizard.__dict__["attribute_values"].copy()
+    return WizardType(**normalize_to_json(wizard_dict))
 
 
 def resolve_wizard(info: ResolveInfo, **kwargs: Dict[str, Any]) -> WizardType | None:

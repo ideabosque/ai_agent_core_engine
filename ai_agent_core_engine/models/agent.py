@@ -246,17 +246,8 @@ def get_agent_count(partition_key: str, agent_version_uuid: str) -> int:
 
 
 def get_agent_type(info: ResolveInfo, agent: AgentModel) -> AgentType:
-    try:
-        agent_dict: Dict = {}
-
-        if agent:
-            agent_dict = agent.__dict__["attribute_values"]
-        # Keep foreign keys for nested resolvers
-        # No need to fetch llm, mcp_servers, or flow_snippet here
-    except Exception as e:
-        log = traceback.format_exc()
-        info.context.get("logger").exception(log)
-        raise e
+    _ = info  # Keep for signature compatibility with decorators
+    agent_dict = agent.__dict__["attribute_values"].copy()
     return AgentType(**normalize_to_json(agent_dict))
 
 
@@ -507,6 +498,11 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
                         for mcp_server in prmopt_template["mcp_servers"]
                         if mcp_server.get("mcp_server_uuid")
                     ]
+
+                    if "enabled_tools" in flow_snippet:
+                        cols["configuration"]["enabled_tools"] = flow_snippet[
+                            "enabled_tools"
+                        ]
 
         cols["endpoint_id"] = info.context.get("endpoint_id")  # Platform identifier
         cols["part_id"] = info.context.get("part_id")  # Business partition

@@ -164,21 +164,9 @@ def get_wizard_group_filter_count(
 def get_wizard_group_filter_type(
     info: ResolveInfo, wizard_group_filter: WizardGroupFilterModel
 ) -> WizardGroupFilterType:
-    """
-    Nested resolver approach: return minimal wizard group filter data.
-    - Do NOT embed 'wizard_group'.
-    - Keep 'wizard_group_uuid' as foreign key.
-    - This is resolved lazily by WizardGroupFilterType.resolve_wizard_group.
-    """
-    try:
-        wizard_group_filter_dict: Dict = wizard_group_filter.__dict__[
-            "attribute_values"
-        ]
-        return WizardGroupFilterType(**normalize_to_json(wizard_group_filter_dict))
-    except Exception as e:
-        log = traceback.format_exc()
-        info.context.get("logger").exception(log)
-        raise e
+    _ = info  # Keep for signature compatibility with decorators
+    wizard_group_filter_dict = wizard_group_filter.__dict__["attribute_values"].copy()
+    return WizardGroupFilterType(**normalize_to_json(wizard_group_filter_dict))
 
 
 def resolve_wizard_group_filter(

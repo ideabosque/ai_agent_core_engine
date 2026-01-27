@@ -17,6 +17,8 @@ from pynamodb.attributes import (
     UTCDateTimeAttribute,
 )
 from pynamodb.indexes import AllProjection, LocalSecondaryIndex
+from tenacity import retry, stop_after_attempt, wait_exponential
+
 from silvaengine_dynamodb_base import (
     BaseModel,
     delete_decorator,
@@ -25,7 +27,6 @@ from silvaengine_dynamodb_base import (
     resolve_list_decorator,
 )
 from silvaengine_utility import method_cache
-from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
 from ..types.wizard_group import WizardGroupListType, WizardGroupType
@@ -153,43 +154,9 @@ def get_wizard_group_count(partition_key: str, wizard_group_uuid: str) -> int:
 def get_wizard_group_type(
     info: ResolveInfo, wizard_group: WizardGroupModel
 ) -> WizardGroupType:
-    """
-    Nested resolver approach: return minimal wizard group data.
-    - Do NOT embed 'wizards'.
-    - Keep 'wizard_uuids' as foreign keys.
-    - This is resolved lazily by WizardGroupType.resolve_wizards.
-    """
-    try:
-        wizard_group_dict: Dict = {}
-
-        if wizard_group:
-            wizard_group_dict = wizard_group.__dict__["attribute_values"]
-
-        return WizardGroupType(**normalize_to_json(wizard_group_dict))
-    except Exception as e:
-        log = traceback.format_exc()
-        info.context.get("logger").exception(log)
-        raise e
-
-
-def get_wizard_group_list_type(
-    info: ResolveInfo, wizard_group: WizardGroupModel
-) -> WizardGroupType:
-    """
-    Nested resolver approach: return minimal wizard group data.
-    - Do NOT embed 'wizards'.
-    - Keep 'wizard_uuids' as foreign keys.
-    """
-    try:
-        wizard_group_dict: Dict = {}
-
-        if wizard_group:
-            wizard_group_dict = wizard_group.__dict__["attribute_values"]
-        return WizardGroupType(**normalize_to_json(wizard_group_dict))
-    except Exception as e:
-        log = traceback.format_exc()
-        info.context.get("logger").exception(log)
-        raise e
+    _ = info  # Keep for signature compatibility with decorators
+    wizard_group_dict = wizard_group.__dict__["attribute_values"].copy()
+    return WizardGroupType(**normalize_to_json(wizard_group_dict))
 
 
 def resolve_wizard_group(
@@ -198,7 +165,7 @@ def resolve_wizard_group(
     count = get_wizard_group_count(
         info.context["partition_key"], kwargs["wizard_group_uuid"]
     )
-    
+
     if count == 0:
         return None
 
@@ -212,7 +179,7 @@ def resolve_wizard_group(
 @resolve_list_decorator(
     attributes_to_get=["partition_key", "wizard_group_uuid", "updated_at"],
     list_type_class=WizardGroupListType,
-    type_funct=get_wizard_group_list_type,
+    type_funct=get_wizard_group_type,
     scan_index_forward=False,
 )
 def resolve_wizard_group_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
