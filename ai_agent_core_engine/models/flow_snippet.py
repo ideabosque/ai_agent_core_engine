@@ -11,10 +11,8 @@ from typing import Any, Dict
 
 import pendulum
 from graphene import ResolveInfo
-from pynamodb.attributes import UnicodeAttribute, UTCDateTimeAttribute
+from pynamodb.attributes import ListAttribute, UnicodeAttribute, UTCDateTimeAttribute
 from pynamodb.indexes import AllProjection, LocalSecondaryIndex
-from tenacity import retry, stop_after_attempt, wait_exponential
-
 from silvaengine_dynamodb_base import (
     BaseModel,
     delete_decorator,
@@ -23,6 +21,7 @@ from silvaengine_dynamodb_base import (
     resolve_list_decorator,
 )
 from silvaengine_utility import convert_decimal_to_number, method_cache
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.ai_agent_utility import convert_flow_snippet_xml
 from ..handlers.config import Config
@@ -85,6 +84,7 @@ class FlowSnippetModel(BaseModel):
     flow_name = UnicodeAttribute()
     flow_relationship = UnicodeAttribute(null=True)
     flow_context = UnicodeAttribute(null=True)
+    enabled_tools = ListAttribute(of=UnicodeAttribute, null=True)
     status = UnicodeAttribute(default="active")
     updated_by = UnicodeAttribute()
     created_at = UTCDateTimeAttribute()
@@ -407,6 +407,7 @@ def insert_update_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> A
             "flow_name",
             "flow_relationship",
             "flow_context",
+            "enabled_tools",
         ]:
             if key in kwargs:
                 if key == "flow_context" and Config.xml_convert:
@@ -447,6 +448,7 @@ def insert_update_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> A
         "flow_name": FlowSnippetModel.flow_name,
         "flow_relationship": FlowSnippetModel.flow_relationship,
         "flow_context": FlowSnippetModel.flow_context,
+        "enabled_tools": FlowSnippetModel.enabled_tools,
         "status": FlowSnippetModel.status,
     }
 

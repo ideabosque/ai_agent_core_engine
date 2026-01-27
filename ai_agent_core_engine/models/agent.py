@@ -499,6 +499,11 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
                         if mcp_server.get("mcp_server_uuid")
                     ]
 
+                    if "enabled_tools" in flow_snippet:
+                        cols["configuration"]["enabled_tools"] = flow_snippet[
+                            "enabled_tools"
+                        ]
+
         cols["endpoint_id"] = info.context.get("endpoint_id")  # Platform identifier
         cols["part_id"] = info.context.get("part_id")  # Business partition
 
