@@ -203,11 +203,11 @@ def _get_agent(info: ResolveInfo, agent_uuid: str):
 
         agent.mcp_servers = [
             {
-                "name": mcp_server["mcp_label"],
-                "mcp_server_uuid": mcp_server["mcp_server_uuid"],
+                "name": mcp_server.get("mcp_label"),
+                "mcp_server_uuid": mcp_server.get("mcp_server_uuid"),
                 "setting": {
-                    "base_url": mcp_server["mcp_server_url"],
-                    "headers": mcp_server["headers"],
+                    "base_url": mcp_server.get("mcp_server_url"),
+                    "headers": mcp_server.get("headers"),
                 },
             }
             for mcp_server in get_mcp_servers(info, mcp_servers)

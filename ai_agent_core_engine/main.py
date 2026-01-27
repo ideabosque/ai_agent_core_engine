@@ -92,6 +92,10 @@ def deploy() -> List:
                             "action": "promptTemplateList",
                             "label": "List Prompt Template",
                         },
+                        {
+                            "action": "askModel",
+                            "label": "Ask Model",
+                        },
                     ],
                     "mutation": [
                         {
