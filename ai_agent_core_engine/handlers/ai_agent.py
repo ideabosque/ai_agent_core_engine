@@ -64,7 +64,7 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
             raise ValueError("Not found any thread")
 
         print(
-            f"\n{'*' * 20} `{__file__}._get_thread` spent {time.perf_counter() - start_time} s."
+            f"\n{'*' * 20} `{__file__}._get_thread` spent {(time.perf_counter() - start_time):.6f} s."
         )
         start_time = time.perf_counter()
 
@@ -81,7 +81,7 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
             raise ValueError("Invalid run entity")
 
         print(
-            f"\n{'*' * 20} `{__file__}.insert_update_run` spent {time.perf_counter() - start_time} s."
+            f"\n{'*' * 20} `{__file__}.insert_update_run` spent {(time.perf_counter() - start_time):.6f} s."
         )
         start_time = time.perf_counter()
 
@@ -107,7 +107,7 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
         )
 
         print(
-            f"\n{'*' * 20}`{__file__}.start_async_task` spent {time.perf_counter() - start_time} s."
+            f"\n{'*' * 20}`{__file__}.start_async_task` spent {(time.perf_counter() - start_time):.6f} s."
         )
 
         # Return response with all relevant IDs
