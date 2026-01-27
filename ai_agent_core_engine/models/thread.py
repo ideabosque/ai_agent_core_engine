@@ -143,14 +143,8 @@ def get_thread_count(partition_key: str, thread_uuid: str) -> int:
 
 
 def get_thread_type(info: ResolveInfo, thread: ThreadModel) -> ThreadType:
-    try:
-        thread_dict: Dict = thread.__dict__["attribute_values"]
-        # Keep foreign keys for nested resolvers
-        # No need to fetch agent, messages, or runs here
-    except Exception as e:
-        log = traceback.format_exc()
-        info.context.get("logger").exception(log)
-        raise e
+    _ = info  # Keep for signature compatibility with decorators
+    thread_dict = thread.__dict__["attribute_values"].copy()
     return ThreadType(**normalize_to_json(thread_dict))
 
 

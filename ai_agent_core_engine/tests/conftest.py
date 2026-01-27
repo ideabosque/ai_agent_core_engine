@@ -46,8 +46,9 @@ sys.path.insert(
     ),
 )
 
-from ai_agent_core_engine import AIAgentCoreEngine
 from silvaengine_utility import Graphql
+
+from ai_agent_core_engine import AIAgentCoreEngine
 
 # Test data file path
 TEST_DATA_FILE = os.path.join(os.path.dirname(__file__), "test_data.json")
@@ -148,12 +149,14 @@ def schema(ai_agent_core_engine):
     Depends on ai_agent_core_engine fixture.
     """
     endpoint_id = SETTING.get("endpoint_id")
+    part_id = SETTING.get("part_id")
 
     try:
         logger.info("Fetching GraphQL schema...")
 
         context = {
             "endpoint_id": endpoint_id,
+            "part_id": part_id,
             "setting": SETTING,
             "logger": logger,
         }

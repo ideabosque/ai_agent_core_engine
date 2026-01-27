@@ -11,10 +11,8 @@ from typing import Any, Dict
 
 import pendulum
 from graphene import ResolveInfo
-from pynamodb.attributes import UnicodeAttribute, UTCDateTimeAttribute
+from pynamodb.attributes import ListAttribute, UnicodeAttribute, UTCDateTimeAttribute
 from pynamodb.indexes import AllProjection, LocalSecondaryIndex
-from tenacity import retry, stop_after_attempt, wait_exponential
-
 from silvaengine_dynamodb_base import (
     BaseModel,
     delete_decorator,
@@ -23,6 +21,7 @@ from silvaengine_dynamodb_base import (
     resolve_list_decorator,
 )
 from silvaengine_utility import convert_decimal_to_number, method_cache
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.ai_agent_utility import convert_flow_snippet_xml
 from ..handlers.config import Config
@@ -85,6 +84,7 @@ class FlowSnippetModel(BaseModel):
     flow_name = UnicodeAttribute()
     flow_relationship = UnicodeAttribute(null=True)
     flow_context = UnicodeAttribute(null=True)
+    enabled_tools = ListAttribute(of=UnicodeAttribute, null=True)
     status = UnicodeAttribute(default="active")
     updated_by = UnicodeAttribute()
     created_at = UTCDateTimeAttribute()
@@ -215,39 +215,20 @@ def get_flow_snippet_count(partition_key: str, flow_snippet_version_uuid: str) -
 def get_flow_snippet_type(
     info: ResolveInfo, flow_snippet: FlowSnippetModel
 ) -> FlowSnippetType:
-    """
-    Nested resolver approach: return minimal flow snippet data.
-    - Do NOT embed 'prompt_template'.
-    - Keep 'prompt_uuid' as foreign key.
-    - This is resolved lazily by FlowSnippetType.resolve_prompt_template.
-    """
-    try:
-        flow_snippet_dict: Dict = flow_snippet.__dict__["attribute_values"]
-        return FlowSnippetType(**normalize_to_json(flow_snippet_dict))
-    except Exception as e:
-        log = traceback.format_exc()
-        info.context.get("logger").exception(log)
-        raise e
+    _ = info  # Keep for signature compatibility with decorators
+    flow_snippet_dict = flow_snippet.__dict__["attribute_values"].copy()
+    return FlowSnippetType(**normalize_to_json(flow_snippet_dict))
 
 
 def get_flow_snippet_list_type(
     info: ResolveInfo, flow_snippet: FlowSnippetModel
 ) -> FlowSnippetBaseType:
-    """
-    Nested resolver approach: return minimal flow snippet data.
-    - Do NOT embed 'prompt_template'.
-    - Keep 'prompt_uuid' as foreign key.
-    """
-    try:
-        flow_snippet_dict: Dict = flow_snippet.__dict__["attribute_values"]
-        # Remove detailed fields for list view
-        flow_snippet_dict.pop("flow_context", None)
-        flow_snippet_dict.pop("flow_relationship", None)
-        return FlowSnippetBaseType(**normalize_to_json(flow_snippet_dict))
-    except Exception as e:
-        log = traceback.format_exc()
-        info.context.get("logger").exception(log)
-        raise e
+    _ = info  # Keep for signature compatibility with decorators
+    flow_snippet_dict = flow_snippet.__dict__["attribute_values"].copy()
+    # Remove detailed fields for list view
+    flow_snippet_dict.pop("flow_context", None)
+    flow_snippet_dict.pop("flow_relationship", None)
+    return FlowSnippetBaseType(**normalize_to_json(flow_snippet_dict))
 
 
 def resolve_flow_snippet(
@@ -426,6 +407,7 @@ def insert_update_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> A
             "flow_name",
             "flow_relationship",
             "flow_context",
+            "enabled_tools",
         ]:
             if key in kwargs:
                 if key == "flow_context" and Config.xml_convert:
@@ -466,6 +448,7 @@ def insert_update_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> A
         "flow_name": FlowSnippetModel.flow_name,
         "flow_relationship": FlowSnippetModel.flow_relationship,
         "flow_context": FlowSnippetModel.flow_context,
+        "enabled_tools": FlowSnippetModel.enabled_tools,
         "status": FlowSnippetModel.status,
     }
 

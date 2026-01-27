@@ -29,7 +29,7 @@ class McpServerToolLoader(SafeDataLoader):
             self.cache_func_prefix = ""
             if cache_meta:
                 self.cache_func_prefix = ".".join(
-                    [cache_meta.get("module"), "_load_list_tools"]
+                    [cache_meta.get("module"), "load_list_tools"]
                 )
         self.internal_mcp = None
         self.internal_mcp_tools = None
@@ -43,9 +43,9 @@ class McpServerToolLoader(SafeDataLoader):
         if self.internal_mcp is not None:
             if self.internal_mcp_tools is not None:
                 return self.internal_mcp_tools
-            from ..mcp_server import _load_list_tools
+            from ..mcp_server import load_list_tools
 
-            self.internal_mcp_tools = _load_list_tools(
+            self.internal_mcp_tools = load_list_tools(
                 self.logger,
                 {
                     "mcp_server_url": self.internal_mcp["base_url"],
@@ -80,7 +80,7 @@ class McpServerToolLoader(SafeDataLoader):
         self.cache.set(cache_key, data, ttl=Config.get_cache_ttl())
 
     def batch_load_fn(self, keys: List[Key]) -> Promise:
-        from ..mcp_server import _load_list_tools
+        from ..mcp_server import load_list_tools
 
         unique_keys = list(dict.fromkeys(keys))
         key_map: Dict[Key, Dict[str, Any]] = {}
@@ -105,7 +105,7 @@ class McpServerToolLoader(SafeDataLoader):
                 for mcp_server_url, headers_tuple in uncached_keys:
                     key = (mcp_server_url, headers_tuple)
 
-                    mcp_server_tools = _load_list_tools(
+                    mcp_server_tools = load_list_tools(
                         self.logger,
                         {
                             "mcp_server_url": mcp_server_url,

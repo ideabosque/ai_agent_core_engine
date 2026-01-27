@@ -221,14 +221,9 @@ def get_prompt_template_count(partition_key: str, prompt_version_uuid: str) -> i
 def get_prompt_template_type(
     info: ResolveInfo, prompt_template: PromptTemplateModel
 ) -> PromptTemplateType:
-    try:
-        prompt_dict: Dict = prompt_template.__dict__["attribute_values"]
-
-        return PromptTemplateType(**normalize_to_json(prompt_dict))
-    except Exception as e:
-        log = traceback.format_exc()
-        info.context.get("logger").exception(log)
-        raise e
+    _ = info  # Keep for signature compatibility with decorators
+    prompt_template_dict = prompt_template.__dict__["attribute_values"].copy()
+    return PromptTemplateType(**normalize_to_json(prompt_template_dict))
 
 
 def resolve_prompt_template(

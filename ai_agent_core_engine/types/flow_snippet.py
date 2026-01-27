@@ -16,6 +16,7 @@ class FlowSnippetBaseType(ObjectType):
     part_id = String()
     flow_snippet_version_uuid = String()
     flow_snippet_uuid = String()
+    enabled_tools = List(String)
     prompt_uuid = String()
     flow_name = String()
     status = String()
@@ -54,12 +55,9 @@ class FlowSnippetType(FlowSnippetBaseType):
 
         loaders = get_loaders(info.context)
 
-        return (
-            loaders.prompt_template_loader.load((partition_key, prompt_uuid))
-            .then(
-                lambda prompt_dict: (
-                    PromptTemplateType(**prompt_dict) if prompt_dict else None
-                )
+        return loaders.prompt_template_loader.load((partition_key, prompt_uuid)).then(
+            lambda prompt_dict: (
+                PromptTemplateType(**prompt_dict) if prompt_dict else None
             )
         )
 

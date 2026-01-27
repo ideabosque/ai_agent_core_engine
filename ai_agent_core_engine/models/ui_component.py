@@ -140,8 +140,9 @@ def get_ui_component_count(ui_component_type: str, ui_component_uuid: str) -> in
 def get_ui_component_type(
     info: ResolveInfo, ui_component: UIComponentModel
 ) -> UIComponentType:
-    ui_component = ui_component.__dict__["attribute_values"]
-    return UIComponentType(**normalize_to_json(ui_component))
+    _ = info  # Keep for signature compatibility with decorators
+    ui_component_dict = ui_component.__dict__["attribute_values"].copy()
+    return UIComponentType(**normalize_to_json(ui_component_dict))
 
 
 def resolve_ui_component(

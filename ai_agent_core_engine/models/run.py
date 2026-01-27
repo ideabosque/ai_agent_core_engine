@@ -128,19 +128,8 @@ def get_run_count(thread_uuid: str, run_uuid: str) -> int:
 
 
 def get_run_type(info: ResolveInfo, run: RunModel) -> RunType:
-    """
-    Nested resolver approach: return minimal run data.
-    - Do NOT embed 'thread', 'messages', 'tool_calls'.
-    These are resolved lazily by RunType.resolve_thread, resolve_messages, resolve_tool_calls.
-    """
-    try:
-        run_dict: Dict = run.__dict__["attribute_values"]
-        # Keep foreign keys for nested resolvers
-        # No need to fetch thread, messages, or tool_calls here
-    except Exception as e:
-        log = traceback.format_exc()
-        info.context.get("logger").exception(log)
-        raise e
+    _ = info  # Keep for signature compatibility with decorators
+    run_dict = run.__dict__["attribute_values"].copy()
     return RunType(**normalize_to_json(run_dict))
 
 

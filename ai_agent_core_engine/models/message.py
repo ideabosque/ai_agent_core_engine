@@ -141,19 +141,8 @@ def get_message_count(thread_uuid: str, message_uuid: str) -> int:
 
 
 def get_message_type(info: ResolveInfo, message: MessageModel) -> MessageType:
-    """
-    Nested resolver approach: return minimal message data.
-    - Do NOT embed 'run' or 'thread'.
-    These are resolved lazily by MessageType.resolve_run, resolve_thread.
-    """
-    try:
-        message_dict: Dict = message.__dict__["attribute_values"]
-        # Keep foreign keys for nested resolvers
-        # No need to fetch run or thread here
-    except Exception as e:
-        log = traceback.format_exc()
-        info.context.get("logger").exception(log)
-        raise e
+    _ = info  # Keep for signature compatibility with decorators
+    message_dict = message.__dict__["attribute_values"].copy()
     return MessageType(**normalize_to_json(message_dict))
 
 
