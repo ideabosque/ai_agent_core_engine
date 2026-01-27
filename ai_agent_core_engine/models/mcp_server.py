@@ -8,7 +8,7 @@ __author__ = "bibow"
 import functools
 import logging
 import traceback
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import pendulum
 from graphene import ResolveInfo
@@ -179,7 +179,7 @@ async def _run_list_tools(
 )
 def load_list_tools(
     logger: logging.Logger, mcp_server: MCPServerModel | Dict[str, Any]
-):
+) -> List[Dict[str, Any]]:
     try:
         tools = Invoker.sync_call_async_compatible(_run_list_tools(logger, mcp_server))
     except Exception as e:
@@ -210,7 +210,9 @@ def load_list_tools(
     ]
 
 
-def get_mcp_server_type(info: ResolveInfo, mcp_server: MCPServerModel) -> MCPServerType:
+def get_mcp_server_type(
+    info: ResolveInfo, mcp_server: MCPServerModel | Dict[str, Any]
+) -> MCPServerType:
     _ = info  # Keep for signature compatibility with decorators
     mcp_server_dict = mcp_server.__dict__["attribute_values"].copy()
     # Keep all fields including FKs - nested resolvers will handle lazy loading
