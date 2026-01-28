@@ -212,6 +212,19 @@ def _get_agent(info: ResolveInfo, agent_uuid: str):
     return agent
 
 
+"""
+TODO: Implement a decorator to record the token usage.
+Args:
+    service_name: the name of the service.
+return:
+    individual_identity_id: the individual identity id (if available (user_id) in arguments).
+    service_id: the service id (we will use service_name to do the lookup but we can use service_name in mvp).
+    usage: the token usage (use run_uuid to find out the token usage).
+    details: the detail of the run (all the required criteria to be records).
+    timestamp: the timestamp of the token usage.
+"""
+
+
 @async_task_handler("async_execute_ask_model")
 def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> tuple:
     """

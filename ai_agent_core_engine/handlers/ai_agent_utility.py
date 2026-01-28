@@ -11,7 +11,6 @@ from typing import Any, Dict, List
 
 import pendulum
 from graphene import ResolveInfo
-from silvaengine_constants import InvocationType
 
 try:
     import tiktoken
@@ -32,13 +31,13 @@ except (
 ):  # Optional dependency; only needed for Claude token counting
     anthropic = None
 from graphene import ResolveInfo
+
 from silvaengine_utility import Debugger, Invoker, Serializer
 
 from ..models.async_task import insert_update_async_task
 from ..models.message import resolve_message_list
 from ..models.tool_call import resolve_tool_call_list
 from ..types.agent import AgentType
-from .config import Config
 
 
 def get_ai_agent_handler(info: ResolveInfo, agent: AgentType):
@@ -166,19 +165,6 @@ def start_async_task(
                 ),
                 parameters=params,
             )
-            # invoker = info.context.get("aws_lambda_invoker")
-            # if callable(invoker):
-            #     invoker(
-            #         function_name=info.context.get("aws_lambda_arn"),
-            #         invocation_type=InvocationType.EVENT,
-            #         payload=Invoker.build_invoker_payload(
-            #             context=info.context,
-            #             module_name="ai_agent_core_engine",
-            #             function_name=function_name,
-            #             class_name="AIAgentCoreEngine",
-            #             parameters=params,
-            #         ),
-            #     )
 
         except Exception as e:
             Debugger.info(
@@ -333,7 +319,9 @@ def combine_thread_messages(
     return messages
 
 
-def calculate_num_tokens(agent: AgentType, text: str) -> int:
+def calculate_num_tokens(
+    agent: AgentType, text: str, include_instructions: bool = False
+) -> int:
     """
     Calculates the number of tokens for a given model.
 
@@ -348,6 +336,8 @@ def calculate_num_tokens(agent: AgentType, text: str) -> int:
         Exception: If there is an error getting the encoding or calculating tokens
     """
     try:
+        if include_instructions and agent.instructions:
+            text = f"{agent.instructions}\n\n{text}"
         if agent.llm_name == "gpt":
             if tiktoken is None:
                 raise ImportError(
