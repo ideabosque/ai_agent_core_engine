@@ -6,7 +6,7 @@ __author__ = "bibow"
 
 import functools
 import traceback
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional
 
 import pendulum
 from graphene import ResolveInfo
@@ -163,7 +163,6 @@ def resolve_run_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     count_funct = RunModel.count
     range_key_condition = None
     if thread_uuid:
-
         # Build range key condition for updated_at
         if updated_at_gt is not None and updated_at_lt is not None:
             range_key_condition = RunModel.updated_at.between(
@@ -218,36 +217,47 @@ def resolve_run_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
 )
 @purge_cache()
 def insert_update_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
-
     thread_uuid = kwargs.get("thread_uuid")
     run_uuid = kwargs.get("run_uuid")
-    if kwargs.get("entity") is None:
-        cols = {
-            "partition_key": info.context["partition_key"],
-            "updated_by": kwargs["updated_by"],
-            "created_at": pendulum.now("UTC"),
-            "updated_at": pendulum.now("UTC"),
+    partition_key = info.context.get("partition_key")
+
+    if not all([thread_uuid, run_uuid, partition_key]):
+        raise ValueError(
+            f"Missing required parameters: thread_uuid={thread_uuid}, run_uuid={run_uuid}, partition_key={partition_key}"
+        )
+
+    updated_by = kwargs.get("updated_by")
+    now_utc = pendulum.now("UTC")
+    run = kwargs.get("entity")
+
+    if not run:
+        field_values = {
+            "partition_key": partition_key,
+            "updated_by": updated_by,
+            "created_at": now_utc,
+            "updated_at": now_utc,
         }
+
         for key in ["run_id", "completion_tokens", "prompt_tokens", "total_tokens"]:
             if key in kwargs:
-                cols[key] = kwargs[key]
+                field_values[key] = kwargs[key]
 
         RunModel(
             thread_uuid,
             run_uuid,
-            **cols,
+            **field_values,
         ).save()
         return
 
-    run = kwargs.get("entity")
-    if "completion_tokens" in kwargs and float(kwargs["completion_tokens"]) > 0:
-        kwargs["total_tokens"] = kwargs["completion_tokens"] + run.prompt_tokens
-        kwargs["time_spent"] = int(
-            pendulum.now("UTC").diff(run.created_at).in_seconds() * 1000
-        )
+    completion_tokens = float(kwargs.get("completion_tokens") or 0)
+
+    if completion_tokens > 0:
+        kwargs["total_tokens"] = completion_tokens + run.prompt_tokens
+        kwargs["time_spent"] = int(now_utc.diff(run.created_at).in_seconds() * 1000)
+
     actions = [
-        RunModel.updated_by.set(kwargs["updated_by"]),
-        RunModel.updated_at.set(pendulum.now("UTC")),
+        RunModel.updated_by.set(updated_by),
+        RunModel.updated_at.set(now_utc),
     ]
     # Map of potential keys in kwargs to RunModel attributes
     field_map = {
@@ -265,7 +275,6 @@ def insert_update_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
 
     # Update the run
     run.update(actions=actions)
-
     return
 
 
@@ -278,7 +287,6 @@ def insert_update_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
 )
 @purge_cache()
 def delete_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
-
     message_list = resolve_message_list(
         info,
         **{
@@ -316,6 +324,5 @@ def delete_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
 def get_runs_by_thread(thread_uuid: str) -> Any:
     runs = []
     for run in RunModel.query(thread_uuid):
-
         runs.append(run)
     return runs
