@@ -9,6 +9,7 @@ from typing import Any, Dict, List
 
 from graphene import Schema
 from silvaengine_dynamodb_base import BaseModel
+from silvaengine_dynamodb_base.models import GraphqlSchemaModel
 from silvaengine_utility import Debugger, Graphql, Serializer
 
 from .handlers import at_agent_listener
@@ -295,6 +296,9 @@ class AIAgentCoreEngine(Graphql):
             params["context"]["endpoint_id"] = endpoint_id
         if "part_id" not in params["context"]:
             params["context"]["part_id"] = part_id
+        if "graphql_schema_picker" not in params["context"]:
+            picker = GraphqlSchemaModel.get_schema_picker(endpoint_id=endpoint_id)
+            params["context"]["graphql_schema_picker"] = picker
         if "connection_id" not in params:
             params["connection_id"] = self.setting.get("connection_id")
 
