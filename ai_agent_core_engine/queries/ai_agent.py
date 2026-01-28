@@ -4,9 +4,11 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
+import time
 from typing import Any, Dict
 
 from graphene import ResolveInfo
+from silvaengine_utility import Debugger
 
 from ..handlers import ai_agent
 from ..types.ai_agent import AskModelType, FileType, PresignedAWSS3UrlType
@@ -15,7 +17,14 @@ from ..types.ai_agent import AskModelType, FileType, PresignedAWSS3UrlType
 def resolve_ask_model(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> AskModelType | None:
-    return ai_agent.ask_model(info, **kwargs)
+    started_at = time.perf_counter()
+    result = ai_agent.ask_model(info, **kwargs)
+
+    Debugger.info(
+        variable=f"Execute `resolve_ask_model` spent {(time.perf_counter() - started_at):.6f}"
+    )
+
+    return result
 
 
 def resolve_uploaded_file(
