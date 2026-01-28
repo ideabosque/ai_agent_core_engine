@@ -22,6 +22,7 @@ from ..models.thread import insert_thread, resolve_thread, resolve_thread_list
 from ..types.ai_agent import AskModelType, FileType, PresignedAWSS3UrlType
 from ..types.message import MessageType
 from ..types.thread import ThreadListType, ThreadType
+from ..utils.decorators import async_task_handler
 from .ai_agent_utility import (
     calculate_num_tokens,
     get_ai_agent_handler,
@@ -201,22 +202,28 @@ def _get_agent(info: ResolveInfo, agent_uuid: str):
             for mcp_server_uuid in agent.mcp_server_uuids
         ]
 
-        agent.mcp_servers = [
-            {
-                "name": mcp_server.get("mcp_label"),
-                "mcp_server_uuid": mcp_server.get("mcp_server_uuid"),
-                "setting": {
-                    "base_url": mcp_server.get("mcp_server_url"),
-                    "headers": mcp_server.get("headers"),
-                },
-            }
-            for mcp_server in get_mcp_servers(info, mcp_servers)
-        ]
+        for mcp_server in get_mcp_servers(info, mcp_servers):
+            assert mcp_server is not None and all(
+                mcp_server.get(k)
+                for k in ["headers", "mcp_label", "mcp_server_uuid", "mcp_server_url"]
+            ), f"MCP Server ({mcp_server}) is not configured correctly."
+
+            agent.mcp_servers.append(
+                {
+                    "name": mcp_server["mcp_label"],
+                    "mcp_server_uuid": mcp_server["mcp_server_uuid"],
+                    "setting": {
+                        "base_url": mcp_server["mcp_server_url"],
+                        "headers": mcp_server["headers"],
+                    },
+                }
+            )
 
     return agent
 
 
-def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
+@async_task_handler("async_execute_ask_model")
+def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> tuple:
     """
     Execute an AI model query and handle the response asynchronously.
 
@@ -225,201 +232,168 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
         kwargs: Dictionary containing async_task_uuid and arguments
 
     Returns:
-        AsyncTaskType: The async task object with query results
+        tuple: A tuple of (result, output_files)
 
     Raises:
         Exception: If any error occurs during execution
     """
-    try:
-        # Log endpoint and connection IDs for tracing
-        async_task_uuid = kwargs["async_task_uuid"]
-        arguments = kwargs["arguments"]
+    arguments = kwargs["arguments"]
 
-        if not async_task_uuid or not arguments:
-            raise Exception("Missing required parameter(s)")
+    # Retrieve AI agent configuration with LLM details
+    agent = _get_agent(info, arguments["agent_uuid"])
 
-        # Initialize async task as in-progress
-        async_task = insert_update_async_task(
-            info,
-            **{
-                "function_name": "async_execute_ask_model",
-                "async_task_uuid": async_task_uuid,
-                "status": "in_progress",
-                "updated_by": arguments["updated_by"],
-            },
-        )
+    if not agent:
+        raise ValueError("Not found any agent")
 
-        # Retrieve AI agent configuration with LLM details
-        agent = _get_agent(info, arguments["agent_uuid"])
+    # Build conversation history and add new user query
+    input_messages = get_input_messages(
+        info,
+        arguments["thread_uuid"],
+        int(agent.num_of_messages) if agent.num_of_messages is not None else 0,
+        agent.tool_call_role,
+    )
+    input_messages.append({"role": "user", "content": arguments["user_query"]})
+    # TODO: Implement long term memory processing pipeline.
+    # TODO: Implement long term memory context retrival.
 
-        if not agent:
-            raise ValueError("Not found any agent")
+    # TODO: Implement message evaluation system to:
+    #  1. Evaluate all system messages and instructions with last assistant message
+    #  2. Analyze if current user query relates to previous context
+    #  3. Add metadata flags for conversation flow and context tracking
+    #  4. Enable smarter handling of follow-up questions vs new topics
 
-        # Build conversation history and add new user query
-        input_messages = get_input_messages(
-            info,
-            arguments["thread_uuid"],
-            int(agent.num_of_messages) if agent.num_of_messages is not None else 0,
-            agent.tool_call_role,
-        )
-        input_messages.append({"role": "user", "content": arguments["user_query"]})
-        # TODO: Implement long term memory processing pipeline.
-        # TODO: Implement long term memory context retrival.
+    # Record user message in thread
+    user_message = insert_update_message(
+        info,
+        **{
+            "thread_uuid": arguments["thread_uuid"],
+            "run_uuid": arguments["run_uuid"],
+            "role": "user",
+            "message": arguments["user_query"],
+            "updated_by": arguments["updated_by"],
+        },
+    )
 
-        # TODO: Implement message evaluation system to:
-        #  1. Evaluate all system messages and instructions with last assistant message
-        #  2. Analyze if current user query relates to previous context
-        #  3. Add metadata flags for conversation flow and context tracking
-        #  4. Enable smarter handling of follow-up questions vs new topics
-
-        # Record user message in thread
-        user_message = insert_update_message(
-            info,
-            **{
-                "thread_uuid": arguments["thread_uuid"],
-                "run_uuid": arguments["run_uuid"],
-                "role": "user",
-                "message": arguments["user_query"],
-                "updated_by": arguments["updated_by"],
-            },
-        )
-
-        # Initialize run record
-        run = insert_update_run(
-            info,
-            **{
-                "thread_uuid": arguments["thread_uuid"],
-                "run_uuid": arguments["run_uuid"],
-                "prompt_tokens": calculate_num_tokens(
-                    agent,
-                    "\n".join(
-                        [msg["content"] for msg in input_messages if "content" in msg]
-                    ),
-                ),
-                "updated_by": arguments["updated_by"],
-            },
-        )
-
-        ai_agent_handler = get_ai_agent_handler(info=info, agent=agent)
-        ai_agent_handler.context = info.context
-        ai_agent_handler.run = run.__dict__
-        ai_agent_handler.task_queue = Config.task_queue
-
-        if info.context.get("connection_id") or arguments.get("stream", False):
-            stream_queue = Queue()
-            stream_event = threading.Event()
-            args = [input_messages, stream_queue, stream_event]
-
-            if "input_files" in arguments:
-                args.append(arguments["input_files"])
-
-            # Trigger a streaming ask_model in a separate thread if desired:
-            stream_thread = threading.Thread(
-                target=ai_agent_handler.ask_model,
-                args=args,
-                daemon=True,
-            )
-
-            stream_thread.start()
-
-            # Wait until we get the run_id from the queue
-            current_run = stream_queue.get()
-
-            if current_run["name"] == "run_id":
-                run_id = current_run["value"]
-
-            # Wait until streaming is done, timeout after 60 second
-            stream_event.wait(timeout=120)
-        else:
-            # Process query through AI model
-            if "input_files" in arguments:
-                run_id = ai_agent_handler.ask_model(
-                    input_messages,
-                    input_files=arguments["input_files"],
-                )
-            else:
-                run_id = ai_agent_handler.ask_model(input_messages)
-
-        # Verify final_output is a dict and contains required fields message_id, role, content with non-empty values
-        if not isinstance(ai_agent_handler.final_output, dict) or not all(
-            key in ai_agent_handler.final_output and ai_agent_handler.final_output[key]
-            for key in ["message_id", "role", "content"]
-        ):
-            Debugger.info(
-                variable=f"final_output must be a dict containing non-empty values for message_id, role and content fields: {ai_agent_handler.final_output}",
-                stage=f"{__name__}.final_output",
-                setting=info.context.get("setting", {"debug_mode": True}),
-            )
-            return False
-
-        if ai_agent_handler.uploaded_files:
-            _update_user_message_with_files(
-                info,
+    # Initialize run record
+    run = insert_update_run(
+        info,
+        **{
+            "thread_uuid": arguments["thread_uuid"],
+            "run_uuid": arguments["run_uuid"],
+            "prompt_tokens": calculate_num_tokens(
                 agent,
-                user_message,
-                ai_agent_handler.uploaded_files,
-                arguments["updated_by"],
-            )
-
-        # Record AI assistant response
-        assistant_message = insert_update_message(
-            info,
-            **{
-                "thread_uuid": arguments["thread_uuid"],
-                "run_uuid": arguments["run_uuid"],
-                "message_id": ai_agent_handler.final_output["message_id"],
-                "role": ai_agent_handler.final_output["role"],
-                "message": ai_agent_handler.final_output["content"],
-                "updated_by": arguments["updated_by"],
-            },
-        )
-
-        # Update run with completion details
-        run = insert_update_run(
-            info,
-            **{
-                "thread_uuid": arguments["thread_uuid"],
-                "run_uuid": arguments["run_uuid"],
-                "run_id": run_id,
-                "completion_tokens": calculate_num_tokens(
-                    agent, ai_agent_handler.final_output["content"]
+                "\n".join(
+                    [msg["content"] for msg in input_messages if "content" in msg]
                 ),
-                "updated_by": arguments["updated_by"],
-            },
+            ),
+            "updated_by": arguments["updated_by"],
+        },
+    )
+
+    ai_agent_handler = get_ai_agent_handler(info=info, agent=agent)
+    ai_agent_handler.context = info.context
+    ai_agent_handler.run = run.__dict__
+    ai_agent_handler.task_queue = Config.task_queue
+
+    if info.context.get("connection_id") or arguments.get("stream", False):
+        stream_queue = Queue()
+        stream_event = threading.Event()
+        args = [input_messages, stream_queue, stream_event]
+
+        if "input_files" in arguments:
+            args.append(arguments["input_files"])
+
+        # Trigger a streaming ask_model in a separate thread if desired:
+        stream_thread = threading.Thread(
+            target=ai_agent_handler.ask_model,
+            args=args,
+            daemon=True,
         )
-        # Mark async task as completed with results
-        async_task = insert_update_async_task(
+
+        stream_thread.start()
+
+        # Wait until we get the run_id from the queue
+        current_run = stream_queue.get()
+
+        if current_run["name"] == "run_id":
+            run_id = current_run["value"]
+
+        # Wait until streaming is done, timeout after 120 second
+        stream_event.wait(timeout=120)
+    else:
+        # Process query through AI model
+        if "input_files" in arguments:
+            run_id = ai_agent_handler.ask_model(
+                input_messages,
+                input_files=arguments["input_files"],
+            )
+        else:
+            run_id = ai_agent_handler.ask_model(input_messages)
+
+    # Verify final_output is a dict and contains required fields message_id, role, content with non-empty values
+    if not isinstance(ai_agent_handler.final_output, dict) or not all(
+        key in ai_agent_handler.final_output and ai_agent_handler.final_output[key]
+        for key in ["message_id", "role", "content"]
+    ):
+        Debugger.info(
+            variable=f"final_output must be a dict containing non-empty values for message_id, role and content fields: {ai_agent_handler.final_output}",
+            stage=f"{__name__}.final_output",
+            setting=info.context.get("setting", {"debug_mode": True}),
+        )
+        raise ValueError("Invalid final_output from AI agent handler")
+
+    if ai_agent_handler.uploaded_files:
+        _update_user_message_with_files(
             info,
-            **{
-                "function_name": "async_execute_ask_model",
-                "async_task_uuid": async_task_uuid,
-                "result": ai_agent_handler.final_output["content"],
-                "output_files": ai_agent_handler.final_output.get("output_files", []),
-                "status": "completed",
-                "updated_by": arguments["updated_by"],
-            },
+            agent,
+            user_message,
+            ai_agent_handler.uploaded_files,
+            arguments["updated_by"],
         )
 
-        # TODO: Implement MCP Prompt and update system prmompt by analyzing user query and assistant response.
-        # TODO: Invoke execute_ask_model with the updated system prompt by dispatching thread.
+    # Record AI assistant response
+    assistant_message = insert_update_message(
+        info,
+        **{
+            "thread_uuid": arguments["thread_uuid"],
+            "run_uuid": arguments["run_uuid"],
+            "message_id": ai_agent_handler.final_output["message_id"],
+            "role": ai_agent_handler.final_output["role"],
+            "message": ai_agent_handler.final_output["content"],
+            "updated_by": arguments["updated_by"],
+        },
+    )
+    info.context["logger"].info(
+        f"Assistant message recorded - thread: {arguments['thread_uuid']}, "
+        f"run: {arguments['run_uuid']}, message: {assistant_message.message_uuid}, "
+        f"role: {assistant_message.role}"
+    )
 
-        return True
+    # Update run with completion details
+    run = insert_update_run(
+        info,
+        **{
+            "thread_uuid": arguments["thread_uuid"],
+            "run_uuid": arguments["run_uuid"],
+            "run_id": run_id,
+            "completion_tokens": calculate_num_tokens(
+                agent, ai_agent_handler.final_output["content"]
+            ),
+            "updated_by": arguments["updated_by"],
+        },
+    )
+    info.context["logger"].info(
+        f"Run completed - thread: {arguments['thread_uuid']}, "
+        f"run: {run.run_uuid}, run_id: {run_id}, "
+        f"prompt_tokens: {run.prompt_tokens}, completion_tokens: {run.completion_tokens}"
+    )
+    # TODO: Implement MCP Prompt and update system prmompt by analyzing user query and assistant response.
+    # TODO: Invoke execute_ask_model with the updated system prompt by dispatching thread.
 
-    except Exception as e:
-        # Log and record any errors
-        log = traceback.format_exc()
-        info.context["logger"].error(log)
-        async_task = insert_update_async_task(
-            info,
-            **{
-                "function_name": "async_execute_ask_model",
-                "async_task_uuid": async_task_uuid,
-                "status": "failed",
-                "updated_by": arguments["updated_by"],
-                "notes": log,
-            },
-        )
-        raise e
+    return (
+        ai_agent_handler.final_output["content"],
+        ai_agent_handler.final_output.get("output_files", []),
+    )
 
 
 def _update_user_message_with_files(

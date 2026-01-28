@@ -6,11 +6,11 @@ __author__ = "bibow"
 
 from graphene import DateTime, Field, Int, List, ObjectType, String
 from promise import Promise
+
 from silvaengine_dynamodb_base import ListObjectType
 from silvaengine_utility import JSONCamelCase
 
 from ..types.wizard_schema import WizardSchemaType
-from ..types.element import ElementType
 from ..utils.normalization import normalize_to_json
 
 
@@ -27,7 +27,9 @@ class WizardType(ObjectType):
     wizard_schema_name = String()
     wizard_attributes = List(JSONCamelCase)
     # Store raw element references
-    wizard_element_refs = List(JSONCamelCase)  # List of {element_uuid, required, placeholder}
+    wizard_element_refs = List(
+        JSONCamelCase
+    )  # List of {element_uuid, required, placeholder}
     priority = Int()
     updated_by = String()
     created_at = DateTime()
@@ -75,15 +77,6 @@ class WizardType(ObjectType):
         """
         """Resolve nested Run for this tool call using DataLoader."""
         from ..models.batch_loaders import get_loaders
-
-        # Case 1: Already embedded (backward compatibility)
-        # if hasattr(parent, "wizard_elements") and parent.wizard_elements:
-        #     return parent.wizard_elements
-
-        # Case 2: Load via DataLoader using wizard_element_refs
-        # wizard_element_refs = getattr(parent, "wizard_element_refs", None)
-        # if not wizard_element_refs:
-        #     return []
 
         wizard_element_refs = parent.wizard_elements
         partition_key = parent.partition_key

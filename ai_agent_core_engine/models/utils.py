@@ -156,6 +156,10 @@ def get_mcp_servers(
     internal_mcp = Config.get_internal_mcp(
         info.context["endpoint_id"], part_id=info.context.get("part_id")
     )
+    assert internal_mcp is not None and all(
+        internal_mcp.get(k) for k in ["headers", "name", "base_url"]
+    ), f"Internal MCP ({internal_mcp}) is not configured correctly."
+
     if internal_mcp:
         internal_server = {
             "headers": internal_mcp["headers"],
