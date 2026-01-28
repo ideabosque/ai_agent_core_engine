@@ -203,21 +203,22 @@ def _get_agent(info: ResolveInfo, agent_uuid: str):
         ]
 
         agent.mcp_servers = []
-        required_keys = ["headers", "mcp_label", "mcp_server_uuid", "mcp_server_url"]
+        # TODO: "mcp_server_uuid" does not exist in the internal mcp
+        required_keys = ["headers", "mcp_label", "mcp_server_url"]
 
         for mcp_server in get_mcp_servers(info, mcp_servers):
-            Debugger.info(variable=mcp_server, stage=f"{__file__}.212")
-            assert mcp_server is not None and all(
-                mcp_server.get(k) for k in required_keys
-            ), f"MCP Server ({mcp_server}) is not configured correctly."
+            if mcp_server is None or not all(mcp_server.get(k) for k in required_keys):
+                raise ValueError(
+                    f"MCP Server ({mcp_server}) is not configured correctly."
+                )
 
             agent.mcp_servers.append(
                 {
-                    "name": mcp_server["mcp_label"],
-                    "mcp_server_uuid": mcp_server["mcp_server_uuid"],
+                    "name": mcp_server.get("mcp_label"),
+                    "mcp_server_uuid": mcp_server.get("mcp_server_uuid"),
                     "setting": {
-                        "base_url": mcp_server["mcp_server_url"],
-                        "headers": mcp_server["headers"],
+                        "base_url": mcp_server.get("mcp_server_url"),
+                        "headers": mcp_server.get("headers"),
                     },
                 }
             )
