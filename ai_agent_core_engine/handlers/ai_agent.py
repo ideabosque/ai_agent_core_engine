@@ -202,6 +202,7 @@ def _get_agent(info: ResolveInfo, agent_uuid: str):
             for mcp_server_uuid in agent.mcp_server_uuids
         ]
 
+        agent.mcp_servers = []
         for mcp_server in get_mcp_servers(info, mcp_servers):
             assert mcp_server is not None and all(
                 mcp_server.get(k)
