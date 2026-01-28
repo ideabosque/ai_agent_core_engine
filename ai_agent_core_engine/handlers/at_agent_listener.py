@@ -80,7 +80,7 @@ def async_insert_update_tool_call(
         "updated_by": kwargs.get("updated_by"),
     }
 
-    tool_call = insert_update_tool_call(
+    _ = insert_update_tool_call(
         info, **{k: v for k, v in tool_call_params.items() if v is not None}
     )
 
@@ -95,8 +95,9 @@ def send_data_to_stream(logger: logging.Logger, **kwargs: Dict[str, Any]) -> boo
             ConnectionId=connection_id, Data=Serializer.json_dumps(data)
         )
 
-        return True
-    except Exception:
-        raise
+    except Exception as e:
+        log = traceback.format_exc()
+        logger.error(log)
+        raise e
 
-    return False
+    return True
