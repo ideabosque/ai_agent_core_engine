@@ -537,15 +537,7 @@ class Query(ObjectType):
     def resolve_ask_model(
         self, info: ResolveInfo, **kwargs: Dict[str, Any]
     ) -> AskModelType:
-        print("**" * 30, f"Start `resolve_ask_model` at {time.time()}")
-        st = time.perf_counter()
-        r = resolve_ask_model(info, **kwargs)
-        print(
-            "=" * 30,
-            f"Execute `resolve_ask_model` total spent {(time.perf_counter() - st):.6f}s",
-        )
-        print("**" * 30, f"Completed `resolve_ask_model` at {time.time()}")
-        return r
+        return resolve_ask_model(info, **kwargs)
 
     def resolve_uploaded_file(
         self, info: ResolveInfo, **kwargs: Dict[str, Any]
