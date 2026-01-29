@@ -37,8 +37,12 @@ def async_task_handler(function_name: str) -> Callable:
             async_task_uuid = kwargs.get("async_task_uuid")
             arguments = kwargs.get("arguments", {})
 
+            print("1111111111111111")
+
             if not async_task_uuid or not arguments:
-                raise Exception("Missing required parameter(s): async_task_uuid or arguments")
+                raise Exception(
+                    "Missing required parameter(s): async_task_uuid or arguments"
+                )
 
             try:
                 # Initialize async task as in_progress
@@ -51,6 +55,8 @@ def async_task_handler(function_name: str) -> Callable:
                         "updated_by": arguments["updated_by"],
                     },
                 )
+
+                print("222222222222")
 
                 # Execute the wrapped function
                 result, output_files = func(info, **kwargs)
@@ -68,6 +74,8 @@ def async_task_handler(function_name: str) -> Callable:
                     },
                 )
 
+                print("333333333333333")
+
                 return True
 
             except Exception as e:
@@ -84,6 +92,7 @@ def async_task_handler(function_name: str) -> Callable:
                         "notes": log,
                     },
                 )
+                print("444444444444444444")
                 raise e
 
         return wrapper
