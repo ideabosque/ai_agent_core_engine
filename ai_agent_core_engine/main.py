@@ -326,11 +326,6 @@ class AIAgentCoreEngine(Graphql):
         """
         self._apply_partition_defaults(params)
 
-        Debugger.info(
-            variable=f"ai_agent_core_engine.AIAgentCoreEngine.async_execute_ask_model:params: {params}",
-            stage=f"{__file__}.async_execute_ask_model",
-        )
-
         return at_agent_listener.async_execute_ask_model(
             self.logger, self.setting, **params
         )
@@ -356,8 +351,6 @@ class AIAgentCoreEngine(Graphql):
             params (Dict[str, Any]): A dictionary of parameters required to send data to the WebSocket stream.
         """
         self._apply_partition_defaults(params)
-
-        Debugger.info(variable=params, stage=f"{__file__}.send_data_to_stream")
 
         return at_agent_listener.send_data_to_stream(self.logger, **params)
 

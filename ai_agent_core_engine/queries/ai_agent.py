@@ -17,14 +17,7 @@ from ..types.ai_agent import AskModelType, FileType, PresignedAWSS3UrlType
 def resolve_ask_model(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> AskModelType | None:
-    started_at = time.perf_counter()
-    result = ai_agent.ask_model(info, **kwargs)
-
-    Debugger.info(
-        variable=f"Execute `resolve_ask_model` spent {(time.perf_counter() - started_at):.6f}"
-    )
-
-    return result
+    return ai_agent.ask_model(info, **kwargs)
 
 
 def resolve_uploaded_file(

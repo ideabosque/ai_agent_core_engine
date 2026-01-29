@@ -243,8 +243,6 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> tuple:
     """
     arguments = kwargs["arguments"]
 
-    Debugger.info(variable=arguments, stage=f"{__file__}.execute_ask_model.line-246")
-
     # Retrieve AI agent configuration with LLM details
     agent = _get_agent(info, arguments["agent_uuid"])
 
