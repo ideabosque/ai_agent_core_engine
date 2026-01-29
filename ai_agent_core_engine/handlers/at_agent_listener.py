@@ -30,6 +30,10 @@ def async_execute_ask_model(
             - connection_id: Connection identifier
             - setting: Additional settings dict
     """
+    Debugger.info(
+        variable=f"async_execute_ask_model:params: {kwargs}",
+        stage=f"{__file__}.async_execute_ask_model",
+    )
     execute_ask_model(
         info=create_listener_info(logger, "ask_model", setting, **kwargs),
         **{

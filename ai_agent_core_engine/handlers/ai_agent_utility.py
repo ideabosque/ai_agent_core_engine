@@ -42,13 +42,15 @@ from .config import Config
 
 
 def get_ai_agent_handler(info: ResolveInfo, agent: AgentType):
-    if (
-        not hasattr(agent, "llm")
-        or not isinstance(agent.llm, dict)
-        or not agent.llm.get("module_name")
-        or not agent.llm.get("class_name")
-    ):
-        raise RuntimeError("LLM is required")
+    llm_config = getattr(agent, "llm", None)
+
+    if not llm_config or not isinstance(llm_config, dict):
+        raise RuntimeError("LLM is required and must be a dictionary")
+
+    required_fields = ["module_name", "class_name"]
+
+    if not all(llm_config.get(field) for field in required_fields):
+        raise RuntimeError("LLM requires both module_name and class_name")
 
     # Dynamically load and initialize AI agent handler
     ai_agent_handler = Invoker.resolve_proxied_callable(
@@ -154,6 +156,10 @@ def start_async_task(
         )
 
         try:
+            Debugger.info(
+                variable=f"Invoker.execute_async_task: ai_agent_core_engine.AIAgentCoreEngine.{function_name}",
+                stage=f"{__file__}.start_async_task",
+            )
             Invoker.execute_async_task(
                 task=Invoker.resolve_proxied_callable(
                     module_name="ai_agent_core_engine",

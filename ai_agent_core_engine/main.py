@@ -326,6 +326,11 @@ class AIAgentCoreEngine(Graphql):
         """
         self._apply_partition_defaults(params)
 
+        Debugger.info(
+            variable=f"ai_agent_core_engine.AIAgentCoreEngine.async_execute_ask_model:params: {params}",
+            stage=f"{__file__}.async_execute_ask_model",
+        )
+
         return at_agent_listener.async_execute_ask_model(
             self.logger, self.setting, **params
         )
