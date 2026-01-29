@@ -226,7 +226,7 @@ def _get_agent(info: ResolveInfo, agent_uuid: str):
     return agent
 
 
-@async_task_handler("async_execute_ask_model")
+# @async_task_handler("async_execute_ask_model")
 def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> tuple:
     """
     Execute an AI model query and handle the response asynchronously.
