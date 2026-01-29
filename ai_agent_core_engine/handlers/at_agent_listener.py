@@ -32,8 +32,12 @@ def async_execute_ask_model(
     """
     try:
         print("2" * 50)
+        info = create_listener_info(logger, "ask_model", setting, **kwargs)
+
+        Debugger.info(variable=info, stage=f"{__file__}.async_execute_ask_model")
+
         execute_ask_model(
-            create_listener_info(logger, "ask_model", setting, **kwargs),
+            info=info,
             **{
                 "async_task_uuid": kwargs["async_task_uuid"],
                 "arguments": kwargs["arguments"],
@@ -41,7 +45,7 @@ def async_execute_ask_model(
         )
     except Exception as e:
         log = traceback.format_exc()
-        Debugger.info(variable=log, stage=f"{__file__}.async_execute_ask_model")
+        Debugger.info(variable=log, stage=f"{__file__}.async_execute_ask_model.error")
         raise e
 
 
