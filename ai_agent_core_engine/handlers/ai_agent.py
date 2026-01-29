@@ -242,6 +242,8 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> tuple:
     """
     arguments = kwargs["arguments"]
 
+    print("2" * 50)
+
     # Retrieve AI agent configuration with LLM details
     agent = _get_agent(info, arguments["agent_uuid"])
 
@@ -292,6 +294,8 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> tuple:
             "updated_by": arguments["updated_by"],
         },
     )
+
+    print("3" * 50)
 
     ai_agent_handler = get_ai_agent_handler(info=info, agent=agent)
     ai_agent_handler.context = info.context

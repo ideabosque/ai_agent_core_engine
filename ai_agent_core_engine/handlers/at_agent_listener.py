@@ -31,6 +31,7 @@ def async_execute_ask_model(
             - setting: Additional settings dict
     """
     try:
+        print("1" * 50)
         execute_ask_model(
             create_listener_info(logger, "ask_model", setting, **kwargs),
             **{

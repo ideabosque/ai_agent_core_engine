@@ -146,8 +146,10 @@ def start_async_task(
         ]
 
         for index in required:
-            if info.context.get(index):
-                params[index] = info.context.get(index)
+            value = info.context.get(index)
+
+            if value:
+                params[index] = value
 
         # setting = (
         #     info.context.get("setting")
@@ -170,18 +172,18 @@ def start_async_task(
             # )
             invoker = info.context.get("aws_lambda_invoker")
 
-            # if callable(invoker):
-            #     invoker(
-            #         function_name=info.context.get("aws_lambda_arn"),
-            #         invocation_type=InvocationType.EVENT,
-            #         payload=Invoker.build_invoker_payload(
-            #             context=info.context,
-            #             module_name="ai_agent_core_engine",
-            #             function_name="async_insert_update_session",
-            #             class_name="AICoordinationEngine",
-            #             parameters=params,
-            #         ),
-            #     )
+            if callable(invoker):
+                invoker(
+                    function_name=info.context.get("aws_lambda_arn"),
+                    invocation_type=InvocationType.EVENT,
+                    payload=Invoker.build_invoker_payload(
+                        context=info.context,
+                        module_name="ai_agent_core_engine",
+                        class_name="AIAgentCoreEngine",
+                        function_name=function_name,
+                        parameters=params,
+                    ),
+                )
         except Exception as e:
             Debugger.info(
                 variable=e,

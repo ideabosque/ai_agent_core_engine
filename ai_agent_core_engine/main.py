@@ -326,6 +326,8 @@ class AIAgentCoreEngine(Graphql):
         """
         self._apply_partition_defaults(params)
 
+        print("1" * 50)
+
         return at_agent_listener.async_execute_ask_model(
             self.logger, self.setting, **params
         )
