@@ -87,12 +87,17 @@ def async_insert_update_tool_call(
 
 def send_data_to_stream(logger: logging.Logger, **kwargs: Dict[str, Any]) -> bool:
     try:
+        Debugger.info(variable=kwargs, stage=f"{__file__}.send_data_to_stream")
+
         # Send the message to the WebSocket client using the connection ID
-        connection_id = kwargs["connection_id"]
-        data = kwargs["data"]
+        required_keys = {"connection_id", "data"}
+
+        if not required_keys.issubset(kwargs.keys()):
+            raise ValueError("Missing required parameter(s)")
 
         Config.get_api_gateway_client().post_to_connection(
-            ConnectionId=connection_id, Data=Serializer.json_dumps(data)
+            ConnectionId=kwargs.get("connection_id"),
+            Data=Serializer.json_dumps(kwargs.get("data")),
         )
 
     except Exception as e:

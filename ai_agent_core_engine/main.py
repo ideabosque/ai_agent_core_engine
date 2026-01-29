@@ -352,6 +352,8 @@ class AIAgentCoreEngine(Graphql):
         """
         self._apply_partition_defaults(params)
 
+        Debugger.info(variable=params, stage=f"{__file__}.send_data_to_stream")
+
         return at_agent_listener.send_data_to_stream(self.logger, **params)
 
     def ai_agent_core_graphql(self, **params: Dict[str, Any]) -> Any:
