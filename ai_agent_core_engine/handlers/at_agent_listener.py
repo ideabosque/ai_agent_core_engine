@@ -90,8 +90,6 @@ def async_insert_update_tool_call(
 
 def send_data_to_stream(logger: logging.Logger, **kwargs: Dict[str, Any]) -> bool:
     try:
-        Debugger.info(variable=kwargs, stage=f"{__file__}.send_data_to_stream")
-
         # Send the message to the WebSocket client using the connection ID
         required_keys = {"connection_id", "data"}
 

@@ -226,7 +226,7 @@ def _get_agent(info: ResolveInfo, agent_uuid: str):
     return agent
 
 
-# @async_task_handler("async_execute_ask_model")
+@async_task_handler("async_execute_ask_model")
 def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> tuple:
     """
     Execute an AI model query and handle the response asynchronously.
@@ -278,8 +278,6 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> tuple:
         },
     )
 
-    Debugger.info(variable=user_message, stage=f"{__file__}.execute_ask_model.line-283")
-
     # Initialize run record
     run = insert_update_run(
         info,
@@ -296,16 +294,10 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> tuple:
         },
     )
 
-    Debugger.info(variable=run, stage=f"{__file__}.execute_ask_model.line-301")
-
     ai_agent_handler = get_ai_agent_handler(info=info, agent=agent)
     ai_agent_handler.context = info.context
     ai_agent_handler.run = run.__dict__
     ai_agent_handler.task_queue = Config.task_queue
-
-    Debugger.info(
-        variable=ai_agent_handler, stage=f"{__file__}.execute_ask_model.line-308"
-    )
 
     if info.context.get("connection_id") or arguments.get("stream", False):
         stream_queue = Queue()
@@ -342,7 +334,6 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> tuple:
         else:
             run_id = ai_agent_handler.ask_model(input_messages)
 
-    Debugger.info(variable=run_id, stage=f"{__file__}.execute_ask_model.line-345")
     # Verify final_output is a dict and contains required fields message_id, role, content with non-empty values
     if not isinstance(ai_agent_handler.final_output, dict) or not all(
         key in ai_agent_handler.final_output and ai_agent_handler.final_output[key]
