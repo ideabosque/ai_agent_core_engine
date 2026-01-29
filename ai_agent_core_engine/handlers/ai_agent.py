@@ -58,16 +58,11 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
             raise ValueError("Missing required parameter(s)")
 
         # Log request details
-        print("**" * 20, f"Start `_get_thread` at {time.time()}")
-        st = time.perf_counter()
         thread = _get_thread(info=info, **kwargs)
 
         if not thread:
             raise ValueError("Not found any thread")
 
-        print("#" * 30, f"`_get_thread` spent {(time.perf_counter() - st):.6f}")
-        print("**" * 20, f"Start `insert_update_run` at {time.time()}")
-        st = time.perf_counter()
         # Create new run instance for this request
         run = insert_update_run(
             info,
@@ -79,7 +74,6 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
 
         if not run:
             raise ValueError("Invalid run entity")
-        print("#" * 30, f"`insert_update_run` spent {(time.perf_counter() - st):.6f}")
 
         # Prepare arguments for async processing
         arguments = {
@@ -94,8 +88,6 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
         if "input_files" in kwargs:
             arguments["input_files"] = kwargs["input_files"]
 
-        print("**" * 20, f"Start `start_async_task` at {time.time()}")
-        st = time.perf_counter()
         # Start async task and get identifiers
         function_name = "async_execute_ask_model"
         async_task_uuid = start_async_task(
@@ -103,11 +95,9 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
             function_name,
             **arguments,
         )
-        print("#" * 30, f"`start_async_task` spent {(time.perf_counter() - st):.6f}")
-        print("**" * 20, f"Start `start_async_task` at {time.time()}")
-        st = time.perf_counter()
+
         # Return response with all relevant IDs
-        r = AskModelType(
+        return AskModelType(
             agent_uuid=kwargs["agent_uuid"],
             thread_uuid=thread.thread_uuid,
             user_query=kwargs["user_query"],
@@ -115,12 +105,6 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
             async_task_uuid=async_task_uuid,
             current_run_uuid=run.run_uuid,
         )
-
-        print("#" * 30, f"Build `AskModelType` spent {(time.perf_counter() - st):.6f}")
-        print("**" * 20, f"Build `AskModelType` end at {time.time()}")
-
-        return r
-
     except Exception as e:
         log = traceback.format_exc()
         info.context.get("logger").error(log)

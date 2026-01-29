@@ -31,10 +31,7 @@ def async_execute_ask_model(
             - setting: Additional settings dict
     """
     try:
-        print("2" * 50)
         info = create_listener_info(logger, "ask_model", setting, **kwargs)
-
-        Debugger.info(variable=info, stage=f"{__file__}.async_execute_ask_model")
 
         execute_ask_model(
             info=info,
