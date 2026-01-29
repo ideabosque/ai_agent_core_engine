@@ -6,7 +6,7 @@ __author__ = "bibow"
 
 import time
 from typing import Any, Dict
-
+import pendulum
 from graphene import (
     Boolean,
     DateTime,
@@ -537,7 +537,12 @@ class Query(ObjectType):
     def resolve_ask_model(
         self, info: ResolveInfo, **kwargs: Dict[str, Any]
     ) -> AskModelType:
-        return resolve_ask_model(info, **kwargs)
+        print("**"*30, f"Start `resolve_ask_model` at {pendulum.utcnow().timestamp()}")
+        st = time.perf_counter()
+        r= resolve_ask_model(info, **kwargs)
+        print("="*30, f"Execute `resolve_ask_model` total spent {(time.perf_counter()-st):.6f}s")
+        print("**"*30, f"Completed `resolve_ask_model` at {pendulum.utcnow().timestamp()}")
+        return r
 
     def resolve_uploaded_file(
         self, info: ResolveInfo, **kwargs: Dict[str, Any]
