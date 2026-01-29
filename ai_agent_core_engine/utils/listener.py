@@ -31,13 +31,13 @@ def create_listener_info(
             ),
         },
     )
-    context.update(kwargs.get("context", {}))
+    # context.update(kwargs.get("context", {}))
 
-    Debugger.info(
-        variable=context,
-        stage=f"{__file__}.create_listener_info",
-        delimiter="#",
-    )
+    # Debugger.info(
+    #     variable=context,
+    #     stage=f"{__file__}.create_listener_info",
+    #     delimiter="#",
+    # )
 
     return ResolveInfo(
         field_name=field_name,
