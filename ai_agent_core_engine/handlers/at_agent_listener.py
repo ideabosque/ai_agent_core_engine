@@ -35,7 +35,7 @@ def async_execute_ask_model(
         stage=f"{__file__}.async_execute_ask_model",
     )
     execute_ask_model(
-        info=create_listener_info(logger, "ask_model", setting, **kwargs),
+        create_listener_info(logger, "ask_model", setting, **kwargs),
         **{
             "async_task_uuid": kwargs["async_task_uuid"],
             "arguments": kwargs["arguments"],
