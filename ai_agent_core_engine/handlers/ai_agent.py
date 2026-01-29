@@ -57,17 +57,11 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
         if not required_keys.issubset(kwargs.keys()):
             raise ValueError("Missing required parameter(s)")
 
-        start_time = time.perf_counter()
         # Log request details
         thread = _get_thread(info=info, **kwargs)
 
         if not thread:
             raise ValueError("Not found any thread")
-
-        print(
-            f"\n{'*' * 20} `{__file__}._get_thread` spent {(time.perf_counter() - start_time):.6f} s."
-        )
-        start_time = time.perf_counter()
 
         # Create new run instance for this request
         run = insert_update_run(
@@ -80,11 +74,6 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
 
         if not run:
             raise ValueError("Invalid run entity")
-
-        print(
-            f"\n{'*' * 20} `{__file__}.insert_update_run` spent {(time.perf_counter() - start_time):.6f} s."
-        )
-        start_time = time.perf_counter()
 
         # Prepare arguments for async processing
         arguments = {
@@ -105,10 +94,6 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
             info,
             function_name,
             **arguments,
-        )
-
-        print(
-            f"\n{'*' * 20}`{__file__}.start_async_task` spent {(time.perf_counter() - start_time):.6f} s."
         )
 
         # Return response with all relevant IDs

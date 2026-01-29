@@ -168,24 +168,10 @@ def start_async_task(
                 ),
                 parameters=params,
             )
-            # invoker = info.context.get("aws_lambda_invoker")
-            # if callable(invoker):
-            #     invoker(
-            #         function_name=info.context.get("aws_lambda_arn"),
-            #         invocation_type=InvocationType.EVENT,
-            #         payload=Invoker.build_invoker_payload(
-            #             context=info.context,
-            #             module_name="ai_agent_core_engine",
-            #             function_name=function_name,
-            #             class_name="AIAgentCoreEngine",
-            #             parameters=params,
-            #         ),
-            #     )
-
         except Exception as e:
             Debugger.info(
                 variable=e,
-                stage="AI Agent Core Engine(resolve_proxied_callable)",
+                stage=f"{__file__}",
                 logger=info.context.get("logger"),
                 setting=info.context.get("setting"),
             )
