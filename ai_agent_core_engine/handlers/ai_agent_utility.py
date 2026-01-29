@@ -171,6 +171,7 @@ def start_async_task(
             #     parameters=params,
             # )
             invoker = info.context.get("aws_lambda_invoker")
+            print("[]" * 30, f"Invoker {invoker}")
 
             if callable(invoker):
                 print(
