@@ -173,6 +173,10 @@ def start_async_task(
             invoker = info.context.get("aws_lambda_invoker")
 
             if callable(invoker):
+                print(
+                    "()" * 30,
+                    f"Invoke `ai_agent_core_engine.AIAgentCoreEngine.{function_name}`, params: {params}",
+                )
                 invoker(
                     function_name=info.context.get("aws_lambda_arn"),
                     invocation_type=InvocationType.EVENT,
