@@ -224,6 +224,9 @@ class AIAgentCoreEngine(Graphql):
             logger (logging.Logger): The logger instance to be used for logging.
             **setting (Dict[str, Any]): A dictionary of settings required to initialize the engine.
         """
+        print(">>" * 40)
+        print(f"Setting: {setting}")
+        print("<<" * 40)
         Graphql.__init__(self, logger, **setting)
 
         if (
