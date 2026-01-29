@@ -31,7 +31,7 @@ def async_execute_ask_model(
             - setting: Additional settings dict
     """
     try:
-        print("1" * 50)
+        print("2" * 50)
         execute_ask_model(
             create_listener_info(logger, "ask_model", setting, **kwargs),
             **{
@@ -40,6 +40,8 @@ def async_execute_ask_model(
             },
         )
     except Exception as e:
+        log = traceback.format_exc()
+        Debugger.info(variable=log, stage=f"{__file__}.async_execute_ask_model")
         raise e
 
 
