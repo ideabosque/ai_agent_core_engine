@@ -224,9 +224,6 @@ class AIAgentCoreEngine(Graphql):
             logger (logging.Logger): The logger instance to be used for logging.
             **setting (Dict[str, Any]): A dictionary of settings required to initialize the engine.
         """
-        print(">>" * 40)
-        print(f"Setting: {setting}")
-        print("<<" * 40)
         Graphql.__init__(self, logger, **setting)
 
         if (
@@ -285,10 +282,6 @@ class AIAgentCoreEngine(Graphql):
         Args:
             params (Dict[str, Any]): A dictionary of parameters required to build the GraphQL query.
         """
-        print(">>" * 120)
-        print(f"AICoordinationEngine._apply_partition_defaults: {params}")
-        print("<<" * 120)
-
         endpoint_id = params.get("endpoint_id", self.setting.get("endpoint_id"))
         part_id = params.get("metadata", {}).get(
             "part_id",
