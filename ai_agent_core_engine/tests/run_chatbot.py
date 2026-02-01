@@ -202,6 +202,7 @@ class ChatbotRunner:
         headers = {
             "x-api-key": os.getenv("api_key"),
             "Content-Type": "application/json",
+            "Part-Id": os.getenv("part_id"),
         }
 
         ask_model_query = """query askModel($agentUuid: String!, $threadUuid: String, $userId: String, $userQuery: String!, $stream: Boolean, $updatedBy: String!) {
@@ -211,7 +212,7 @@ class ChatbotRunner:
         }"""
         async_task_query = """query asyncTask($functionName: String!, $asyncTaskUuid: String!) {
             asyncTask(functionName: $functionName, asyncTaskUuid: $asyncTaskUuid) {
-                functionName asyncTaskUuid endpointId arguments result status notes timeSpent updatedBy createdAt updatedAt
+                functionName asyncTaskUuid partitionKey arguments result status notes timeSpent updatedBy createdAt updatedAt
             }
         }"""
 
