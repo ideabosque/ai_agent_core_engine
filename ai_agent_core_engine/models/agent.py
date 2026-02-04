@@ -452,13 +452,19 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
                         or len(prmopt_template) < 1
                     ):
                         continue
-
+                    
                     # replace variables
+                    if "variables" in kwargs:
+                        variables = kwargs.get("variables", [])
+                    elif "variables" in cols:
+                        variables = cols.get("variables", [])
+                    else:
+                        variables = []
                     agent_variables = {
                         variable["name"]: variable["value"]
-                        for variable in kwargs.get("variables", [])
+                        for variable in variables
                     }
-
+                    
                     replace_prmopt_template_variables = [
                         variable["name"]
                         for variable in prmopt_template.get("variables", [])
