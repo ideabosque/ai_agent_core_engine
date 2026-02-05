@@ -104,7 +104,6 @@ def send_data_to_stream(logger: logging.Logger, **kwargs: Dict[str, Any]) -> boo
             ConnectionId=kwargs.get("connection_id"),
             Data=Serializer.json_dumps(kwargs.get("data")),
         )
-
     except Exception as e:
         log = traceback.format_exc()
         logger.error(log)

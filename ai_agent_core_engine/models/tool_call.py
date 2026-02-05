@@ -188,7 +188,6 @@ def resolve_tool_call_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     count_funct = ToolCallModel.count
     range_key_condition = None
     if thread_uuid:
-
         # Build range key condition for updated_at when using updated_at_index
         if updated_at_gt is not None and updated_at_lt is not None:
             range_key_condition = ToolCallModel.updated_at.between(
@@ -257,7 +256,7 @@ def insert_update_tool_call(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
             "notes",
         ]:
             if key in kwargs:
-                cols[key] = kwargs[key]
+                cols[key] = kwargs.get(key, "")
 
         ToolCallModel(
             thread_uuid,
