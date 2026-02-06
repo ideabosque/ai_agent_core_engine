@@ -255,8 +255,10 @@ def insert_update_tool_call(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
             "status",
             "notes",
         ]:
+            cols[key] = ""
+
             if key in kwargs:
-                cols[key] = kwargs.get(key, "")
+                cols[key] = kwargs.get(key)
 
         ToolCallModel(
             thread_uuid,
