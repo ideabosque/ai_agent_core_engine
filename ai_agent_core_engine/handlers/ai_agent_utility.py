@@ -42,13 +42,15 @@ from ..types.agent import AgentType
 
 
 def get_ai_agent_handler(info: ResolveInfo, agent: AgentType):
-    if (
-        not hasattr(agent, "llm")
-        or not isinstance(agent.llm, dict)
-        or not agent.llm.get("module_name")
-        or not agent.llm.get("class_name")
-    ):
-        raise RuntimeError("LLM is required")
+    llm_config = getattr(agent, "llm", None)
+
+    if not llm_config or not isinstance(llm_config, dict):
+        raise RuntimeError("LLM is required and must be a dictionary")
+
+    required_fields = ["module_name", "class_name"]
+
+    if not all(llm_config.get(field) for field in required_fields):
+        raise RuntimeError("LLM requires both module_name and class_name")
 
     # Dynamically load and initialize AI agent handler
     ai_agent_handler = Invoker.resolve_proxied_callable(
@@ -144,33 +146,31 @@ def start_async_task(
         ]
 
         for index in required:
-            if info.context.get(index):
-                params[index] = info.context.get(index)
+            value = info.context.get(index)
 
-        setting = (
-            info.context.get("setting")
-            if isinstance(info.context.get("setting"), dict)
-            else {}
-        )
+            if value:
+                params[index] = value
 
         try:
-            Invoker.execute_async_task(
-                task=Invoker.resolve_proxied_callable(
-                    module_name="ai_agent_core_engine",
-                    function_name=function_name,
-                    class_name="AIAgentCoreEngine",
-                    constructor_parameters={
-                        "logger": info.context.get("logger"),
-                        **setting,
-                    },
-                ),
-                parameters=params,
-            )
+            invoker = info.context.get("aws_lambda_invoker")
+            aws_lambda_arn = info.context.get("aws_lambda_arn")
 
+            if callable(invoker) and aws_lambda_arn:
+                invoker(
+                    function_name=aws_lambda_arn,
+                    invocation_type=InvocationType.EVENT,
+                    payload=Invoker.build_invoker_payload(
+                        context=info.context,
+                        module_name="ai_agent_core_engine",
+                        class_name="AIAgentCoreEngine",
+                        function_name=function_name,
+                        parameters=params,
+                    ),
+                )
         except Exception as e:
             Debugger.info(
                 variable=e,
-                stage="AI Agent Core Engine(resolve_proxied_callable)",
+                stage=f"{__file__}",
                 logger=info.context.get("logger"),
                 setting=info.context.get("setting"),
             )

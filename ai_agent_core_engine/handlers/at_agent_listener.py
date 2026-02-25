@@ -30,13 +30,20 @@ def async_execute_ask_model(
             - connection_id: Connection identifier
             - setting: Additional settings dict
     """
-    execute_ask_model(
-        info=create_listener_info(logger, "ask_model", setting, **kwargs),
-        **{
-            "async_task_uuid": kwargs["async_task_uuid"],
-            "arguments": kwargs["arguments"],
-        },
-    )
+    try:
+        info = create_listener_info(logger, "ask_model", setting, **kwargs)
+
+        execute_ask_model(
+            info=info,
+            **{
+                "async_task_uuid": kwargs["async_task_uuid"],
+                "arguments": kwargs["arguments"],
+            },
+        )
+    except Exception as e:
+        log = traceback.format_exc()
+        Debugger.info(variable=log, stage=f"{__file__}.async_execute_ask_model.error")
+        raise e
 
 
 def async_insert_update_tool_call(
@@ -88,13 +95,15 @@ def async_insert_update_tool_call(
 def send_data_to_stream(logger: logging.Logger, **kwargs: Dict[str, Any]) -> bool:
     try:
         # Send the message to the WebSocket client using the connection ID
-        connection_id = kwargs["connection_id"]
-        data = kwargs["data"]
+        required_keys = {"connection_id", "data"}
+
+        if not required_keys.issubset(kwargs.keys()):
+            raise ValueError("Missing required parameter(s)")
 
         Config.get_api_gateway_client().post_to_connection(
-            ConnectionId=connection_id, Data=Serializer.json_dumps(data)
+            ConnectionId=kwargs.get("connection_id"),
+            Data=Serializer.json_dumps(kwargs.get("data")),
         )
-
     except Exception as e:
         log = traceback.format_exc()
         logger.error(log)

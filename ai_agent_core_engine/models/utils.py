@@ -226,7 +226,7 @@ def get_wizard_schema(
 def get_prompt_template(info: ResolveInfo, prompt_uuid: str) -> Dict[str, Any]:
     if (
         not hasattr(info, "context")
-        or "endpoint_id" not in info.context
+        or "partition_key" not in info.context
         or not prompt_uuid
     ):
         raise RuntimeError("Invalid required parameter(s) in context")
@@ -234,7 +234,7 @@ def get_prompt_template(info: ResolveInfo, prompt_uuid: str) -> Dict[str, Any]:
     from .prompt_template import _get_active_prompt_template
 
     prompt_template = _get_active_prompt_template(
-        info.context["endpoint_id"], prompt_uuid
+        info.context["partition_key"], prompt_uuid
     )
 
     if not prompt_template:
