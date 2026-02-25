@@ -342,12 +342,13 @@ def get_tool_calls_by_run(run_uuid: str) -> Any:
 )
 def get_tool_calls_by_thread(thread_uuid: str) -> Any:
     # Only retrieve tool calls from the past 24 hours
+    # updated_at_gt = pendulum.now("UTC").subtract(hours=24)
 
-    updated_at_gt = pendulum.now("UTC").subtract(hours=24)
     tool_calls = []
     for tool_call in ToolCallModel.updated_at_index.query(
         thread_uuid,
-        ToolCallModel.updated_at > updated_at_gt,
+        # ToolCallModel.updated_at > updated_at_gt,
+        None,
     ):
         tool_calls.append(tool_call)
     return tool_calls

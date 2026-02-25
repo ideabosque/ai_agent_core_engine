@@ -293,11 +293,12 @@ def get_messages_by_thread(thread_uuid: str) -> Any:
     messages = []
 
     # Only retrieve messages from the past 24 hours
-    updated_at_gt = pendulum.now("UTC").subtract(hours=24)
+    # updated_at_gt = pendulum.now("UTC").subtract(hours=24)
 
     for message in MessageModel.updated_at_index.query(
         thread_uuid,
-        MessageModel.updated_at > updated_at_gt,
+        # MessageModel.updated_at > updated_at_gt,
+        None,
     ):
         messages.append(message)
     return messages
