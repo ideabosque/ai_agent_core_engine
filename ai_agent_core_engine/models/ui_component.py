@@ -17,6 +17,8 @@ from pynamodb.attributes import (
     UTCDateTimeAttribute,
 )
 from pynamodb.indexes import AllProjection, LocalSecondaryIndex
+from tenacity import retry, stop_after_attempt, wait_exponential
+
 from silvaengine_dynamodb_base import (
     BaseModel,
     delete_decorator,
@@ -25,7 +27,6 @@ from silvaengine_dynamodb_base import (
     resolve_list_decorator,
 )
 from silvaengine_utility import method_cache
-from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
 from ..types.ui_component import UIComponentListType, UIComponentType
@@ -192,7 +193,7 @@ def resolve_ui_component_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> An
 
     the_filters = None
     if tag_name:
-        the_filters &= UIComponentModel.tag_name == tag_name
+        the_filters = UIComponentModel.tag_name.contains(tag_name)
     if the_filters is not None:
         args.append(the_filters)
 
