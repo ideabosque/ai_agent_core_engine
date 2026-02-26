@@ -290,6 +290,8 @@ def delete_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
     cache_enabled=Config.is_cache_enabled,
 )
 def get_messages_by_thread(thread_uuid: str) -> Any:
+    from .run import get_run
+
     messages = []
 
     # Only retrieve messages from the past 24 hours
@@ -300,5 +302,6 @@ def get_messages_by_thread(thread_uuid: str) -> Any:
         # MessageModel.updated_at > updated_at_gt,
         None,
     ):
+        message.run = get_run(thread_uuid, message.run_uuid)
         messages.append(message)
     return messages

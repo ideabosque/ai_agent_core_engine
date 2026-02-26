@@ -70,11 +70,12 @@ class McpServerLoader(SafeDataLoader):
         else:
             uncached_keys = unique_keys
 
-        # Batch fetch uncached items
+        # Fetch uncached items individually
         if uncached_keys:
             try:
-                for mcp in MCPServerModel.batch_get(uncached_keys):
-                    key = (mcp.partition_key, mcp.mcp_server_uuid)
+                for partition_key, mcp_server_uuid in uncached_keys:
+                    mcp = MCPServerModel.get(partition_key, mcp_server_uuid)
+                    key = (partition_key, mcp_server_uuid)
 
                     # Cache the result if enabled
                     if self.cache_enabled:
