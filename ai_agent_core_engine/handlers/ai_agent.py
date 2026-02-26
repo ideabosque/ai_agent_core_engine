@@ -12,18 +12,18 @@ from typing import Any, Dict, List
 
 import pendulum
 from graphene import ResolveInfo
-from silvaengine_utility import Debugger, Invoker, Serializer
+from silvaengine_utility import Debugger, Serializer
 
 from ..models.agent import resolve_agent
-from ..models.async_task import insert_update_async_task
 from ..models.message import insert_update_message
 from ..models.run import insert_update_run
 from ..models.thread import insert_thread, resolve_thread, resolve_thread_list
 from ..types.ai_agent import AskModelType, FileType, PresignedAWSS3UrlType
 from ..types.message import MessageType
 from ..types.thread import ThreadListType, ThreadType
-from ..utils.decorators import async_task_handler
+from ..utils.decorators import extract_token_usage, log_usage_record, usage_recorder
 from .ai_agent_utility import (
+    async_task_handler,
     calculate_num_tokens,
     get_ai_agent_handler,
     get_input_messages,
@@ -210,6 +210,7 @@ def _get_agent(info: ResolveInfo, agent_uuid: str):
     return agent
 
 
+@usage_recorder("ai_agent_core_engine", extract_token_usage, log_usage_record)
 @async_task_handler("async_execute_ask_model")
 def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> tuple:
     """
@@ -273,6 +274,7 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> tuple:
                 "\n".join(
                     [msg["content"] for msg in input_messages if "content" in msg]
                 ),
+                include_instructions=True,
             ),
             "updated_by": arguments["updated_by"],
         },

@@ -441,7 +441,7 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
             if key in kwargs:
                 cols[key] = kwargs[key]
 
-                if key == "flow_snippet_version_uuid":
+                if key == "flow_snippet_version_uuid" and kwargs[key]:
                     flow_snippet = get_flow_snippet(partition_key, kwargs[key])
                     prmopt_template = get_prompt_template(
                         info, flow_snippet["prompt_uuid"]

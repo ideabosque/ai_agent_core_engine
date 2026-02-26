@@ -46,9 +46,8 @@ sys.path.insert(
     ),
 )
 
-from silvaengine_utility import Graphql
-
 from ai_agent_core_engine import AIAgentCoreEngine
+from silvaengine_utility import Graphql
 
 # Test data file path
 TEST_DATA_FILE = os.path.join(os.path.dirname(__file__), "test_data.json")
@@ -104,6 +103,7 @@ SETTING = {
     "part_id": os.getenv("part_id"),
     "execute_mode": os.getenv("execute_mode", "local_for_all"),
     "initialize_tables": int(os.getenv("initialize_tables", "0")),
+    "cache_enabled": int(os.getenv("cache_enabled", "0")),
 }
 
 

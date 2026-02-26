@@ -10,7 +10,7 @@ from promise import Promise
 from silvaengine_utility.cache import HybridCacheEngine
 
 from ...handlers.config import Config
-from .base import SafeDataLoader, normalize_model, Key
+from .base import Key, SafeDataLoader, normalize_model
 
 
 class ToolCallsByRunLoader(SafeDataLoader):
@@ -21,23 +21,20 @@ class ToolCallsByRunLoader(SafeDataLoader):
             logger=logger, cache_enabled=cache_enabled, **kwargs
         )
         if self.cache_enabled:
-            self.cache = HybridCacheEngine(
-                Config.get_cache_name("models", "tool_call")
-            )
+            self.cache = HybridCacheEngine(Config.get_cache_name("models", "tool_call"))
             cache_meta = Config.get_cache_entity_config().get("tool_call")
             self.cache_func_prefix = ""
             if cache_meta:
-                self.cache_func_prefix = ".".join([cache_meta.get("module"), "get_tool_calls_by_run"])
+                self.cache_func_prefix = ".".join(
+                    [cache_meta.get("module"), "get_tool_calls_by_run"]
+                )
 
     def generate_cache_key(self, key: Key) -> str:
         if not isinstance(key, tuple):
             key = (key,)
         key_data = ":".join([str(key), str({})])
-        return self.cache._generate_key(
-            self.cache_func_prefix,
-            key_data
-        )
-    
+        return self.cache._generate_key(self.cache_func_prefix, key_data)
+
     def get_cache_data(self, key: Key) -> Dict[str, Any] | None | List[Dict[str, Any]]:
         cache_key = self.generate_cache_key(key)
         cached_item = self.cache.get(cache_key)
@@ -55,6 +52,7 @@ class ToolCallsByRunLoader(SafeDataLoader):
 
     def batch_load_fn(self, keys: List[str]) -> Promise:
         from ..tool_call import get_tool_calls_by_run
+
         """
         Load tool calls for multiple run_uuids.
         Keys are run_uuids (string).
@@ -77,7 +75,6 @@ class ToolCallsByRunLoader(SafeDataLoader):
         # Batch fetch uncached items
         if uncached_keys:
             try:
-                
 
                 for run_uuid in uncached_keys:
                     tool_calls = get_tool_calls_by_run(run_uuid)
@@ -85,12 +82,6 @@ class ToolCallsByRunLoader(SafeDataLoader):
                     normalized_tool_calls = [normalize_model(tc) for tc in tool_calls]
 
                     key_map[run_uuid] = normalized_tool_calls
-
-                    # # Cache the result if enabled
-                    # if self.cache_enabled:
-                    #     self.cache.set(
-                    #         run_uuid, normalized_tool_calls, ttl=Config.get_cache_ttl()
-                    #     )
 
             except Exception as exc:  # pragma: no cover - defensive
                 if self.logger:
