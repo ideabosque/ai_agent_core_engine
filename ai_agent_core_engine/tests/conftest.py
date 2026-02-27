@@ -46,10 +46,8 @@ sys.path.insert(
     ),
 )
 
-from silvaengine_utility import Graphql
-from silvaengine_utility.graphql import INTROSPECTION_QUERY
-
 from ai_agent_core_engine import AIAgentCoreEngine
+from silvaengine_utility.graphql import INTROSPECTION_QUERY
 
 # Test data file path
 TEST_DATA_FILE = os.path.join(os.path.dirname(__file__), "test_data.json")
@@ -65,32 +63,6 @@ SETTING = {
     "funct_zip_path": os.getenv("funct_zip_path"),
     "funct_extract_path": os.getenv("funct_extract_path"),
     "task_queue_name": os.getenv("task_queue_name"),
-    "functs_on_local": {
-        "ai_marketing_graphql": {
-            "module_name": "ai_marketing_engine",
-            "class_name": "AIMarketingEngine",
-        },
-        "ai_agent_build_graphql_query": {
-            "module_name": "ai_agent_core_engine",
-            "class_name": "AIAgentCoreEngine",
-        },
-        "ai_agent_core_graphql": {
-            "module_name": "ai_agent_core_engine",
-            "class_name": "AIAgentCoreEngine",
-        },
-        "async_execute_ask_model": {
-            "module_name": "ai_agent_core_engine",
-            "class_name": "AIAgentCoreEngine",
-        },
-        "async_insert_update_tool_call": {
-            "module_name": "ai_agent_core_engine",
-            "class_name": "AIAgentCoreEngine",
-        },
-        "send_data_to_websocket": {
-            "module_name": "ai_agent_core_engine",
-            "class_name": "AIAgentCoreEngine",
-        },
-    },
     "xml_convert": os.getenv("xml_convert", False),
     "internal_mcp": {
         "base_url": os.getenv("mcp_server_url"),
@@ -103,7 +75,6 @@ SETTING = {
     "connection_id": os.getenv("connection_id"),
     "endpoint_id": os.getenv("endpoint_id"),
     "part_id": os.getenv("part_id"),
-    "execute_mode": os.getenv("execute_mode", "local_for_all"),
     "initialize_tables": int(os.getenv("initialize_tables", "0")),
     "cache_enabled": int(os.getenv("cache_enabled", "0")),
 }
@@ -146,26 +117,22 @@ def ai_agent_core_engine():
 
 @pytest.fixture(scope="module")
 def schema(ai_agent_core_engine):
-    """Fetch GraphQL schema for testing.
+    """Fetch GraphQL schema by calling the engine directly (no invoker needed).
 
     Depends on ai_agent_core_engine fixture.
     """
-    endpoint_id = SETTING.get("endpoint_id")
-    part_id = SETTING.get("part_id")
-
     try:
         logger.info("Fetching GraphQL schema...")
-
-        context = {
-            "endpoint_id": endpoint_id,
-            "part_id": part_id,
-            "setting": SETTING,
-            "logger": logger,
-        }
-        schema = Graphql.fetch_graphql_schema(
-            context,
-            "ai_agent_core_graphql",
+        result = ai_agent_core_engine.ai_agent_core_graphql(
+            query=INTROSPECTION_QUERY,
+            variables={},
+            endpoint_id=SETTING.get("endpoint_id"),
+            part_id=SETTING.get("part_id"),
         )
+        body = json.loads(result.get("body", "{}"))
+        schema = body.get("data", {}).get("__schema", {})
+        if not schema:
+            raise RuntimeError(f"Introspection returned no schema: {result}")
         logger.info("GraphQL schema fetched successfully")
         return schema
     except Exception as ex:
