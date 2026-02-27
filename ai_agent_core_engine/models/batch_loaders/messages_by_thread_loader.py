@@ -7,6 +7,7 @@ __author__ = "bibow"
 from typing import Any, Dict, List
 
 from promise import Promise
+
 from silvaengine_utility.cache import HybridCacheEngine
 
 from ...handlers.config import Config
@@ -78,7 +79,22 @@ class MessagesByThreadLoader(SafeDataLoader):
                 for thread_uuid in uncached_keys:
                     messages = get_messages_by_thread(thread_uuid)
 
-                    normalized_messages = [normalize_model(msg) for msg in messages]
+                    normalized_messages = []
+                    for msg in messages:
+                        msg_dict = normalize_model(msg)
+                        # Attach run metadata to each message
+                        if hasattr(msg, "run") and msg.run:
+                            msg_dict["prompt_tokens"] = getattr(
+                                msg.run, "prompt_tokens", 0
+                            )
+                            msg_dict["completion_tokens"] = getattr(
+                                msg.run, "completion_tokens", 0
+                            )
+                            msg_dict["total_tokens"] = getattr(
+                                msg.run, "total_tokens", 0
+                            )
+                        normalized_messages.append(msg_dict)
+
                     key_map[thread_uuid] = normalized_messages
 
             except Exception as exc:  # pragma: no cover - defensive
