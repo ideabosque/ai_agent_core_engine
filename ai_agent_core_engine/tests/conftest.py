@@ -46,8 +46,10 @@ sys.path.insert(
     ),
 )
 
-from ai_agent_core_engine import AIAgentCoreEngine
 from silvaengine_utility import Graphql
+from silvaengine_utility.graphql import INTROSPECTION_QUERY
+
+from ai_agent_core_engine import AIAgentCoreEngine
 
 # Test data file path
 TEST_DATA_FILE = os.path.join(os.path.dirname(__file__), "test_data.json")
