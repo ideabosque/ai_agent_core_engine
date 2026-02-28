@@ -69,9 +69,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger()
 
+from graphql import get_introspection_query
+
 from ai_agent_core_engine import AIAgentCoreEngine
 from silvaengine_utility import Graphql, Serializer
-from silvaengine_utility.graphql import INTROSPECTION_QUERY
 
 
 class ChatbotRunner:
@@ -106,7 +107,7 @@ class ChatbotRunner:
 
         self.ai_agent_core_engine = AIAgentCoreEngine(logger, **self.setting)
         result = self.ai_agent_core_engine.ai_agent_core_graphql(
-            query=INTROSPECTION_QUERY,
+            query=get_introspection_query(),
             variables={},
             endpoint_id=self.setting.get("endpoint_id"),
             part_id=self.setting.get("part_id"),
