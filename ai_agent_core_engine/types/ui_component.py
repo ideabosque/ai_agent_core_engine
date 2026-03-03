@@ -14,6 +14,7 @@ class UIComponentType(ObjectType):
     ui_component_type = String()
     ui_component_uuid = String()
     tag_name = String()
+    tag_alias = String()
     parameters = List(JSONCamelCase)
     wait_for = String()
     updated_by = String()

@@ -19,6 +19,7 @@ class InsertUpdateUIComponent(Mutation):
         ui_component_uuid = String(required=False)
         ui_component_type = String(required=True)
         tag_name = String(required=True)
+        tag_alias = String(required=False)
         parameters = List(JSONCamelCase, required=False)
         wait_for = String(required=False)
         updated_by = String(required=True)

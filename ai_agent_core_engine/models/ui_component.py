@@ -17,8 +17,6 @@ from pynamodb.attributes import (
     UTCDateTimeAttribute,
 )
 from pynamodb.indexes import AllProjection, LocalSecondaryIndex
-from tenacity import retry, stop_after_attempt, wait_exponential
-
 from silvaengine_dynamodb_base import (
     BaseModel,
     delete_decorator,
@@ -27,6 +25,7 @@ from silvaengine_dynamodb_base import (
     resolve_list_decorator,
 )
 from silvaengine_utility import method_cache
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
 from ..types.ui_component import UIComponentListType, UIComponentType
@@ -55,6 +54,7 @@ class UIComponentModel(BaseModel):
     ui_component_type = UnicodeAttribute(hash_key=True)
     ui_component_uuid = UnicodeAttribute(range_key=True)
     tag_name = UnicodeAttribute()
+    tag_alias = UnicodeAttribute(null=True)
     parameters = ListAttribute(of=MapAttribute)
     wait_for = UnicodeAttribute(null=True)
     updated_by = UnicodeAttribute()
@@ -169,6 +169,7 @@ def resolve_ui_component(
 def resolve_ui_component_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     ui_component_type = kwargs.get("ui_component_type")
     tag_name = kwargs.get("tag_name")
+    tag_alias = kwargs.get("tag_alias")
     updated_at_gt = kwargs.get("updated_at_gt")
     updated_at_lt = kwargs.get("updated_at_lt")
 
@@ -191,9 +192,13 @@ def resolve_ui_component_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> An
         inquiry_funct = UIComponentModel.updated_at_index.query
         count_funct = UIComponentModel.updated_at_index.count
 
+    tag_alias = kwargs.get("tag_alias")
+
     the_filters = None
     if tag_name:
-        the_filters = UIComponentModel.tag_name.contains(tag_name)
+        the_filters &= UIComponentModel.tag_name.contains(tag_name)
+    if tag_alias:
+        the_filters &= UIComponentModel.tag_alias.contains(tag_alias)
     if the_filters is not None:
         args.append(the_filters)
 
@@ -218,6 +223,7 @@ def insert_update_ui_component(info: ResolveInfo, **kwargs: Dict[str, Any]) -> A
     if kwargs.get("entity") is None:
         cols = {
             "tag_name": kwargs["tag_name"],
+            "tag_alias": kwargs.get("tag_alias"),
             "parameters": kwargs.get("parameters", []),
             "wait_for": kwargs.get("wait_for"),
             "updated_by": kwargs["updated_by"],
@@ -239,6 +245,7 @@ def insert_update_ui_component(info: ResolveInfo, **kwargs: Dict[str, Any]) -> A
 
     field_map = {
         "tag_name": UIComponentModel.tag_name,
+        "tag_alias": UIComponentModel.tag_alias,
         "parameters": UIComponentModel.parameters,
         "wait_for": UIComponentModel.wait_for,
     }

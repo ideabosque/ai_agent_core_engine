@@ -411,6 +411,7 @@ class Query(ObjectType):
         limit=Int(required=False),
         ui_component_type=String(required=False),
         tag_name=String(required=False),
+        tag_alias=String(required=False),
         updated_at_gt=DateTime(required=False),
         updated_at_lt=DateTime(required=False),
     )
@@ -462,7 +463,9 @@ class Query(ObjectType):
     def resolve_ping(self, info: ResolveInfo) -> str:
         return f"Hello at {time.strftime('%X')}!!"
 
-    def resolve_llm(self, info: ResolveInfo, **kwargs: Dict[str, Any]) -> LlmType:
+    def resolve_llm(
+        self, info: ResolveInfo, **kwargs: Dict[str, Any]
+    ) -> LlmType | None:
         return resolve_llm(info, **kwargs)
 
     def resolve_llm_list(
@@ -470,7 +473,9 @@ class Query(ObjectType):
     ) -> LlmListType:
         return resolve_llm_list(info, **kwargs)
 
-    def resolve_agent(self, info: ResolveInfo, **kwargs: Dict[str, Any]) -> AgentType:
+    def resolve_agent(
+        self, info: ResolveInfo, **kwargs: Dict[str, Any]
+    ) -> AgentType | None:
         return resolve_agent(info, **kwargs)
 
     def resolve_agent_list(
@@ -478,7 +483,9 @@ class Query(ObjectType):
     ) -> AgentListType:
         return resolve_agent_list(info, **kwargs)
 
-    def resolve_thread(self, info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType:
+    def resolve_thread(
+        self, info: ResolveInfo, **kwargs: Dict[str, Any]
+    ) -> ThreadType | None:
         return resolve_thread(info, **kwargs)
 
     def resolve_thread_list(
@@ -486,7 +493,9 @@ class Query(ObjectType):
     ) -> ThreadListType:
         return resolve_thread_list(info, **kwargs)
 
-    def resolve_run(self, info: ResolveInfo, **kwargs: Dict[str, Any]) -> RunType:
+    def resolve_run(
+        self, info: ResolveInfo, **kwargs: Dict[str, Any]
+    ) -> RunType | None:
         return resolve_run(info, **kwargs)
 
     def resolve_run_list(
@@ -496,7 +505,7 @@ class Query(ObjectType):
 
     def resolve_tool_call(
         self, info: ResolveInfo, **kwargs: Dict[str, Any]
-    ) -> ToolCallType:
+    ) -> ToolCallType | None:
         return resolve_tool_call(info, **kwargs)
 
     def resolve_tool_call_list(
@@ -506,7 +515,7 @@ class Query(ObjectType):
 
     def resolve_message(
         self, info: ResolveInfo, **kwargs: Dict[str, Any]
-    ) -> MessageType:
+    ) -> MessageType | None:
         return resolve_message(info, **kwargs)
 
     def resolve_message_list(
@@ -516,7 +525,7 @@ class Query(ObjectType):
 
     def resolve_async_task(
         self, info: ResolveInfo, **kwargs: Dict[str, Any]
-    ) -> AsyncTaskType:
+    ) -> AsyncTaskType | None:
         return resolve_async_task(info, **kwargs)
 
     def resolve_async_task_list(
@@ -526,7 +535,7 @@ class Query(ObjectType):
 
     def resolve_fine_tuning_message(
         self, info: ResolveInfo, **kwargs: Dict[str, Any]
-    ) -> FineTuningMessageType:
+    ) -> FineTuningMessageType | None:
         return resolve_fine_tuning_message(info, **kwargs)
 
     def resolve_fine_tuning_message_list(
@@ -536,22 +545,22 @@ class Query(ObjectType):
 
     def resolve_ask_model(
         self, info: ResolveInfo, **kwargs: Dict[str, Any]
-    ) -> AskModelType:
+    ) -> AskModelType | None:
         return resolve_ask_model(info, **kwargs)
 
     def resolve_uploaded_file(
         self, info: ResolveInfo, **kwargs: Dict[str, Any]
-    ) -> FileType:
+    ) -> FileType | None:
         return resolve_uploaded_file(info, **kwargs)
 
     def resolve_output_file(
         self, info: ResolveInfo, **kwargs: Dict[str, Any]
-    ) -> FileType:
+    ) -> FileType | None:
         return resolve_output_file(info, **kwargs)
 
     def resolve_element(
         self, info: ResolveInfo, **kwargs: Dict[str, Any]
-    ) -> ElementType:
+    ) -> ElementType | None:
         return resolve_element(info, **kwargs)
 
     def resolve_element_list(
@@ -559,7 +568,9 @@ class Query(ObjectType):
     ) -> ElementListType:
         return resolve_element_list(info, **kwargs)
 
-    def resolve_wizard(self, info: ResolveInfo, **kwargs: Dict[str, Any]) -> WizardType:
+    def resolve_wizard(
+        self, info: ResolveInfo, **kwargs: Dict[str, Any]
+    ) -> WizardType | None:
         return resolve_wizard(info, **kwargs)
 
     def resolve_wizard_list(
@@ -569,7 +580,7 @@ class Query(ObjectType):
 
     def resolve_wizard_schema(
         self, info: ResolveInfo, **kwargs: Dict[str, Any]
-    ) -> WizardSchemaType:
+    ) -> WizardSchemaType | None:
         return resolve_wizard_schema(info, **kwargs)
 
     def resolve_wizard_schema_list(
@@ -579,7 +590,7 @@ class Query(ObjectType):
 
     def resolve_wizard_group(
         self, info: ResolveInfo, **kwargs: Dict[str, Any]
-    ) -> WizardGroupType:
+    ) -> WizardGroupType | None:
         return resolve_wizard_group(info, **kwargs)
 
     def resolve_wizard_group_list(
@@ -589,7 +600,7 @@ class Query(ObjectType):
 
     def resolve_wizard_group_filter(
         self, info: ResolveInfo, **kwargs: Dict[str, Any]
-    ) -> WizardGroupFilterType:
+    ) -> WizardGroupFilterType | None:
         return resolve_wizard_group_filter(info, **kwargs)
 
     def resolve_wizard_group_filter_list(
@@ -599,7 +610,7 @@ class Query(ObjectType):
 
     def resolve_mcp_server(
         self, info: ResolveInfo, **kwargs: Dict[str, Any]
-    ) -> MCPServerType:
+    ) -> MCPServerType | None:
         return resolve_mcp_server(info, **kwargs)
 
     def resolve_mcp_server_list(
@@ -609,7 +620,7 @@ class Query(ObjectType):
 
     def resolve_ui_component(
         self, info: ResolveInfo, **kwargs: Dict[str, Any]
-    ) -> UIComponentType:
+    ) -> UIComponentType | None:
         return resolve_ui_component(info, **kwargs)
 
     def resolve_ui_component_list(
@@ -619,7 +630,7 @@ class Query(ObjectType):
 
     def resolve_flow_snippet(
         self, info: ResolveInfo, **kwargs: Dict[str, Any]
-    ) -> FlowSnippetType:
+    ) -> FlowSnippetType | None:
         return resolve_flow_snippet(info, **kwargs)
 
     def resolve_flow_snippet_list(
@@ -629,7 +640,7 @@ class Query(ObjectType):
 
     def resolve_prompt_template(
         self, info: ResolveInfo, **kwargs: Dict[str, Any]
-    ) -> PromptTemplateType:
+    ) -> PromptTemplateType | None:
         return resolve_prompt_template(info, **kwargs)
 
     def resolve_prompt_template_list(
@@ -639,7 +650,7 @@ class Query(ObjectType):
 
     def resolve_presigned_aws_s3_url(
         self, info: ResolveInfo, **kwargs: Dict[str, Any]
-    ) -> PresignedAWSS3UrlType:
+    ) -> PresignedAWSS3UrlType | None:
         return resolve_presigned_aws_s3_url(info, **kwargs)
 
 
