@@ -7,11 +7,9 @@ __author__ = "bibow"
 from typing import Any, Dict
 
 from graphene import ResolveInfo
-
 from silvaengine_utility import method_cache
 
 from ..handlers.config import Config
-
 from ..models import prompt_template
 from ..types.prompt_template import PromptTemplateListType, PromptTemplateType
 
