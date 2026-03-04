@@ -31,6 +31,21 @@ from ..handlers.config import Config
 from ..types.ui_component import UIComponentListType, UIComponentType
 from ..utils.normalization import normalize_to_json
 
+parameters_fn = lambda parameters: [
+    {
+        k: v
+        for k, v in {
+            "name": parameter["name"],
+            "parameter": parameter.get("parameter"),
+            "value_list_funct": parameter.get("value_list_funct"),
+            "value_list_graphql": parameter.get("value_list_graphql"),
+            "value_list_key": parameter.get("value_list_key"),
+        }.items()
+        if v is not None
+    }
+    for parameter in parameters
+]
+
 
 class UpdatedAtIndex(LocalSecondaryIndex):
     """
@@ -224,7 +239,7 @@ def insert_update_ui_component(info: ResolveInfo, **kwargs: Dict[str, Any]) -> A
         cols = {
             "tag_name": kwargs["tag_name"],
             "tag_alias": kwargs.get("tag_alias"),
-            "parameters": kwargs.get("parameters", []),
+            "parameters": parameters_fn(kwargs.get("parameters", [])),
             "wait_for": kwargs.get("wait_for"),
             "updated_by": kwargs["updated_by"],
             "created_at": pendulum.now("UTC"),
@@ -250,8 +265,14 @@ def insert_update_ui_component(info: ResolveInfo, **kwargs: Dict[str, Any]) -> A
         "wait_for": UIComponentModel.wait_for,
     }
 
+    fn_map = {"parameters": parameters_fn}
+
     for key, field in field_map.items():
         if key in kwargs:
+            if key in fn_map:
+                actions.append(field.set(fn_map[key](kwargs.get(key, []))))
+                continue
+
             actions.append(field.set(None if kwargs[key] == "null" else kwargs[key]))
 
     ui_component.update(actions=actions)
