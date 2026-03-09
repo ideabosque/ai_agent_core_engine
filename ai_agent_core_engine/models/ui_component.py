@@ -17,6 +17,8 @@ from pynamodb.attributes import (
     UTCDateTimeAttribute,
 )
 from pynamodb.indexes import AllProjection, LocalSecondaryIndex
+from tenacity import retry, stop_after_attempt, wait_exponential
+
 from silvaengine_dynamodb_base import (
     BaseModel,
     delete_decorator,
@@ -25,7 +27,6 @@ from silvaengine_dynamodb_base import (
     resolve_list_decorator,
 )
 from silvaengine_utility import method_cache
-from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
 from ..types.ui_component import UIComponentListType, UIComponentType
@@ -36,10 +37,9 @@ parameters_fn = lambda parameters: [
         k: v
         for k, v in {
             "name": parameter["name"],
+            "label": parameter.get("label"),
             "parameter": parameter.get("parameter"),
             "value_list_funct": parameter.get("value_list_funct"),
-            "value_list_graphql": parameter.get("value_list_graphql"),
-            "value_list_key": parameter.get("value_list_key"),
         }.items()
         if v is not None
     }
