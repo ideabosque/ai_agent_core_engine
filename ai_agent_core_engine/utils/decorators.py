@@ -215,7 +215,7 @@ def send_usage_limit_error(info: ResolveInfo, error_message: str):
     params = {
         "connection_id": connection_id,
         "data": {
-            "error_code": "USAGE_LIMIT_EXCEEDED"
+            "error_code": "USAGE_LIMIT_EXCEEDED",
             "error_message": error_message
         }
     }
