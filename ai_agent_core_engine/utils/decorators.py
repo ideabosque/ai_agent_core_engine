@@ -9,7 +9,7 @@ from typing import Any, Callable, Dict, Optional
 
 import pendulum
 from graphene import ResolveInfo
-
+from ..handlers import at_agent_listener
 
 def usage_recorder(
     service_name: str,
@@ -57,8 +57,11 @@ def usage_recorder(
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         def wrapper(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
-
-            check_usage_limit(info, service_name)
+            try:    
+                check_usage_limit(info, service_name)
+            except Exception as e:
+                send_usage_limit_error(info, str(e))
+                return
             # Execute the wrapped function first
             result = func(info, **kwargs)
 
@@ -203,4 +206,18 @@ def check_usage_limit(info: ResolveInfo, usage_key: str):
         raise Exception(f"Subscription is expired. Please renew your subscription.")
     usage_key_period_start = "{usage_key}#{period_start}".format(usage_key=usage_key, period_start=usage_limit.period_start.strftime("%Y-%m-%d"))
     add_usage_summary(partition_key, usage_key, usage_key_period_start, usage_limit.usage_limit)
+
+def send_usage_limit_error(info: ResolveInfo, error_message: str):
+    connection_id = info.context.get("connection_id")
+    if connection_id is None:
+        return
+    logger = info.context.get("logger")
+    params = {
+        "connection_id": connection_id,
+        "data": {
+            "error_code": "USAGE_LIMIT_EXCEEDED"
+            "error_message": error_message
+        }
+    }
+    at_agent_listener.send_data_to_stream(logger, **params)
     
