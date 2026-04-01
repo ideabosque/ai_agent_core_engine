@@ -57,6 +57,8 @@ def usage_recorder(
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         def wrapper(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
+
+            check_usage_limit(info, service_name)
             # Execute the wrapped function first
             result = func(info, **kwargs)
 
@@ -182,3 +184,23 @@ def log_usage_record(info: ResolveInfo, usage_record: Dict[str, Any]) -> None:
         f"usage: {usage_record['usage']}, "
         f"details: {usage_record['details']}"
     )
+
+def check_usage_limit(info: ResolveInfo, usage_key: str):
+    setting = info.context.get("setting")
+    ignore_partition_keys = setting.get("ignore_usage_limit_partition_keys", [])
+    partition_key = info.context.get("partition_key")
+    if partition_key in ignore_partition_keys:
+        return
+    
+    from ..models.usage import get_usage_limit, add_usage_summary
+    
+    usage_limit = get_usage_limit(partition_key, usage_key)
+    if usage_limit is None:
+        raise Exception(f"No subscription for service: {usage_key}")
+    
+    now = pendulum.now("UTC")
+    if now > usage_limit.period_end:
+        raise Exception(f"Subscription is expired. Please renew your subscription.")
+    usage_key_period_start = "{usage_key}#{period_start}".format(usage_key=usage_key, period_start=usage_limit.period_start.strftime("%Y-%m-%d"))
+    add_usage_summary(partition_key, usage_key, usage_key_period_start, usage_limit.usage_limit)
+    
