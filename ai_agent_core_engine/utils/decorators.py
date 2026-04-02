@@ -201,6 +201,9 @@ def check_usage_limit(info: ResolveInfo, usage_key: str):
     if usage_limit is None:
         raise Exception(f"No subscription for service: {usage_key}")
     
+    if usage_limit.status == "CANCELLED":
+        raise Exception(f"Subscription is cancelled. Please contact support.")
+    
     now = pendulum.now("UTC")
     if now > usage_limit.period_end:
         raise Exception(f"Subscription is expired. Please renew your subscription.")

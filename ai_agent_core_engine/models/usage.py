@@ -50,7 +50,7 @@ class UsageLimitModel(BaseModel):
     period_end = UTCDateTimeAttribute()
 
     created_from = UnicodeAttribute()
-    # status = UnicodeAttribute()
+    status = UnicodeAttribute()
 
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()
@@ -113,6 +113,7 @@ def insert_update_usage_limit(**kwargs):
             "period_start": kwargs.get("period_start"),
             "period_end": kwargs.get("period_end"),
             "created_from": kwargs.get("created_from"),
+            "status": kwargs.get("status"),
             "created_at": pendulum.now("UTC"),
             "updated_at": pendulum.now("UTC"),
         }
@@ -132,7 +133,8 @@ def insert_update_usage_limit(**kwargs):
         "allow_overage": UsageLimitModel.allow_overage,
         "period_start": UsageLimitModel.period_start,
         "period_end": UsageLimitModel.period_end,
-        "created_from": UsageLimitModel.created_from
+        "created_from": UsageLimitModel.created_from,
+        "status": UsageLimitModel.status
     }
 
     for key, field in field_map.items():
