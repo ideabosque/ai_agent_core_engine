@@ -45,7 +45,7 @@ class AIAgentUser(HttpUser):
 
     def on_start(self):
         self.headers = {
-            "x-api-key": os.getenv("x-api-key"),
+            "x-api-key": os.getenv("api_key"),
             "Part-Id": os.getenv("part_id"),
             "Content-Type": "application/json",
         }
