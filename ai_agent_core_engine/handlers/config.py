@@ -404,17 +404,18 @@ class Config:
         Args:
             setting (Dict[str, Any]): Configuration dictionary.
         """
-        if "internal_mcp" not in setting:
+        # Gateway app.py builds one internal_mcp config block. Treat missing/None
+        # as disabled, and merge auth into the existing headers.
+        mcp_server = setting.get("internal_mcp")
+        if not mcp_server:
             return
-        mcp_server = setting["internal_mcp"]
+        headers = dict(mcp_server.get("headers") or {})
         if mcp_server.get("bearer_token"):
-            mcp_server["headers"] = {
-                "Authorization": f"Bearer {mcp_server['bearer_token']}"
-            }
+            headers["Authorization"] = f"Bearer {mcp_server['bearer_token']}"
         cls.internal_mcp = {
             "name": "internal_mcp",
             "base_url": mcp_server["base_url"],
-            "headers": mcp_server["headers"],
+            "headers": headers,
         }
 
     @classmethod
@@ -507,10 +508,12 @@ class Config:
             return cls.internal_mcp
 
         internal_mcp = cls.internal_mcp.copy()
+        internal_mcp["headers"] = dict(internal_mcp.get("headers") or {})
         internal_mcp["base_url"] = internal_mcp["base_url"].format(
             endpoint_id=endpoint_id
         )
-        if part_id and "headers" in internal_mcp:
+        # Tenant routing belongs to request context, not static gateway config.
+        if part_id:
             internal_mcp["headers"]["Part-Id"] = part_id
         return internal_mcp
 
