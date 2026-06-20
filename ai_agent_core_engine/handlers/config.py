@@ -31,6 +31,7 @@ class Config:
     aws_s3 = None
     task_queue = None
     apigw_client = None
+    connection_manager = None
     schemas = {}
     xml_convert = None
     internal_mcp = None
@@ -520,6 +521,21 @@ class Config:
         elif not cls.apigw_client:
             raise ValueError("Invalid api gateway client")
         return cls.apigw_client
+
+    @classmethod
+    def set_connection_manager(cls, manager) -> None:
+        """Inject the WebSocket ConnectionManager (SilvaEngine Gateway mode).
+
+        When set, ``send_data_to_stream`` uses the manager instead of the
+        AWS API Gateway ``post_to_connection()`` path.  When ``None``
+        (Lambda deployments), the AWS path runs unchanged.
+        """
+        cls.connection_manager = manager
+
+    @classmethod
+    def get_connection_manager(cls):
+        """Return the injected ConnectionManager, or ``None`` if not set."""
+        return cls.connection_manager
 
     @classmethod
     def get_logger(cls):

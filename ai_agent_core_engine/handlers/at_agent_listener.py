@@ -100,6 +100,14 @@ def send_data_to_stream(logger: logging.Logger, **kwargs: Dict[str, Any]) -> boo
         if not required_keys.issubset(kwargs.keys()):
             raise ValueError("Missing required parameter(s)")
 
+        # Dual-mode: prefer the local ConnectionManager (SilvaEngine Gateway),
+        # fall back to AWS API Gateway post_to_connection() (Lambda mode).
+        manager = Config.get_connection_manager()
+        if manager is not None:
+            return manager.send_to_connection(
+                kwargs.get("connection_id"), kwargs.get("data")
+            )
+
         Config.get_api_gateway_client().post_to_connection(
             ConnectionId=kwargs.get("connection_id"),
             Data=Serializer.json_dumps(kwargs.get("data")),

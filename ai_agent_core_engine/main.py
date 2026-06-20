@@ -5,6 +5,7 @@ from __future__ import print_function
 __author__ = "bibow"
 
 import logging
+import uuid
 from typing import Any, Dict, List
 
 from graphene import Schema
@@ -372,3 +373,107 @@ class AIAgentCoreEngine(Graphql):
             mutation=Mutations,
             types=type_class(),
         )
+
+
+# ---------------------------------------------------------------------------
+# Module-level dispatch wrappers for gateway integration
+#
+# These follow the same pattern as knowledge_graph_engine.main:dispatch_graphql
+# — a thin module-level function that builds a short-lived engine from the
+# initialized Config singleton and delegates to the class method.
+#
+# The SilvaEngine Gateway resolves these via importlib from routes.yaml:
+#   dispatch: "ai_agent_core_engine.main:dispatch_graphql"
+#   dispatch: "ai_agent_core_engine.main:dispatch_ask_model"
+# ---------------------------------------------------------------------------
+
+
+def _build_engine_from_config() -> AIAgentCoreEngine:
+    """Create a short-lived engine from the initialized Config singleton.
+
+    Used by the module-level dispatch wrappers so that the gateway can
+    call a plain function (not a class constructor) via importlib.
+    """
+    return AIAgentCoreEngine(Config.get_logger(), **Config.get_setting())
+
+
+def dispatch_graphql(**params: Any) -> Any:
+    """Execute a GraphQL query using gateway-initialized settings.
+
+    This is the HTTP GraphQL entry point, matching the pattern used by
+    KGE (``knowledge_graph_engine.main:dispatch_graphql``).
+    """
+    return _build_engine_from_config().ai_agent_core_graphql(**params)
+
+
+def dispatch_ask_model(**params: Any) -> Any:
+    """Execute ask_model using gateway-initialized settings.
+
+    This is the WebSocket streaming entry point.  The gateway injects
+    ``connection_id`` into params so that ``_apply_partition_defaults``
+    propagates it into ``context``, which activates streaming mode in
+    ``execute_ask_model`` (ai_agent.py:289).
+
+    The Lambda path pre-creates the async_task record via the invoker
+    before calling ``async_execute_ask_model``.  In the WebSocket path
+    we call directly, so we pre-create the task here to avoid the
+    ``insert_update_decorator`` raising "Cannot find the async_task"
+    when it sees count==0 with a caller-provided async_task_uuid.
+    """
+    engine = _build_engine_from_config()
+    engine._apply_partition_defaults(params)
+
+    # Pre-create the async task record (insert, not update)
+    from ai_agent_core_engine.models.async_task import AsyncTaskModel
+    from .handlers.config import Config as _Config
+    import pendulum
+
+    arguments = params.get("arguments", {})
+    async_task_uuid = params.get("async_task_uuid")
+    partition_key = params.get("context", {}).get("partition_key", "")
+
+    # Generate run_uuid if not provided by the client.
+    # In the Lambda path, the invoker generates run_uuid before calling
+    # async_execute_ask_model. In the WebSocket path, we generate it here.
+    if arguments and "run_uuid" not in arguments:
+        arguments["run_uuid"] = str(uuid.uuid4())
+
+    if async_task_uuid and partition_key:
+        # Pre-create the async task record so the insert_update_decorator
+        # finds count > 0 and does an update instead of raising "Cannot find".
+        try:
+            AsyncTaskModel(
+                "async_execute_ask_model",
+                async_task_uuid,
+                partition_key=partition_key,
+                output_files=[],
+                status="in_progress",
+                updated_by=arguments.get("updated_by", "test-user"),
+                created_at=pendulum.now("UTC"),
+                updated_at=pendulum.now("UTC"),
+            ).save()
+        except Exception:
+            pass
+
+        # Pre-create the run record so insert_update_run finds it and
+        # updates instead of raising "Cannot find the run".
+        run_uuid = arguments.get("run_uuid")
+        if run_uuid:
+            try:
+                from ai_agent_core_engine.models.run import RunModel
+
+                RunModel(
+                    arguments.get("thread_uuid"),
+                    run_uuid,
+                    partition_key=partition_key,
+                    prompt_tokens=0,
+                    completion_tokens=0,
+                    total_tokens=0,
+                    updated_by=arguments.get("updated_by", "test-user"),
+                    created_at=pendulum.now("UTC"),
+                    updated_at=pendulum.now("UTC"),
+                ).save()
+            except Exception:
+                pass
+
+    return engine.async_execute_ask_model(**params)
