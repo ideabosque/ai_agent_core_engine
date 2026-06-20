@@ -167,6 +167,32 @@ def _get_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType | Non
 def _get_agent(info: ResolveInfo, agent_uuid: str):
     from ..models.batch_loaders import get_loaders
 
+    # Phase 2.1: Cache resolved agents (with MCP tools) to avoid
+    # re-fetching 80 tools from the MCP daemon on every request.
+    # The cache is keyed by (endpoint_id, part_id, agent_uuid) and
+    # has a TTL of 5 minutes.  The MCP tool resolution is the single
+    # biggest bottleneck (~3s per request), so caching it gives the
+    # largest performance win.
+    import time as _time
+
+    cache_key = (
+        info.context.get("endpoint_id", ""),
+        info.context.get("part_id", ""),
+        agent_uuid,
+    )
+    _cache = getattr(_get_agent, "_cache", None)
+    if _cache is None:
+        _cache = {}
+        _get_agent._cache = _cache
+        _get_agent._ttl = 300  # 5 minutes
+
+    cached = _cache.get(cache_key)
+    if cached and (_time.time() - cached[1] < _get_agent._ttl):
+        # Return a shallow copy so the caller can mutate agent.__dict__
+        # without polluting the cached entry.
+        import copy
+        return copy.copy(cached[0])
+
     agent = resolve_agent(info, **{"agent_uuid": agent_uuid})
 
     if not agent:
@@ -207,6 +233,9 @@ def _get_agent(info: ResolveInfo, agent_uuid: str):
                     },
                 }
             )
+
+    # Phase 2.1: Store resolved agent in cache for subsequent requests
+    _cache[cache_key] = (agent, _time.time())
 
     return agent
 
@@ -252,34 +281,39 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> tuple:
     #  3. Add metadata flags for conversation flow and context tracking
     #  4. Enable smarter handling of follow-up questions vs new topics
 
-    # Record user message in thread
-    user_message = insert_update_message(
-        info,
-        **{
-            "thread_uuid": arguments["thread_uuid"],
-            "run_uuid": arguments["run_uuid"],
-            "role": "user",
-            "message": arguments["user_query"],
-            "updated_by": arguments["updated_by"],
-        },
+    # Phase 3.1: Parallelize user message insert and run record insert.
+    # Previously these were sequential (~0.4s each = 0.8s total).  Running
+    # them in parallel saves ~0.4s on the critical path.
+    from concurrent.futures import ThreadPoolExecutor
+
+    # Calculate token count first (CPU-bound, needed for run record)
+    prompt_tokens = calculate_num_tokens(
+        agent,
+        "\n".join(
+            [msg["content"] for msg in input_messages if "content" in msg]
+        ),
+        include_instructions=True,
     )
 
-    # Initialize run record
-    run = insert_update_run(
-        info,
-        **{
-            "thread_uuid": arguments["thread_uuid"],
-            "run_uuid": arguments["run_uuid"],
-            "prompt_tokens": calculate_num_tokens(
-                agent,
-                "\n".join(
-                    [msg["content"] for msg in input_messages if "content" in msg]
-                ),
-                include_instructions=True,
-            ),
-            "updated_by": arguments["updated_by"],
-        },
-    )
+    msg_kwargs = {
+        "thread_uuid": arguments["thread_uuid"],
+        "run_uuid": arguments["run_uuid"],
+        "role": "user",
+        "message": arguments["user_query"],
+        "updated_by": arguments["updated_by"],
+    }
+    run_kwargs = {
+        "thread_uuid": arguments["thread_uuid"],
+        "run_uuid": arguments["run_uuid"],
+        "prompt_tokens": prompt_tokens,
+        "updated_by": arguments["updated_by"],
+    }
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        msg_future = pool.submit(insert_update_message, info, **msg_kwargs)
+        run_future = pool.submit(insert_update_run, info, **run_kwargs)
+        user_message = msg_future.result()
+        run = run_future.result()
 
     ai_agent_handler = get_ai_agent_handler(info=info, agent=agent)
     ai_agent_handler.context = info.context

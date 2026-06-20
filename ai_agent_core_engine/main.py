@@ -6,7 +6,7 @@ __author__ = "bibow"
 
 import logging
 import uuid
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from graphene import Schema
 from silvaengine_dynamodb_base import BaseModel
@@ -387,14 +387,25 @@ class AIAgentCoreEngine(Graphql):
 #   dispatch: "ai_agent_core_engine.main:dispatch_ask_model"
 # ---------------------------------------------------------------------------
 
+# Phase 1.1: Cache the engine instance to avoid re-running Graphql.__init__
+# and @graphql_service_initialization on every request.
+_engine_instance: Optional["AIAgentCoreEngine"] = None
 
-def _build_engine_from_config() -> AIAgentCoreEngine:
-    """Create a short-lived engine from the initialized Config singleton.
 
-    Used by the module-level dispatch wrappers so that the gateway can
-    call a plain function (not a class constructor) via importlib.
+def _build_engine_from_config() -> "AIAgentCoreEngine":
+    """Return a cached engine from the initialized Config singleton.
+
+    The first call constructs the engine; subsequent calls return the
+    same instance. ``Config.initialize()`` is already guarded by
+    ``_initialized``, so the engine's settings never change after the
+    first request.
     """
-    return AIAgentCoreEngine(Config.get_logger(), **Config.get_setting())
+    global _engine_instance
+    if _engine_instance is None:
+        _engine_instance = AIAgentCoreEngine(
+            Config.get_logger(), **Config.get_setting()
+        )
+    return _engine_instance
 
 
 def dispatch_graphql(**params: Any) -> Any:
@@ -420,56 +431,62 @@ def dispatch_ask_model(**params: Any) -> Any:
     ``insert_update_decorator`` raising "Cannot find the async_task"
     when it sees count==0 with a caller-provided async_task_uuid.
     """
+    import threading
+    import pendulum
+
     engine = _build_engine_from_config()
     engine._apply_partition_defaults(params)
-
-    # Pre-create the async task record (insert, not update)
-    from ai_agent_core_engine.models.async_task import AsyncTaskModel
-    from .handlers.config import Config as _Config
-    import pendulum
 
     arguments = params.get("arguments", {})
     async_task_uuid = params.get("async_task_uuid")
     partition_key = params.get("context", {}).get("partition_key", "")
 
     # Generate run_uuid if not provided by the client.
-    # In the Lambda path, the invoker generates run_uuid before calling
-    # async_execute_ask_model. In the WebSocket path, we generate it here.
     if arguments and "run_uuid" not in arguments:
         arguments["run_uuid"] = str(uuid.uuid4())
 
+    # Pre-create async_task + run records synchronously before calling
+    # async_execute_ask_model.  The insert_update_decorator in the core
+    # engine checks count > 0 to decide insert vs update — if the record
+    # doesn't exist yet, it raises "Cannot find".  With the agent cache
+    # (Phase 2.1), _get_agent returns instantly on cached requests, so
+    # async_execute_ask_model reaches the decorator before a background
+    # thread could finish the save.  Doing it synchronously adds ~0.4s
+    # but is safe.  The agent cache already saves ~3s, so net improvement
+    # is still significant.
     if async_task_uuid and partition_key:
-        # Pre-create the async task record so the insert_update_decorator
-        # finds count > 0 and does an update instead of raising "Cannot find".
+        run_uuid = arguments.get("run_uuid")
+        updated_by = arguments.get("updated_by", "test-user")
+        thread_uuid = arguments.get("thread_uuid")
+
         try:
+            from ai_agent_core_engine.models.async_task import AsyncTaskModel
+
             AsyncTaskModel(
                 "async_execute_ask_model",
                 async_task_uuid,
                 partition_key=partition_key,
                 output_files=[],
                 status="in_progress",
-                updated_by=arguments.get("updated_by", "test-user"),
+                updated_by=updated_by,
                 created_at=pendulum.now("UTC"),
                 updated_at=pendulum.now("UTC"),
             ).save()
         except Exception:
             pass
 
-        # Pre-create the run record so insert_update_run finds it and
-        # updates instead of raising "Cannot find the run".
-        run_uuid = arguments.get("run_uuid")
         if run_uuid:
             try:
                 from ai_agent_core_engine.models.run import RunModel
 
                 RunModel(
-                    arguments.get("thread_uuid"),
+                    thread_uuid,
                     run_uuid,
                     partition_key=partition_key,
                     prompt_tokens=0,
                     completion_tokens=0,
                     total_tokens=0,
-                    updated_by=arguments.get("updated_by", "test-user"),
+                    updated_by=updated_by,
                     created_at=pendulum.now("UTC"),
                     updated_at=pendulum.now("UTC"),
                 ).save()
