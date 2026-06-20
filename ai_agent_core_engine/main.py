@@ -378,9 +378,9 @@ class AIAgentCoreEngine(Graphql):
 # ---------------------------------------------------------------------------
 # Module-level dispatch wrappers for gateway integration
 #
-# These follow the same pattern as knowledge_graph_engine.main:dispatch_graphql
-# — a thin module-level function that builds a short-lived engine from the
-# initialized Config singleton and delegates to the class method.
+# These follow the same pattern as knowledge_graph_engine.main:dispatch_graphql:
+# thin module-level functions that build an engine from the initialized Config
+# singleton and delegate to the class methods.
 #
 # The SilvaEngine Gateway resolves these via importlib from routes.yaml:
 #   dispatch: "ai_agent_core_engine.main:dispatch_graphql"
@@ -431,7 +431,6 @@ def dispatch_ask_model(**params: Any) -> Any:
     ``insert_update_decorator`` raising "Cannot find the async_task"
     when it sees count==0 with a caller-provided async_task_uuid.
     """
-    import threading
     import pendulum
 
     engine = _build_engine_from_config()
@@ -445,15 +444,10 @@ def dispatch_ask_model(**params: Any) -> Any:
     if arguments and "run_uuid" not in arguments:
         arguments["run_uuid"] = str(uuid.uuid4())
 
-    # Pre-create async_task + run records synchronously before calling
-    # async_execute_ask_model.  The insert_update_decorator in the core
-    # engine checks count > 0 to decide insert vs update — if the record
-    # doesn't exist yet, it raises "Cannot find".  With the agent cache
-    # (Phase 2.1), _get_agent returns instantly on cached requests, so
-    # async_execute_ask_model reaches the decorator before a background
-    # thread could finish the save.  Doing it synchronously adds ~0.4s
-    # but is safe.  The agent cache already saves ~3s, so net improvement
-    # is still significant.
+    # Pre-create async_task and run records synchronously before calling
+    # async_execute_ask_model. The insert_update_decorator in the core engine
+    # checks count > 0 to decide insert vs update. Without an existing record,
+    # it raises "Cannot find" for caller-provided async_task_uuid values.
     if async_task_uuid and partition_key:
         run_uuid = arguments.get("run_uuid")
         updated_by = arguments.get("updated_by", "test-user")
@@ -472,10 +466,14 @@ def dispatch_ask_model(**params: Any) -> Any:
                 created_at=pendulum.now("UTC"),
                 updated_at=pendulum.now("UTC"),
             ).save()
-        except Exception:
-            pass
+        except Exception as exc:
+            engine.logger.warning(
+                "Unable to pre-create async task %s for gateway ask_model: %s",
+                async_task_uuid,
+                exc,
+            )
 
-        if run_uuid:
+        if run_uuid and thread_uuid:
             try:
                 from ai_agent_core_engine.models.run import RunModel
 
@@ -490,7 +488,11 @@ def dispatch_ask_model(**params: Any) -> Any:
                     created_at=pendulum.now("UTC"),
                     updated_at=pendulum.now("UTC"),
                 ).save()
-            except Exception:
-                pass
+            except Exception as exc:
+                engine.logger.warning(
+                    "Unable to pre-create run %s for gateway ask_model: %s",
+                    run_uuid,
+                    exc,
+                )
 
     return engine.async_execute_ask_model(**params)
