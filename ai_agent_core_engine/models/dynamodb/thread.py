@@ -263,8 +263,8 @@ def insert_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
             if key in kwargs:
                 cols[key] = kwargs[key]
 
-        cols["endpoint_id"] = info.context.get("endpoint_id")
-        cols["part_id"] = info.context.get("part_id")
+        cols["endpoint_id"] = kwargs.get("endpoint_id") or (info.context.get("endpoint_id") if info is not None else None)
+        cols["part_id"] = kwargs.get("part_id") or (info.context.get("part_id") if info is not None else None)
 
         ThreadModel(
             partition_key,

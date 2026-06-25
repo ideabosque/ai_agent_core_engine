@@ -267,8 +267,8 @@ def insert_update_wizard_group_filter(
             "created_at": pendulum.now("UTC"),
             "updated_at": pendulum.now("UTC"),
         }
-        cols["endpoint_id"] = info.context.get("endpoint_id")
-        cols["part_id"] = info.context.get("part_id")
+        cols["endpoint_id"] = kwargs.get("endpoint_id") or (info.context.get("endpoint_id") if info is not None else None)
+        cols["part_id"] = kwargs.get("part_id") or (info.context.get("part_id") if info is not None else None)
         WizardGroupFilterModel(
             partition_key,
             wizard_group_filter_uuid,

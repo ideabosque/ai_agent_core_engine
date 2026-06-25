@@ -125,7 +125,11 @@ class FineTuningMessageRepository(EntityRepository):
             rows = query.all()
 
             entity_list = [
-                FineTuningMessageType(**_normalize(row)) for row in rows if _normalize(row)
+                FineTuningMessageType(**{
+                    k: v for k, v in _normalize(row).items()
+                    if k != "partition_key"
+                })
+                for row in rows if _normalize(row)
             ]
             return FineTuningMessageListType(
                 fine_tuning_message_list=entity_list,
@@ -230,7 +234,9 @@ class FineTuningMessageRepository(EntityRepository):
         data = instance if isinstance(instance, dict) else _normalize(instance)
         if data is None:
             return None
-        return FineTuningMessageType(**data)
+        return FineTuningMessageType(**{
+            k: v for k, v in data.items() if k != "partition_key"
+        })
 
     def resolve_single(self, info: Any, **kwargs: Any) -> Any:
         data = self.get(**kwargs)

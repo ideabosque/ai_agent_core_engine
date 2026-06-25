@@ -65,7 +65,16 @@ class WizardGroupType(ObjectType):
             ]
 
             def build_wizards(wizard_dicts):
-                from ..models.dynamodb.wizard_schema import get_wizard_schema
+                from ..handlers.config import Config
+                if Config.DB_BACKEND == "postgresql":
+                    from ..models.repositories import get_repo as _get_repo
+                    def _get_schema(wst, wsn):
+                        _d = _get_repo("wizard_schema").get(wizard_schema_type=wst, wizard_schema_name=wsn)
+                        return _d if isinstance(_d, dict) else (_d.__dict__ if _d else None)
+                else:
+                    from ..models.dynamodb.wizard_schema import get_wizard_schema as _get_schema_raw
+                    def _get_schema(wst, wsn):
+                        return _get_schema_raw(wst, wsn)
                 wizards = []
                 def build_wizard_elements(wizard_dict):
                     wizard_elements = []
@@ -101,7 +110,7 @@ class WizardGroupType(ObjectType):
                         # ref = wizard_element_refs[i]
                         wizard_schema = None
                         if wizard_dict.get("wizard_schema_type") and wizard_dict.get("wizard_schema_name"):
-                            wizard_schema = get_wizard_schema(
+                            wizard_schema = _get_schema(
                                 wizard_dict.get("wizard_schema_type"),
                                 wizard_dict.get("wizard_schema_name"),
                             )

@@ -6,6 +6,7 @@ __author__ = "bibow"
 
 import functools
 import traceback
+import uuid
 import xml.dom.minidom
 import xml.etree.ElementTree as ET
 from typing import Any, Callable, Dict, List
@@ -125,18 +126,28 @@ def start_async_task(
     """
     try:
         # Create task record in database
+        # PG repos require an explicit async_task_uuid (composite PK);
+        # DynamoDB's insert_update_decorator auto-generates one when not provided.
+        from ...handlers.config import Config as _Config
+
+        _async_task_uuid = str(uuid.uuid4()) if _Config.DB_BACKEND == "postgresql" else None
+        _async_task_kwargs = {
+            "function_name": function_name,
+            "arguments": {k: v for k, v in arguments.items() if k != "updated_by"},
+            "updated_by": arguments["updated_by"],
+        }
+        if _async_task_uuid:
+            _async_task_kwargs["async_task_uuid"] = _async_task_uuid
         async_task = get_repo("async_task").insert_update(
-            info,
-            **{
-                "function_name": function_name,
-                "arguments": {k: v for k, v in arguments.items() if k != "updated_by"},
-                "updated_by": arguments["updated_by"],
-            },
+            info, **_async_task_kwargs
         )
+
+        # Support both dict (PG) and ObjectType (DynamoDB) return types
+        _async_task_dict = async_task if isinstance(async_task, dict) else async_task.__dict__
 
         # Prepare parameters for Lambda invocation
         params = {
-            "async_task_uuid": async_task.async_task_uuid,
+            "async_task_uuid": _async_task_dict.get("async_task_uuid"),
             "arguments": arguments,
         }
         required = [
@@ -178,7 +189,7 @@ def start_async_task(
             )
             pass
 
-        return async_task.async_task_uuid
+        return _async_task_dict.get("async_task_uuid")
     except Exception as e:
         raise e
 

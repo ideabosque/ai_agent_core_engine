@@ -72,6 +72,13 @@ def async_insert_update_tool_call(
         else None
     )
 
+    # PG repos require an explicit tool_call_uuid (composite PK);
+    # DynamoDB's insert_update_decorator auto-generates one when not provided.
+    if tool_call_uuid is None and Config.DB_BACKEND == "postgresql":
+        import uuid as _uuid
+
+        tool_call_uuid = str(_uuid.uuid4())
+
     # Insert/update tool call with filtered parameters
     tool_call_params = {
         "thread_uuid": kwargs.get("thread_uuid"),

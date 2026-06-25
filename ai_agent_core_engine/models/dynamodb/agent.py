@@ -509,8 +509,8 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
                             "enabled_tools"
                         ]
 
-        cols["endpoint_id"] = info.context.get("endpoint_id")  # Platform identifier
-        cols["part_id"] = info.context.get("part_id")  # Business partition
+        cols["endpoint_id"] = kwargs.get("endpoint_id") or (info.context.get("endpoint_id") if info is not None else None)  # Platform identifier
+        cols["part_id"] = kwargs.get("part_id") or (info.context.get("part_id") if info is not None else None)  # Business partition
 
         AgentModel(
             partition_key,

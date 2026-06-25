@@ -289,6 +289,8 @@ class PromptTemplateRepository(EntityRepository):
         return PromptTemplateType(**data)
 
     def resolve_single(self, info: Any, **kwargs: Any) -> Any:
+        if "partition_key" not in kwargs:
+            kwargs["partition_key"] = _get_partition_key(info)
         data = self.get(**kwargs)
         if data is None:
             return None

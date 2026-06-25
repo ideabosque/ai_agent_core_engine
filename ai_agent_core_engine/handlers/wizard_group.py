@@ -8,8 +8,6 @@ from typing import Any, Dict, List
 from graphene import ResolveInfo
 
 from ..models.repositories import get_repo
-from ..models.dynamodb.wizard import delete_wizard, get_wizard_count, insert_update_wizard
-from ..models.dynamodb.wizard_group import get_wizard_group, insert_update_wizard_group
 from ..types.wizard_group import WizardGroupType
 
 
@@ -32,20 +30,23 @@ def insert_update_wizard_group_with_wizards(
     wizard_uuids = insert_update_wizards(info, wizards, partition_key, updated_by)
     if wizard_group_uuid is not None:
         try:
-            wizard_group = get_wizard_group(partition_key, wizard_group_uuid)
-            wizard_group_wizard_uuids = wizard_group.wizard_uuids
+            _wg = get_repo("wizard_group").get(
+                partition_key=partition_key, wizard_group_uuid=wizard_group_uuid
+            )
+            _wg_dict = _wg if isinstance(_wg, dict) else _wg.__dict__
+            wizard_group_wizard_uuids = _wg_dict.get("wizard_uuids") or []
             delete_wizard_uuids = [
                 uuid for uuid in wizard_group_wizard_uuids if uuid not in wizard_uuids
             ]
             if len(delete_wizard_uuids) > 0:
                 for wizard_uuid in delete_wizard_uuids:
-                    delete_wizard(
+                    get_repo("wizard").delete(
                         info, **{"partition_key": partition_key, "wizard_uuid": wizard_uuid}
                     )
         except Exception as e:
             wizard_group_wizard_uuids = []
     wizard_group_data["wizard_uuids"] = wizard_uuids
-    return insert_update_wizard_group(info, **wizard_group_data)
+    return get_repo("wizard_group").insert_update(info, **wizard_group_data)
 
 
 def delete_wizard_from_wizard_group(
@@ -55,19 +56,24 @@ def delete_wizard_from_wizard_group(
     wizard_uuid = kwargs.get("wizard_uuid")
     wizard_group_uuid = kwargs.get("wizard_group_uuid")
     updated_by = kwargs.get("updated_by")
-    wizard_count = get_wizard_count(partition_key, wizard_uuid)
+    wizard_count = get_repo("wizard").count(
+        partition_key=partition_key, wizard_uuid=wizard_uuid
+    )
     if wizard_count == 0:
         raise Exception("Wizard is not exist")
 
-    wizard_group = get_wizard_group(partition_key, wizard_group_uuid)
-    wizard_group_wizard_uuids = wizard_group.wizard_uuids
-    if wizard_uuid not in wizard_group.wizard_uuids:
+    _wg = get_repo("wizard_group").get(
+        partition_key=partition_key, wizard_group_uuid=wizard_group_uuid
+    )
+    _wg_dict = _wg if isinstance(_wg, dict) else _wg.__dict__
+    wizard_group_wizard_uuids = _wg_dict.get("wizard_uuids") or []
+    if wizard_uuid not in wizard_group_wizard_uuids:
         raise Exception("Wizard is not in this wizard group")
 
     wizard_group_wizard_uuids = [
         uuid for uuid in wizard_group_wizard_uuids if uuid != wizard_uuid
     ]
-    wizard_group = insert_update_wizard_group(
+    get_repo("wizard_group").insert_update(
         info,
         **{
             "partition_key": partition_key,
@@ -76,7 +82,7 @@ def delete_wizard_from_wizard_group(
             "updated_by": updated_by,
         },
     )
-    return delete_wizard(
+    return get_repo("wizard").delete(
         info, **{"partition_key": partition_key, "wizard_uuid": wizard_uuid}
     )
 
@@ -108,8 +114,9 @@ def insert_update_wizards(
                 "priority": wizard.get("priority"),
                 "updated_by": updated_by,
             }
-            saved_wizard = insert_update_wizard(info, **wizard_data)
-            wizard_uuids.append(saved_wizard.wizard_uuid)
+            saved_wizard = get_repo("wizard").insert_update(info, **wizard_data)
+            _saved_wizard_dict = saved_wizard if isinstance(saved_wizard, dict) else saved_wizard.__dict__
+            wizard_uuids.append(_saved_wizard_dict.get("wizard_uuid"))
     return wizard_uuids
 
 
@@ -146,7 +153,8 @@ def insert_update_wizard_elements(
             }
             saved_element = get_repo("element").insert_update(info, **element_data)
             if element_uuid is None:
-                element_uuid = saved_element.element_uuid
+                _saved_el_dict = saved_element if isinstance(saved_element, dict) else saved_element.__dict__
+                element_uuid = _saved_el_dict.get("element_uuid")
 
         wizard_element_data["element_uuid"] = element_uuid
         wizard_element_list.append(wizard_element_data)

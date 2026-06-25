@@ -296,8 +296,8 @@ def insert_update_mcp_server(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any
             "created_at": pendulum.now("UTC"),
             "updated_at": pendulum.now("UTC"),
         }
-        cols["endpoint_id"] = info.context.get("endpoint_id")
-        cols["part_id"] = info.context.get("part_id")
+        cols["endpoint_id"] = kwargs.get("endpoint_id") or (info.context.get("endpoint_id") if info is not None else None)
+        cols["part_id"] = kwargs.get("part_id") or (info.context.get("part_id") if info is not None else None)
         MCPServerModel(
             partition_key,
             mcp_server_uuid,

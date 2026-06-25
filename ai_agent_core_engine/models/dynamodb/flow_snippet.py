@@ -415,8 +415,8 @@ def insert_update_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> A
                 else:
                     cols[key] = kwargs[key]
 
-        cols["endpoint_id"] = info.context.get("endpoint_id")
-        cols["part_id"] = info.context.get("part_id")
+        cols["endpoint_id"] = kwargs.get("endpoint_id") or (info.context.get("endpoint_id") if info is not None else None)
+        cols["part_id"] = kwargs.get("part_id") or (info.context.get("part_id") if info is not None else None)
 
         FlowSnippetModel(
             partition_key,

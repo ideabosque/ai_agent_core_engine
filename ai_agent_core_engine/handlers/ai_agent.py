@@ -66,21 +66,25 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
             raise ValueError("Not found any thread")
 
         # Create new run instance for this request
-        run = get_repo("run").insert_update(
-            info,
-            **{
-                "thread_uuid": thread.thread_uuid,
-                "updated_by": kwargs.get("updated_by"),
-            },
-        )
+        # PG repos require an explicit run_uuid (composite PK); DynamoDB's
+        # insert_update_decorator auto-generates one when not provided.
+        _run_uuid = str(uuid.uuid4()) if Config.DB_BACKEND == "postgresql" else None
+        _run_kwargs = {
+            "thread_uuid": thread.get("thread_uuid") if isinstance(thread, dict) else thread.thread_uuid,
+            "updated_by": kwargs.get("updated_by"),
+        }
+        if _run_uuid:
+            _run_kwargs["run_uuid"] = _run_uuid
+        run = get_repo("run").insert_update(info, **_run_kwargs)
 
         if not run:
             raise ValueError("Invalid run entity")
 
+        _run_dict = run if isinstance(run, dict) else run.__dict__
         # Prepare arguments for async processing
         arguments = {
-            "thread_uuid": thread.thread_uuid,
-            "run_uuid": run.run_uuid,
+            "thread_uuid": thread.get("thread_uuid") if isinstance(thread, dict) else thread.thread_uuid,
+            "run_uuid": _run_dict.get("run_uuid"),
             "agent_uuid": kwargs["agent_uuid"],
             "user_query": kwargs["user_query"],
             "stream": kwargs.get("stream", False),
@@ -99,13 +103,14 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
         )
 
         # Return response with all relevant IDs
+        _thread_uuid = thread.get("thread_uuid") if isinstance(thread, dict) else thread.thread_uuid
         return AskModelType(
             agent_uuid=kwargs["agent_uuid"],
-            thread_uuid=thread.thread_uuid,
+            thread_uuid=_thread_uuid,
             user_query=kwargs["user_query"],
             function_name=function_name,
             async_task_uuid=async_task_uuid,
-            current_run_uuid=run.run_uuid,
+            current_run_uuid=_run_dict.get("run_uuid"),
         )
     except Exception as e:
         log = traceback.format_exc()
@@ -150,14 +155,17 @@ def _get_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType | Non
                 latest_thread = max(thread_list.thread_list, key=lambda t: t.created_at)
                 return latest_thread
 
-        thread = get_repo("thread").insert_update(
-            info,
-            **{
-                "agent_uuid": kwargs["agent_uuid"],
-                "user_id": kwargs.get("user_id"),
-                "updated_by": kwargs["updated_by"],
-            },
-        )
+        # PG repos require an explicit thread_uuid (composite PK); DynamoDB's
+        # insert_update_decorator auto-generates one when not provided.
+        _thread_uuid = str(uuid.uuid4()) if Config.DB_BACKEND == "postgresql" else None
+        _thread_kwargs = {
+            "agent_uuid": kwargs["agent_uuid"],
+            "user_id": kwargs.get("user_id"),
+            "updated_by": kwargs["updated_by"],
+        }
+        if _thread_uuid:
+            _thread_kwargs["thread_uuid"] = _thread_uuid
+        thread = get_repo("thread").insert_update(info, **_thread_kwargs)
         return thread
     except Exception as e:
         log = traceback.format_exc()

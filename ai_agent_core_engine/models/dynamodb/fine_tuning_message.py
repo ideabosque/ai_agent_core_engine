@@ -266,7 +266,7 @@ def insert_update_fine_tuning_message(
         cols = {
             "thread_uuid": kwargs["thread_uuid"],
             "timestamp": int(time.time()),
-            "endpoint_id": info.context["endpoint_id"],
+            "endpoint_id": kwargs.get("endpoint_id") or (info.context["endpoint_id"] if info is not None else None),
             "role": kwargs["role"],
             "updated_by": kwargs["updated_by"],
             "updated_at": pendulum.now("UTC"),

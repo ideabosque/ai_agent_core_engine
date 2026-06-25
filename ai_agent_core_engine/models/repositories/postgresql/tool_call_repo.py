@@ -133,7 +133,11 @@ class ToolCallRepository(EntityRepository):
 
             return ToolCallListType(
                 tool_call_list=[
-                    ToolCallType(**_normalize(r)) for r in rows if _normalize(r)
+                    ToolCallType(**{
+                        k: v for k, v in _normalize(r).items()
+                        if k != "partition_key"
+                    })
+                    for r in rows if _normalize(r)
                 ],
                 total=total,
                 page_size=limit,
@@ -274,7 +278,9 @@ class ToolCallRepository(EntityRepository):
         data = instance if isinstance(instance, dict) else _normalize(instance)
         if data is None:
             return None
-        return ToolCallType(**data)
+        return ToolCallType(**{
+            k: v for k, v in data.items() if k != "partition_key"
+        })
 
     def resolve_single(self, info: Any, **kwargs: Any) -> Any:
         data = self.get(**kwargs)
