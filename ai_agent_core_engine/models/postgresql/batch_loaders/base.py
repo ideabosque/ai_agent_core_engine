@@ -66,6 +66,11 @@ class SafeDataLoader:
 
         return promise
 
+    def load_many(self, keys: List[Any]) -> Promise:
+        """Load multiple keys and return a Promise that resolves to a list."""
+        promises = [self.load(key) for key in keys]
+        return Promise.all(promises)
+
     def _dispatch_batch(self) -> None:
         """Execute the batch load for all queued keys."""
         self._scheduled = False

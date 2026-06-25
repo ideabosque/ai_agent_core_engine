@@ -231,6 +231,12 @@ class AIAgentCoreEngine(Graphql):
         # by Config.initialize() based on the db_backend setting.
         Config.initialize(logger, setting)
 
+        # Pre-warm agent cache in a background thread to avoid ~3s MCP
+        # tool-loading latency on the first WebSocket request.
+        # Supports PREWARM_AGENT_UUIDS env var (comma-separated); if not set,
+        # all active agents for the endpoint_id/part_id are auto-discovered.
+        self._prewarm_agent_cache(logger, setting)
+
     def ai_agent_build_graphql_query(self, **params: Dict[str, Any]):
         """
         Build a GraphQL query based on the provided parameters.
@@ -302,6 +308,64 @@ class AIAgentCoreEngine(Graphql):
                 )
             else:
                 params["context"]["partition_key"] = f"{endpoint_id}#{part_id}"
+
+    def _prewarm_agent_cache(
+        self, logger: logging.Logger, setting: Dict[str, Any]
+    ) -> None:
+        """Pre-warm _get_agent cache in a background daemon thread.
+
+        Loads agent config + LLM config + MCP tools for each agent so the
+        first WebSocket request doesn't pay ~3s cold-start latency.
+        """
+        import os as _os
+        import threading as _threading
+
+        def _prewarm():
+            try:
+                from .handlers.ai_agent import _get_agent
+                from .utils.listener import create_listener_info
+                from .models.repositories import get_repo
+
+                _endpoint = setting.get("endpoint_id", "")
+                _part = setting.get("part_id", "")
+                _partition_key = f"{_endpoint}#{_part}" if _endpoint and _part else ""
+                if not _partition_key:
+                    logger.debug("Pre-warm skipped: no endpoint_id/part_id in setting.")
+                    return
+
+                _info = create_listener_info(
+                    logger, "ask_model", setting,
+                    endpoint_id=_endpoint, part_id=_part,
+                    partition_key=_partition_key,
+                )
+
+                # Build the list of agent UUIDs to pre-warm.
+                # 1. Explicit list via PREWARM_AGENT_UUIDS env var (comma-separated)
+                # 2. If not set, discover all active agents for this partition
+                _explicit = _os.environ.get("PREWARM_AGENT_UUIDS", "").strip()
+                _agent_uuids = []
+                if _explicit:
+                    _agent_uuids = [u.strip() for u in _explicit.split(",") if u.strip()]
+
+                if not _agent_uuids:
+                    _agent_list = get_repo("agent").list(_info, limit=100, page_number=1)
+                    _agent_uuids = [a.agent_uuid for a in _agent_list.agent_list]
+
+                if not _agent_uuids:
+                    logger.info("No agents found to pre-warm.")
+                    return
+
+                logger.info(f"Pre-warming {len(_agent_uuids)} agent(s): {_agent_uuids}")
+                for _uuid in _agent_uuids:
+                    try:
+                        _get_agent(_info, _uuid)
+                        logger.info(f"Pre-warmed agent cache for {_uuid}")
+                    except Exception as e:
+                        logger.warning(f"Pre-warm failed for agent {_uuid}: {e}")
+            except Exception as e:
+                logger.debug(f"Agent cache pre-warm skipped: {e}")
+
+        _threading.Thread(target=_prewarm, daemon=True).start()
 
     def async_execute_ask_model(self, **params: Dict[str, Any]) -> Any:
         """
@@ -465,10 +529,11 @@ def dispatch_ask_model(**params: Any) -> Any:
     if arguments and "run_uuid" not in arguments:
         arguments["run_uuid"] = str(uuid.uuid4())
 
-    # Pre-create async_task and run records synchronously before calling
+    # Pre-create async_task and run records in parallel before calling
     # async_execute_ask_model. The insert_update_decorator in the core engine
     # checks count > 0 to decide insert vs update. Without an existing record,
     # it raises "Cannot find" for caller-provided async_task_uuid values.
+    _precreated = False
     if async_task_uuid and partition_key:
         run_uuid = arguments.get("run_uuid")
         updated_by = arguments.get("updated_by", "test-user")
@@ -477,48 +542,46 @@ def dispatch_ask_model(**params: Any) -> Any:
         # Set RLS context for PG mode
         _set_rls_context(partition_key)
 
-        # Pre-create async_task record. The DynamoDB insert_update_decorator
-        # raises "Cannot find" when the record doesn't exist yet (count=0) and
-        # a caller-provided key is supplied. For DynamoDB, bypass the decorator
-        # by saving the model directly. For PG, the repo handles insert-or-update
-        # without requiring a pre-existing record.
         from ai_agent_core_engine.handlers.config import Config
 
-        try:
-            if Config.DB_BACKEND == "postgresql":
-                from ai_agent_core_engine.models.repositories import get_repo
+        def _precreate_async_task():
+            try:
+                if Config.DB_BACKEND == "postgresql":
+                    from ai_agent_core_engine.models.repositories import get_repo
 
-                get_repo("async_task").insert_update(
-                    None,
-                    function_name="async_execute_ask_model",
-                    async_task_uuid=async_task_uuid,
-                    partition_key=partition_key,
-                    output_files=[],
-                    status="in_progress",
-                    updated_by=updated_by,
-                )
-            else:
-                import pendulum as _pendulum
-                from ai_agent_core_engine.models.dynamodb.async_task import AsyncTaskModel
+                    get_repo("async_task").insert_update(
+                        None,
+                        function_name="async_execute_ask_model",
+                        async_task_uuid=async_task_uuid,
+                        partition_key=partition_key,
+                        output_files=[],
+                        status="in_progress",
+                        updated_by=updated_by,
+                    )
+                else:
+                    import pendulum as _pendulum
+                    from ai_agent_core_engine.models.dynamodb.async_task import AsyncTaskModel
 
-                AsyncTaskModel(
-                    "async_execute_ask_model",
+                    AsyncTaskModel(
+                        "async_execute_ask_model",
+                        async_task_uuid,
+                        partition_key=partition_key,
+                        output_files=[],
+                        status="in_progress",
+                        updated_by=updated_by,
+                        created_at=_pendulum.now("UTC"),
+                        updated_at=_pendulum.now("UTC"),
+                    ).save()
+            except Exception as exc:
+                engine.logger.warning(
+                    "Unable to pre-create async task %s for gateway ask_model: %s",
                     async_task_uuid,
-                    partition_key=partition_key,
-                    output_files=[],
-                    status="in_progress",
-                    updated_by=updated_by,
-                    created_at=_pendulum.now("UTC"),
-                    updated_at=_pendulum.now("UTC"),
-                ).save()
-        except Exception as exc:
-            engine.logger.warning(
-                "Unable to pre-create async task %s for gateway ask_model: %s",
-                async_task_uuid,
-                exc,
-            )
+                    exc,
+                )
 
-        if run_uuid and thread_uuid:
+        def _precreate_run():
+            if not (run_uuid and thread_uuid):
+                return
             try:
                 if Config.DB_BACKEND == "postgresql":
                     from ai_agent_core_engine.models.repositories import get_repo
@@ -554,11 +617,21 @@ def dispatch_ask_model(**params: Any) -> Any:
                     run_uuid,
                     exc,
                 )
+
+        # Parallelize the two pre-creation writes
+        from concurrent.futures import ThreadPoolExecutor as _TPE
+
+        with _TPE(max_workers=2) as _pool:
+            _pool.submit(_precreate_async_task).result()
+            _pool.submit(_precreate_run).result()
+        _precreated = True
     else:
         if partition_key:
             _set_rls_context(partition_key)
 
     try:
+        if _precreated:
+            params["_skip_init_write"] = True
         return engine.async_execute_ask_model(**params)
     finally:
         _clear_rls_context()

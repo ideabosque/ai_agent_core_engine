@@ -44,6 +44,13 @@ from ..models.repositories import get_repo
 from ..types.agent import AgentType
 
 
+import time as _time
+
+# Handler instance cache — reuse httpx.Client connection pool across requests
+_handler_cache: Dict[tuple, tuple] = {}
+_HANDLER_CACHE_TTL = 300  # 5 minutes
+
+
 def get_ai_agent_handler(info: ResolveInfo, agent: AgentType):
     llm_config = getattr(agent, "llm", None)
 
@@ -54,6 +61,22 @@ def get_ai_agent_handler(info: ResolveInfo, agent: AgentType):
 
     if not all(llm_config.get(field) for field in required_fields):
         raise RuntimeError("LLM requires both module_name and class_name")
+
+    # Cache handler instance per (endpoint, part_id, agent_uuid) to reuse
+    # the httpx.Client connection pool and avoid re-importing the module
+    # on every request (~50-100ms savings + TLS reuse).
+    _agent_uuid = getattr(agent, "agent_uuid", None)
+    cache_key = (
+        info.context.get("endpoint_id", ""),
+        info.context.get("part_id", ""),
+        _agent_uuid,
+    )
+    cached = _handler_cache.get(cache_key)
+    if cached and (_time.time() - cached[1] < _HANDLER_CACHE_TTL):
+        handler = cached[0]
+        # Refresh per-request context on the cached handler
+        handler.context = info.context
+        return handler
 
     # Dynamically load and initialize AI agent handler
     ai_agent_handler = Invoker.resolve_proxied_callable(
@@ -71,6 +94,7 @@ def get_ai_agent_handler(info: ResolveInfo, agent: AgentType):
             f"Can't import module `{agent.llm.get('module_name')}` or not class `{agent.llm.get('class_name')}`"
         )
 
+    _handler_cache[cache_key] = (ai_agent_handler, _time.time())
     return ai_agent_handler
 
 
@@ -241,26 +265,32 @@ def combine_thread_messages(
     # Only retrieve messages and tool calls from the past 24 hours
     updated_at_gt = pendulum.now("UTC").subtract(hours=24)
 
-    # Get message list for thread
-    message_list = get_repo("message").list(
-        info,
-        **{
-            "thread_uuid": thread_uuid,
-            "pageNumber": 1,
-            "limit": 100,
-            "updated_at_gt": updated_at_gt,
-        },
-    )
-    # Get tool call list for thread
-    tool_call_list = get_repo("tool_call").list(
-        info,
-        **{
-            "thread_uuid": thread_uuid,
-            "pageNumber": 1,
-            "limit": 100,
-            "updated_at_gt": updated_at_gt,
-        },
-    )
+    # Parallelize message_list and tool_call_list queries (independent)
+    from concurrent.futures import ThreadPoolExecutor
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        msg_future = pool.submit(
+            get_repo("message").list,
+            info,
+            **{
+                "thread_uuid": thread_uuid,
+                "pageNumber": 1,
+                "limit": 100,
+                "updated_at_gt": updated_at_gt,
+            },
+        )
+        tc_future = pool.submit(
+            get_repo("tool_call").list,
+            info,
+            **{
+                "thread_uuid": thread_uuid,
+                "pageNumber": 1,
+                "limit": 100,
+                "updated_at_gt": updated_at_gt,
+            },
+        )
+        message_list = msg_future.result()
+        tool_call_list = tc_future.result()
 
     # Return empty list if no messages or no tool_call found
     if message_list.total == 0 and tool_call_list.total == 0:
@@ -757,6 +787,9 @@ def async_task_handler(function_name: str) -> Callable:
         def wrapper(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
             async_task_uuid = kwargs.get("async_task_uuid")
             arguments = kwargs.get("arguments", {})
+            # When the gateway pre-created the async_task, skip the redundant
+            # "in_progress" write to save a DB round-trip (~100-200ms).
+            _skip_init_write = kwargs.pop("_skip_init_write", False)
 
             if not async_task_uuid or not arguments:
                 raise Exception(
@@ -764,14 +797,15 @@ def async_task_handler(function_name: str) -> Callable:
                 )
 
             try:
-                # Initialize async task as in_progress
-                get_repo("async_task").insert_update(
-                    info,
-                    **{
-                        "function_name": function_name,
-                        "async_task_uuid": async_task_uuid,
-                        "status": "in_progress",
-                        "updated_by": arguments["updated_by"],
+                # Initialize async task as in_progress (skip if pre-created)
+                if not _skip_init_write:
+                    get_repo("async_task").insert_update(
+                        info,
+                        **{
+                            "function_name": function_name,
+                            "async_task_uuid": async_task_uuid,
+                            "status": "in_progress",
+                            "updated_by": arguments["updated_by"],
                     },
                 )
 

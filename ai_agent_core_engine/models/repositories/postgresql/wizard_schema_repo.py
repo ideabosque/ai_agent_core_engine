@@ -58,7 +58,7 @@ class WizardSchemaRepository(EntityRepository):
             session.rollback()
             raise
         finally:
-            pass  # session lifecycle managed by scoped_session
+            Config.db_session.remove()  # session lifecycle managed by scoped_session
 
     def count(self, **keys: Any) -> int:
         wizard_schema_type = keys.get("wizard_schema_type")
@@ -81,7 +81,7 @@ class WizardSchemaRepository(EntityRepository):
             session.rollback()
             raise
         finally:
-            pass  # session lifecycle managed by scoped_session
+            Config.db_session.remove()  # session lifecycle managed by scoped_session
 
     def list(self, info: Any, **filters: Any) -> Any:
         from ....handlers.config import Config
@@ -124,7 +124,7 @@ class WizardSchemaRepository(EntityRepository):
             session.rollback()
             raise
         finally:
-            pass  # session lifecycle managed by scoped_session
+            Config.db_session.remove()  # session lifecycle managed by scoped_session
 
     def insert_update(self, info: Any, **kwargs: Any) -> Optional[Dict[str, Any]]:
         from ....handlers.config import Config
@@ -174,7 +174,7 @@ class WizardSchemaRepository(EntityRepository):
             session.rollback()
             raise
         finally:
-            pass  # session lifecycle managed by scoped_session
+            Config.db_session.remove()  # session lifecycle managed by scoped_session
 
     def delete(self, info: Any, **kwargs: Any) -> bool:
         from ....handlers.config import Config
@@ -209,7 +209,7 @@ class WizardSchemaRepository(EntityRepository):
             session.rollback()
             raise
         finally:
-            pass  # session lifecycle managed by scoped_session
+            Config.db_session.remove()  # session lifecycle managed by scoped_session
 
     def get_type(self, info: Any, instance: Any) -> Any:
         from ....types.wizard_schema import WizardSchemaType

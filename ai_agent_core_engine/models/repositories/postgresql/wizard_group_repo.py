@@ -61,7 +61,7 @@ class WizardGroupRepository(EntityRepository):
             session.rollback()
             raise
         finally:
-            pass  # session lifecycle managed by scoped_session
+            Config.db_session.remove()  # session lifecycle managed by scoped_session
 
     def count(self, **keys: Any) -> int:
         partition_key = keys.get("partition_key")
@@ -84,7 +84,7 @@ class WizardGroupRepository(EntityRepository):
             session.rollback()
             raise
         finally:
-            pass  # session lifecycle managed by scoped_session
+            Config.db_session.remove()  # session lifecycle managed by scoped_session
 
     def list(self, info: Any, **filters: Any) -> Any:
         from ....handlers.config import Config
@@ -127,7 +127,7 @@ class WizardGroupRepository(EntityRepository):
             session.rollback()
             raise
         finally:
-            pass  # session lifecycle managed by scoped_session
+            Config.db_session.remove()  # session lifecycle managed by scoped_session
 
     def insert_update(self, info: Any, **kwargs: Any) -> Optional[Dict[str, Any]]:
         from ....handlers.config import Config
@@ -177,7 +177,7 @@ class WizardGroupRepository(EntityRepository):
             session.rollback()
             raise
         finally:
-            pass  # session lifecycle managed by scoped_session
+            Config.db_session.remove()  # session lifecycle managed by scoped_session
 
     def delete(self, info: Any, **kwargs: Any) -> bool:
         from ....handlers.config import Config
@@ -212,7 +212,7 @@ class WizardGroupRepository(EntityRepository):
             session.rollback()
             raise
         finally:
-            pass  # session lifecycle managed by scoped_session
+            Config.db_session.remove()  # session lifecycle managed by scoped_session
 
     def get_type(self, info: Any, instance: Any) -> Any:
         from ....types.wizard_group import WizardGroupType

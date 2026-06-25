@@ -66,7 +66,7 @@ class ToolCallRepository(EntityRepository):
             session.rollback()
             raise
         finally:
-            pass  # session lifecycle managed by scoped_session
+            Config.db_session.remove()  # session lifecycle managed by scoped_session
 
     def count(self, **keys: Any) -> int:
         thread_uuid = keys.get("thread_uuid")
@@ -89,7 +89,7 @@ class ToolCallRepository(EntityRepository):
             session.rollback()
             raise
         finally:
-            pass  # session lifecycle managed by scoped_session
+            Config.db_session.remove()  # session lifecycle managed by scoped_session
 
     def list(self, info: Any, **filters: Any) -> Any:
         from ....handlers.config import Config
@@ -147,7 +147,7 @@ class ToolCallRepository(EntityRepository):
             session.rollback()
             raise
         finally:
-            pass  # session lifecycle managed by scoped_session
+            Config.db_session.remove()  # session lifecycle managed by scoped_session
 
     def get_tool_calls_by_run(self, run_uuid: str) -> List[Dict[str, Any]]:
         """Return all tool calls for a given run_uuid."""
@@ -166,7 +166,7 @@ class ToolCallRepository(EntityRepository):
             session.rollback()
             raise
         finally:
-            pass  # session lifecycle managed by scoped_session
+            Config.db_session.remove()  # session lifecycle managed by scoped_session
 
     def get_tool_calls_by_thread(self, thread_uuid: str) -> List[Dict[str, Any]]:
         """Return all tool calls for a given thread_uuid."""
@@ -185,7 +185,7 @@ class ToolCallRepository(EntityRepository):
             session.rollback()
             raise
         finally:
-            pass  # session lifecycle managed by scoped_session
+            Config.db_session.remove()  # session lifecycle managed by scoped_session
 
     def insert_update(self, info: Any, **kwargs: Any) -> Optional[Dict[str, Any]]:
         from ....handlers.config import Config
@@ -236,7 +236,7 @@ class ToolCallRepository(EntityRepository):
             session.rollback()
             raise
         finally:
-            pass  # session lifecycle managed by scoped_session
+            Config.db_session.remove()  # session lifecycle managed by scoped_session
 
     def delete(self, info: Any, **kwargs: Any) -> bool:
         from ....handlers.config import Config
@@ -270,7 +270,7 @@ class ToolCallRepository(EntityRepository):
             session.rollback()
             raise
         finally:
-            pass  # session lifecycle managed by scoped_session
+            Config.db_session.remove()  # session lifecycle managed by scoped_session
 
     def get_type(self, info: Any, instance: Any) -> Any:
         from ....types.tool_call import ToolCallType

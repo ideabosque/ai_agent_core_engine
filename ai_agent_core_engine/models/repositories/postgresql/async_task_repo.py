@@ -62,7 +62,7 @@ class AsyncTaskRepository(EntityRepository):
             session.rollback()
             raise
         finally:
-            pass  # session lifecycle managed by scoped_session
+            Config.db_session.remove()  # session lifecycle managed by scoped_session
 
     def count(self, **keys: Any) -> int:
         function_name = keys.get("function_name")
@@ -85,7 +85,7 @@ class AsyncTaskRepository(EntityRepository):
             session.rollback()
             raise
         finally:
-            pass  # session lifecycle managed by scoped_session
+            Config.db_session.remove()  # session lifecycle managed by scoped_session
 
     def list(self, info: Any, **filters: Any) -> Any:
         from ....handlers.config import Config
@@ -122,7 +122,7 @@ class AsyncTaskRepository(EntityRepository):
             session.rollback()
             raise
         finally:
-            pass  # session lifecycle managed by scoped_session
+            Config.db_session.remove()  # session lifecycle managed by scoped_session
 
     def insert_update(self, info: Any, **kwargs: Any) -> Optional[Dict[str, Any]]:
         from ....handlers.config import Config
@@ -172,7 +172,7 @@ class AsyncTaskRepository(EntityRepository):
             session.rollback()
             raise
         finally:
-            pass  # session lifecycle managed by scoped_session
+            Config.db_session.remove()  # session lifecycle managed by scoped_session
 
     def delete(self, info: Any, **kwargs: Any) -> bool:
         from ....handlers.config import Config
@@ -207,7 +207,7 @@ class AsyncTaskRepository(EntityRepository):
             session.rollback()
             raise
         finally:
-            pass  # session lifecycle managed by scoped_session
+            Config.db_session.remove()  # session lifecycle managed by scoped_session
 
     def get_type(self, info: Any, instance: Any) -> Any:
         from ....types.async_task import AsyncTaskType

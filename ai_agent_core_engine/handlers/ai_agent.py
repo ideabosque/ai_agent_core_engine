@@ -300,14 +300,11 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> tuple:
     # them in parallel saves ~0.4s on the critical path.
     from concurrent.futures import ThreadPoolExecutor
 
-    # Calculate token count first (CPU-bound, needed for run record)
-    prompt_tokens = calculate_num_tokens(
-        agent,
-        "\n".join(
-            [msg["content"] for msg in input_messages if "content" in msg]
-        ),
-        include_instructions=True,
-    )
+    # Defer token counting — it's only needed for the run record which is
+    # updated AFTER streaming completes.  For Gemini/Claude this avoids a
+    # synchronous network API call (~200-500ms) on the critical path.
+    # Use 0 as placeholder; the actual value comes from the LLM usage response.
+    prompt_tokens = 0
 
     # PG repos require an explicit message_uuid (composite PK); DynamoDB's
     # insert_update_decorator auto-generates one when not provided and raises
@@ -423,15 +420,28 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> tuple:
     )
 
     # Update run with completion details
+    # Use LLM usage response if available (avoids another network call for token counting)
+    _completion_tokens = 0
+    _prompt_tokens = 0
+    _last_usage = getattr(ai_agent_handler, "_last_usage", None)
+    if _last_usage:
+        _completion_tokens = getattr(_last_usage, "completion_tokens", 0) or 0
+        _prompt_tokens = getattr(_last_usage, "prompt_tokens", 0) or 0
+    if _completion_tokens == 0:
+        _completion_tokens = calculate_num_tokens(
+            agent, ai_agent_handler.final_output["content"]
+        )
+    if _prompt_tokens == 0:
+        _prompt_tokens = prompt_tokens
+
     run = get_repo("run").insert_update(
         info,
         **{
             "thread_uuid": arguments["thread_uuid"],
             "run_uuid": arguments["run_uuid"],
             "run_id": run_id,
-            "completion_tokens": calculate_num_tokens(
-                agent, ai_agent_handler.final_output["content"]
-            ),
+            "prompt_tokens": _prompt_tokens,
+            "completion_tokens": _completion_tokens,
             "updated_by": arguments["updated_by"],
         },
     )
