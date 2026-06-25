@@ -218,7 +218,9 @@ def insert_update_async_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any
 
     if kwargs.get("entity") is None:
         cols = {
-            "partition_key": info.context["partition_key"],
+            "partition_key": kwargs.get("partition_key") or (
+                info.context["partition_key"] if info is not None else None
+            ),
             "output_files": [],
             "updated_by": kwargs["updated_by"],
             "created_at": pendulum.now("UTC"),

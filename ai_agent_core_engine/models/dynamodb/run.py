@@ -220,7 +220,9 @@ def resolve_run_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
 def insert_update_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     thread_uuid = kwargs.get("thread_uuid")
     run_uuid = kwargs.get("run_uuid")
-    partition_key = info.context.get("partition_key")
+    partition_key = kwargs.get("partition_key") or (
+        info.context.get("partition_key") if info is not None else None
+    )
 
     if not all([thread_uuid, run_uuid, partition_key]):
         raise ValueError(

@@ -477,18 +477,40 @@ def dispatch_ask_model(**params: Any) -> Any:
         # Set RLS context for PG mode
         _set_rls_context(partition_key)
 
-        try:
-            from ai_agent_core_engine.models.repositories import get_repo
+        # Pre-create async_task record. The DynamoDB insert_update_decorator
+        # raises "Cannot find" when the record doesn't exist yet (count=0) and
+        # a caller-provided key is supplied. For DynamoDB, bypass the decorator
+        # by saving the model directly. For PG, the repo handles insert-or-update
+        # without requiring a pre-existing record.
+        from ai_agent_core_engine.handlers.config import Config
 
-            get_repo("async_task").insert_update(
-                None,
-                function_name="async_execute_ask_model",
-                async_task_uuid=async_task_uuid,
-                partition_key=partition_key,
-                output_files=[],
-                status="in_progress",
-                updated_by=updated_by,
-            )
+        try:
+            if Config.DB_BACKEND == "postgresql":
+                from ai_agent_core_engine.models.repositories import get_repo
+
+                get_repo("async_task").insert_update(
+                    None,
+                    function_name="async_execute_ask_model",
+                    async_task_uuid=async_task_uuid,
+                    partition_key=partition_key,
+                    output_files=[],
+                    status="in_progress",
+                    updated_by=updated_by,
+                )
+            else:
+                import pendulum as _pendulum
+                from ai_agent_core_engine.models.dynamodb.async_task import AsyncTaskModel
+
+                AsyncTaskModel(
+                    "async_execute_ask_model",
+                    async_task_uuid,
+                    partition_key=partition_key,
+                    output_files=[],
+                    status="in_progress",
+                    updated_by=updated_by,
+                    created_at=_pendulum.now("UTC"),
+                    updated_at=_pendulum.now("UTC"),
+                ).save()
         except Exception as exc:
             engine.logger.warning(
                 "Unable to pre-create async task %s for gateway ask_model: %s",
@@ -498,18 +520,34 @@ def dispatch_ask_model(**params: Any) -> Any:
 
         if run_uuid and thread_uuid:
             try:
-                from ai_agent_core_engine.models.repositories import get_repo
+                if Config.DB_BACKEND == "postgresql":
+                    from ai_agent_core_engine.models.repositories import get_repo
 
-                get_repo("run").insert_update(
-                    None,
-                    thread_uuid=thread_uuid,
-                    run_uuid=run_uuid,
-                    partition_key=partition_key,
-                    prompt_tokens=0,
-                    completion_tokens=0,
-                    total_tokens=0,
-                    updated_by=updated_by,
-                )
+                    get_repo("run").insert_update(
+                        None,
+                        thread_uuid=thread_uuid,
+                        run_uuid=run_uuid,
+                        partition_key=partition_key,
+                        prompt_tokens=0,
+                        completion_tokens=0,
+                        total_tokens=0,
+                        updated_by=updated_by,
+                    )
+                else:
+                    import pendulum as _pendulum
+                    from ai_agent_core_engine.models.dynamodb.run import RunModel
+
+                    RunModel(
+                        thread_uuid,
+                        run_uuid,
+                        partition_key=partition_key,
+                        prompt_tokens=0,
+                        completion_tokens=0,
+                        total_tokens=0,
+                        updated_by=updated_by,
+                        created_at=_pendulum.now("UTC"),
+                        updated_at=_pendulum.now("UTC"),
+                    ).save()
             except Exception as exc:
                 engine.logger.warning(
                     "Unable to pre-create run %s for gateway ask_model: %s",

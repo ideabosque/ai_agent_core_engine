@@ -301,14 +301,22 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> tuple:
         include_instructions=True,
     )
 
+    # PG repos require an explicit message_uuid (composite PK); DynamoDB's
+    # insert_update_decorator auto-generates one when not provided and raises
+    # "Cannot find" if a caller-specified uuid doesn't exist yet.
+    from ..handlers.config import Config
+
+    _msg_uuid_user = str(uuid.uuid4()) if Config.DB_BACKEND == "postgresql" else None
+
     msg_kwargs = {
         "thread_uuid": arguments["thread_uuid"],
-        "message_uuid": str(uuid.uuid4()),
         "run_uuid": arguments["run_uuid"],
         "role": "user",
         "message": arguments["user_query"],
         "updated_by": arguments["updated_by"],
     }
+    if _msg_uuid_user:
+        msg_kwargs["message_uuid"] = _msg_uuid_user
     run_kwargs = {
         "thread_uuid": arguments["thread_uuid"],
         "run_uuid": arguments["run_uuid"],
@@ -384,17 +392,20 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> tuple:
         )
 
     # Record AI assistant response
+    _msg_uuid_assistant = str(uuid.uuid4()) if Config.DB_BACKEND == "postgresql" else None
+    _assistant_kwargs = {
+        "thread_uuid": arguments["thread_uuid"],
+        "run_uuid": arguments["run_uuid"],
+        "message_id": ai_agent_handler.final_output["message_id"],
+        "role": ai_agent_handler.final_output["role"],
+        "message": ai_agent_handler.final_output["content"],
+        "updated_by": arguments["updated_by"],
+    }
+    if _msg_uuid_assistant:
+        _assistant_kwargs["message_uuid"] = _msg_uuid_assistant
     assistant_message = get_repo("message").insert_update(
         info,
-        **{
-            "thread_uuid": arguments["thread_uuid"],
-            "message_uuid": str(uuid.uuid4()),
-            "run_uuid": arguments["run_uuid"],
-            "message_id": ai_agent_handler.final_output["message_id"],
-            "role": ai_agent_handler.final_output["role"],
-            "message": ai_agent_handler.final_output["content"],
-            "updated_by": arguments["updated_by"],
-        },
+        **_assistant_kwargs,
     )
     _assistant_msg = assistant_message if isinstance(assistant_message, dict) else assistant_message.__dict__
     info.context["logger"].info(
