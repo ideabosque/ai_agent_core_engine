@@ -39,7 +39,7 @@ class WizardGroupType(ObjectType):
         2. Otherwise, use wizard_uuids to load wizards via DataLoader
         """
         """Resolve nested Run for this tool call using DataLoader."""
-        from ..models.batch_loaders import get_loaders
+        from ..models.repositories import get_loaders
 
         # Case 1: Already embedded (backward compatibility)
         existing = getattr(parent, "wizards", None)
@@ -65,7 +65,7 @@ class WizardGroupType(ObjectType):
             ]
 
             def build_wizards(wizard_dicts):
-                from ..models.wizard_schema import get_wizard_schema
+                from ..models.dynamodb.wizard_schema import get_wizard_schema
                 wizards = []
                 def build_wizard_elements(wizard_dict):
                     wizard_elements = []
@@ -148,7 +148,7 @@ class WizardGroupType(ObjectType):
         2. Otherwise, use wizard_uuids to load wizards via DataLoader
         """
         """Resolve nested Run for this tool call using DataLoader."""
-        from ..models.batch_loaders import get_loaders
+        from ..models.repositories import get_loaders
 
         # Case 1: Already embedded (backward compatibility)
         existing = getattr(parent, "wizards", None)

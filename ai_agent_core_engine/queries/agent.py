@@ -12,12 +12,12 @@ from silvaengine_utility import method_cache
 
 from ..handlers.config import Config
 
-from ..models import agent
+from ..models.repositories import get_repo
 from ..types.agent import AgentListType, AgentType
 
 
 def resolve_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AgentType | None:
-    return agent.resolve_agent(info, **kwargs)
+    return get_repo("agent").resolve_single(info, **kwargs)
 
 
 @method_cache(
@@ -28,4 +28,4 @@ def resolve_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AgentType | No
 def resolve_agent_list(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> AgentListType | None:
-    return agent.resolve_agent_list(info, **kwargs)
+    return get_repo("agent").list(info, **kwargs)

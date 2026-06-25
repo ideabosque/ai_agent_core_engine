@@ -7,9 +7,9 @@ from typing import Any, Dict, List
 
 from graphene import ResolveInfo
 
-from ..models.element import insert_update_element
-from ..models.wizard import delete_wizard, get_wizard_count, insert_update_wizard
-from ..models.wizard_group import get_wizard_group, insert_update_wizard_group
+from ..models.repositories import get_repo
+from ..models.dynamodb.wizard import delete_wizard, get_wizard_count, insert_update_wizard
+from ..models.dynamodb.wizard_group import get_wizard_group, insert_update_wizard_group
 from ..types.wizard_group import WizardGroupType
 
 
@@ -144,7 +144,7 @@ def insert_update_wizard_elements(
                 "conditions": element.get("conditions", []),
                 "updated_by": updated_by,
             }
-            saved_element = insert_update_element(info, **element_data)
+            saved_element = get_repo("element").insert_update(info, **element_data)
             if element_uuid is None:
                 element_uuid = saved_element.element_uuid
 

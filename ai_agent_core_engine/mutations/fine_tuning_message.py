@@ -10,10 +10,7 @@ from graphene import Boolean, Field, Int, List, Mutation, String
 
 from silvaengine_utility import JSONCamelCase
 
-from ..models.fine_tuning_message import (
-    delete_fine_tuning_message,
-    insert_update_fine_tuning_message,
-)
+from ..models.repositories import get_repo
 from ..types.fine_tuning_message import FineTuningMessageType
 
 
@@ -38,7 +35,7 @@ class InsertUpdateFineTuningMessage(Mutation):
         root: Any, info: Any, **kwargs: Dict[str, Any]
     ) -> "InsertUpdateFineTuningMessage":
         try:
-            fine_tuning_message = insert_update_fine_tuning_message(info, **kwargs)
+            fine_tuning_message = get_repo("fine_tuning_message").insert_update(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
             info.context.get("logger").error(log)
@@ -59,7 +56,7 @@ class DeleteFineTuningMessage(Mutation):
         root: Any, info: Any, **kwargs: Dict[str, Any]
     ) -> "DeleteFineTuningMessage":
         try:
-            ok = delete_fine_tuning_message(info, **kwargs)
+            ok = get_repo("fine_tuning_message").delete(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
             info.context.get("logger").error(log)

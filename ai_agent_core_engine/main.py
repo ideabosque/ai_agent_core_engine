@@ -227,16 +227,8 @@ class AIAgentCoreEngine(Graphql):
         """
         Graphql.__init__(self, logger, **setting)
 
-        if (
-            setting.get("region_name")
-            and setting.get("aws_access_key_id")
-            and setting.get("aws_secret_access_key")
-        ):
-            BaseModel.Meta.region = setting.get("region_name")
-            BaseModel.Meta.aws_access_key_id = setting.get("aws_access_key_id")
-            BaseModel.Meta.aws_secret_access_key = setting.get("aws_secret_access_key")
-
-        # Initialize configuration via the Config class
+        # Backend initialization (DynamoDB Meta or PG session) is handled
+        # by Config.initialize() based on the db_backend setting.
         Config.initialize(logger, setting)
 
     def ai_agent_build_graphql_query(self, **params: Dict[str, Any]):
@@ -408,13 +400,42 @@ def _build_engine_from_config() -> "AIAgentCoreEngine":
     return _engine_instance
 
 
+def _set_rls_context(partition_key: str) -> None:
+    """Set RLS tenant context for PostgreSQL mode (no-op for DynamoDB)."""
+    if Config.DB_BACKEND == "postgresql" and Config.db_session:
+        from .utils.rls import set_rls_context
+        session = Config.db_session()
+        try:
+            set_rls_context(session, partition_key)
+        except Exception:
+            session.rollback()
+            raise
+
+
+def _clear_rls_context() -> None:
+    """Clear RLS session after request (PG only)."""
+    if Config.DB_BACKEND == "postgresql" and Config.db_session:
+        Config.db_session.remove()
+
+
 def dispatch_graphql(**params: Any) -> Any:
     """Execute a GraphQL query using gateway-initialized settings.
 
     This is the HTTP GraphQL entry point, matching the pattern used by
     KGE (``knowledge_graph_engine.main:dispatch_graphql``).
+
+    In PostgreSQL mode, sets the RLS tenant context from partition_key
+    before GraphQL execution and clears the session after.
     """
-    return _build_engine_from_config().ai_agent_core_graphql(**params)
+    engine = _build_engine_from_config()
+    engine._apply_partition_defaults(params)
+    partition_key = params.get("context", {}).get("partition_key")
+    if partition_key:
+        _set_rls_context(partition_key)
+    try:
+        return engine.ai_agent_core_graphql(**params)
+    finally:
+        _clear_rls_context()
 
 
 def dispatch_ask_model(**params: Any) -> Any:
@@ -453,19 +474,21 @@ def dispatch_ask_model(**params: Any) -> Any:
         updated_by = arguments.get("updated_by", "test-user")
         thread_uuid = arguments.get("thread_uuid")
 
-        try:
-            from ai_agent_core_engine.models.async_task import AsyncTaskModel
+        # Set RLS context for PG mode
+        _set_rls_context(partition_key)
 
-            AsyncTaskModel(
-                "async_execute_ask_model",
-                async_task_uuid,
+        try:
+            from ai_agent_core_engine.models.repositories import get_repo
+
+            get_repo("async_task").insert_update(
+                None,
+                function_name="async_execute_ask_model",
+                async_task_uuid=async_task_uuid,
                 partition_key=partition_key,
                 output_files=[],
                 status="in_progress",
                 updated_by=updated_by,
-                created_at=pendulum.now("UTC"),
-                updated_at=pendulum.now("UTC"),
-            ).save()
+            )
         except Exception as exc:
             engine.logger.warning(
                 "Unable to pre-create async task %s for gateway ask_model: %s",
@@ -475,24 +498,29 @@ def dispatch_ask_model(**params: Any) -> Any:
 
         if run_uuid and thread_uuid:
             try:
-                from ai_agent_core_engine.models.run import RunModel
+                from ai_agent_core_engine.models.repositories import get_repo
 
-                RunModel(
-                    thread_uuid,
-                    run_uuid,
+                get_repo("run").insert_update(
+                    None,
+                    thread_uuid=thread_uuid,
+                    run_uuid=run_uuid,
                     partition_key=partition_key,
                     prompt_tokens=0,
                     completion_tokens=0,
                     total_tokens=0,
                     updated_by=updated_by,
-                    created_at=pendulum.now("UTC"),
-                    updated_at=pendulum.now("UTC"),
-                ).save()
+                )
             except Exception as exc:
                 engine.logger.warning(
                     "Unable to pre-create run %s for gateway ask_model: %s",
                     run_uuid,
                     exc,
                 )
+    else:
+        if partition_key:
+            _set_rls_context(partition_key)
 
-    return engine.async_execute_ask_model(**params)
+    try:
+        return engine.async_execute_ask_model(**params)
+    finally:
+        _clear_rls_context()

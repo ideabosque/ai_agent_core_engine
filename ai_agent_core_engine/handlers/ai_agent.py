@@ -6,6 +6,7 @@ __author__ = "bibow"
 import threading
 import time
 import traceback
+import uuid
 from collections.abc import Iterable
 from queue import Queue
 from typing import Any, Dict, List
@@ -15,10 +16,10 @@ from graphene import ResolveInfo
 
 from silvaengine_utility import Debugger, Serializer
 
-from ..models.agent import resolve_agent
-from ..models.message import insert_update_message
-from ..models.run import insert_update_run
-from ..models.thread import insert_thread, resolve_thread, resolve_thread_list
+from ..models.repositories import get_repo
+# message insert via get_repo
+# run insert via get_repo
+# thread operations via get_repo
 from ..types.ai_agent import AskModelType, FileType, PresignedAWSS3UrlType
 from ..types.message import MessageType
 from ..types.thread import ThreadListType, ThreadType
@@ -65,7 +66,7 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
             raise ValueError("Not found any thread")
 
         # Create new run instance for this request
-        run = insert_update_run(
+        run = get_repo("run").insert_update(
             info,
             **{
                 "thread_uuid": thread.thread_uuid,
@@ -135,7 +136,7 @@ def _get_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType | Non
             # Only retrieve threads from the past 'thread_life_minutes' minutes
             thread_life_minutes = kwargs.get("thread_life_minutes", 30)
             created_at_gt = pendulum.now("UTC").subtract(minutes=thread_life_minutes)
-            thread_list: ThreadListType = resolve_thread_list(
+            thread_list: ThreadListType = get_repo("thread").list(
                 info,
                 **{
                     "agent_uuid": kwargs["agent_uuid"],
@@ -149,7 +150,7 @@ def _get_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType | Non
                 latest_thread = max(thread_list.thread_list, key=lambda t: t.created_at)
                 return latest_thread
 
-        thread = insert_thread(
+        thread = get_repo("thread").insert_update(
             info,
             **{
                 "agent_uuid": kwargs["agent_uuid"],
@@ -165,7 +166,7 @@ def _get_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType | Non
 
 
 def _get_agent(info: ResolveInfo, agent_uuid: str):
-    from ..models.batch_loaders import get_loaders
+    from ..models.repositories import get_loaders
 
     # Phase 2.1: Cache resolved agents (with MCP tools) to avoid
     # re-fetching 80 tools from the MCP daemon on every request.
@@ -193,7 +194,7 @@ def _get_agent(info: ResolveInfo, agent_uuid: str):
         import copy
         return copy.copy(cached[0])
 
-    agent = resolve_agent(info, **{"agent_uuid": agent_uuid})
+    agent = get_repo("agent").resolve_single(info, **{"agent_uuid": agent_uuid})
 
     if not agent:
         return None
@@ -206,7 +207,12 @@ def _get_agent(info: ResolveInfo, agent_uuid: str):
     )
 
     if isinstance(agent.mcp_server_uuids, Iterable):
-        from ..models.utils import get_mcp_servers
+        from ..handlers.config import Config
+
+        if Config.DB_BACKEND == "postgresql":
+            from ..models.postgresql.utils import get_mcp_servers
+        else:
+            from ..models.dynamodb.utils import get_mcp_servers
 
         mcp_servers = [
             {"mcp_server_uuid": mcp_server_uuid}
@@ -297,6 +303,7 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> tuple:
 
     msg_kwargs = {
         "thread_uuid": arguments["thread_uuid"],
+        "message_uuid": str(uuid.uuid4()),
         "run_uuid": arguments["run_uuid"],
         "role": "user",
         "message": arguments["user_query"],
@@ -310,14 +317,14 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> tuple:
     }
 
     with ThreadPoolExecutor(max_workers=2) as pool:
-        msg_future = pool.submit(insert_update_message, info, **msg_kwargs)
-        run_future = pool.submit(insert_update_run, info, **run_kwargs)
+        msg_future = pool.submit(get_repo("message").insert_update, info, **msg_kwargs)
+        run_future = pool.submit(get_repo("run").insert_update, info, **run_kwargs)
         user_message = msg_future.result()
         run = run_future.result()
 
     ai_agent_handler = get_ai_agent_handler(info=info, agent=agent)
     ai_agent_handler.context = info.context
-    ai_agent_handler.run = run.__dict__
+    ai_agent_handler.run = run if isinstance(run, dict) else run.__dict__
     ai_agent_handler.task_queue = Config.task_queue
 
     if info.context.get("connection_id") or arguments.get("stream", False):
@@ -377,10 +384,11 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> tuple:
         )
 
     # Record AI assistant response
-    assistant_message = insert_update_message(
+    assistant_message = get_repo("message").insert_update(
         info,
         **{
             "thread_uuid": arguments["thread_uuid"],
+            "message_uuid": str(uuid.uuid4()),
             "run_uuid": arguments["run_uuid"],
             "message_id": ai_agent_handler.final_output["message_id"],
             "role": ai_agent_handler.final_output["role"],
@@ -388,14 +396,15 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> tuple:
             "updated_by": arguments["updated_by"],
         },
     )
+    _assistant_msg = assistant_message if isinstance(assistant_message, dict) else assistant_message.__dict__
     info.context["logger"].info(
         f"Assistant message recorded - thread: {arguments['thread_uuid']}, "
-        f"run: {arguments['run_uuid']}, message: {assistant_message.message_uuid}, "
-        f"role: {assistant_message.role}"
+        f"run: {arguments['run_uuid']}, message: {_assistant_msg.get('message_uuid')}, "
+        f"role: {_assistant_msg.get('role')}"
     )
 
     # Update run with completion details
-    run = insert_update_run(
+    run = get_repo("run").insert_update(
         info,
         **{
             "thread_uuid": arguments["thread_uuid"],
@@ -407,10 +416,11 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> tuple:
             "updated_by": arguments["updated_by"],
         },
     )
+    _run = run if isinstance(run, dict) else run.__dict__
     info.context["logger"].info(
         f"Run completed - thread: {arguments['thread_uuid']}, "
-        f"run: {run.run_uuid}, run_id: {run_id}, "
-        f"prompt_tokens: {run.prompt_tokens}, completion_tokens: {run.completion_tokens}"
+        f"run: {_run.get('run_uuid')}, run_id: {run_id}, "
+        f"prompt_tokens: {_run.get('prompt_tokens')}, completion_tokens: {_run.get('completion_tokens')}"
     )
     # TODO: Implement MCP Prompt and update system prmompt by analyzing user query and assistant response.
     # TODO: Implement feedack loop to evaluate assistant response and ingest feedback for model fine-tuning and response improvement.
@@ -425,13 +435,17 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> tuple:
 def _update_user_message_with_files(
     info: ResolveInfo,
     agent: Dict[str, Any],
-    user_message: MessageType,
+    user_message,
     uploaded_files: List[Dict[str, Any]],
     updated_by: str,
 ) -> None:
     """Helper function to update message content with file references"""
+    # Support both ObjectType (DynamoDB) and dict (PostgreSQL) return types
+    _msg = user_message if isinstance(user_message, dict) else user_message.__dict__
+    _msg_text = _msg.get("message", "")
+
     if agent.llm["llm_name"] == "gpt":
-        message_content = [{"type": "input_text", "text": user_message.message}]
+        message_content = [{"type": "input_text", "text": _msg_text}]
 
         # Add each file reference to content array
         message_content.extend(
@@ -439,7 +453,7 @@ def _update_user_message_with_files(
             for uploaded_file in uploaded_files
         )
     elif agent.llm["llm_name"] == "gemini":
-        message_content = [{"type": "input_text", "text": user_message.message}]
+        message_content = [{"type": "input_text", "text": _msg_text}]
 
         # Add each file reference to content array
         message_content.extend(
@@ -447,7 +461,7 @@ def _update_user_message_with_files(
             for uploaded_file in uploaded_files
         )
     elif agent.llm["llm_name"] == "claude":
-        message_content = [{"type": "text", "text": user_message.message}]
+        message_content = [{"type": "text", "text": _msg_text}]
 
         # Add each file reference to content array
         if uploaded_files[0]["code_execution_tool"]:
@@ -467,11 +481,11 @@ def _update_user_message_with_files(
     else:
         raise Exception(f"Unsupported LLM: {agent.llm['llm_name']}")
 
-    insert_update_message(
+    get_repo("message").insert_update(
         info,
         **{
-            "thread_uuid": user_message.run["thread"]["thread_uuid"],
-            "message_uuid": user_message.message_uuid,
+            "thread_uuid": _msg.get("thread_uuid") or _msg.get("run", {}).get("thread", {}).get("thread_uuid"),
+            "message_uuid": _msg.get("message_uuid"),
             "message": Serializer.json_dumps(message_content),
             "updated_by": updated_by,
         },

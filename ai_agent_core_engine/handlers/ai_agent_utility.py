@@ -37,9 +37,9 @@ from graphene import ResolveInfo
 
 from silvaengine_utility import Debugger, Invoker, Serializer
 
-from ..models.async_task import insert_update_async_task
-from ..models.message import resolve_message_list
-from ..models.tool_call import resolve_tool_call_list
+from ..models.repositories import get_repo
+# message list resolved via get_repo
+# tool_call list resolved via get_repo
 from ..types.agent import AgentType
 
 
@@ -80,7 +80,7 @@ def _load_runs_by_keys(
     if not run_keys:
         return {}
     try:
-        from ..models.batch_loaders import get_loaders
+        from ..models.repositories import get_loaders
 
         loaders = get_loaders(info.context)
         run_loader = loaders.run_loader
@@ -125,7 +125,7 @@ def start_async_task(
     """
     try:
         # Create task record in database
-        async_task = insert_update_async_task(
+        async_task = get_repo("async_task").insert_update(
             info,
             **{
                 "function_name": function_name,
@@ -231,7 +231,7 @@ def combine_thread_messages(
     updated_at_gt = pendulum.now("UTC").subtract(hours=24)
 
     # Get message list for thread
-    message_list = resolve_message_list(
+    message_list = get_repo("message").list(
         info,
         **{
             "thread_uuid": thread_uuid,
@@ -241,7 +241,7 @@ def combine_thread_messages(
         },
     )
     # Get tool call list for thread
-    tool_call_list = resolve_tool_call_list(
+    tool_call_list = get_repo("tool_call").list(
         info,
         **{
             "thread_uuid": thread_uuid,
@@ -754,7 +754,7 @@ def async_task_handler(function_name: str) -> Callable:
 
             try:
                 # Initialize async task as in_progress
-                insert_update_async_task(
+                get_repo("async_task").insert_update(
                     info,
                     **{
                         "function_name": function_name,
@@ -768,7 +768,7 @@ def async_task_handler(function_name: str) -> Callable:
                 result, output_files = func(info, **kwargs)
 
                 # Mark async task as completed with results
-                insert_update_async_task(
+                get_repo("async_task").insert_update(
                     info,
                     **{
                         "function_name": function_name,
@@ -786,7 +786,7 @@ def async_task_handler(function_name: str) -> Callable:
                 # Log and record any errors
                 log = traceback.format_exc()
                 info.context["logger"].error(log)
-                insert_update_async_task(
+                get_repo("async_task").insert_update(
                     info,
                     **{
                         "function_name": function_name,

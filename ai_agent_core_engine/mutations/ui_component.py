@@ -8,7 +8,7 @@ from typing import Any, Dict
 from graphene import Boolean, Field, List, Mutation, String
 from silvaengine_utility import JSONCamelCase
 
-from ..models.ui_component import delete_ui_component, insert_update_ui_component
+from ..models.repositories import get_repo
 from ..types.ui_component import UIComponentType
 
 
@@ -27,7 +27,7 @@ class InsertUpdateUIComponent(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "InsertUpdateUIComponent":
         try:
-            ui_component = insert_update_ui_component(info, **kwargs)
+            ui_component = get_repo("ui_component").insert_update(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
             info.context.get("logger").error(log)
@@ -46,7 +46,7 @@ class DeleteUIComponent(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteUIComponent":
         try:
-            ok = delete_ui_component(info, **kwargs)
+            ok = get_repo("ui_component").delete(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
             info.context.get("logger").error(log)

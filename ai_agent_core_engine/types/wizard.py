@@ -48,7 +48,7 @@ class WizardType(ObjectType):
         """
 
         """Resolve nested Run for this tool call using DataLoader."""
-        # from ..models.batch_loaders import get_loaders
+        # from ..models.repositories import get_loaders
 
         # Case 1: Already embedded (backward compatibility)
         if hasattr(parent, "wizard_schema") and parent.wizard_schema:
@@ -60,7 +60,7 @@ class WizardType(ObjectType):
         if not wizard_schema_type or not wizard_schema_name:
             return None
 
-        from ..models.wizard_schema import get_wizard_schema
+        from ..models.dynamodb.wizard_schema import get_wizard_schema
 
         try:
             wizard_schema = get_wizard_schema(wizard_schema_type, wizard_schema_name)
@@ -76,7 +76,7 @@ class WizardType(ObjectType):
         2. Otherwise, use wizard_element_refs to load elements via DataLoader
         """
         """Resolve nested Run for this tool call using DataLoader."""
-        from ..models.batch_loaders import get_loaders
+        from ..models.repositories import get_loaders
 
         wizard_element_refs = parent.wizard_elements
         partition_key = parent.partition_key

@@ -9,7 +9,7 @@ from typing import Any, Dict
 
 from silvaengine_utility import Debugger, Serializer
 
-from ..models.tool_call import insert_update_tool_call, resolve_tool_call_list
+from ..models.repositories import get_repo
 from ..utils.listener import create_listener_info
 from .ai_agent import execute_ask_model
 from .config import Config
@@ -60,7 +60,7 @@ def async_insert_update_tool_call(
     info = create_listener_info(logger, "insert_update_tool_call", setting, **kwargs)
 
     # Get existing tool call if it exists
-    tool_call_list = resolve_tool_call_list(
+    tool_call_list = get_repo("tool_call").list(
         info,
         thread_uuid=kwargs.get("thread_uuid"),
         tool_call_id=kwargs.get("tool_call_id"),
@@ -87,7 +87,7 @@ def async_insert_update_tool_call(
         "updated_by": kwargs.get("updated_by"),
     }
 
-    _ = insert_update_tool_call(
+    _ = get_repo("tool_call").insert_update(
         info, **{k: v for k, v in tool_call_params.items() if v is not None}
     )
 

@@ -12,14 +12,14 @@ from silvaengine_utility import method_cache
 
 from ..handlers.config import Config
 
-from ..models import fine_tuning_message
+from ..models.repositories import get_repo
 from ..types.fine_tuning_message import FineTuningMessageListType, FineTuningMessageType
 
 
 def resolve_fine_tuning_message(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> FineTuningMessageType | None:
-    return fine_tuning_message.resolve_fine_tuning_message(info, **kwargs)
+    return get_repo("fine_tuning_message").resolve_single(info, **kwargs)
 
 
 @method_cache(
@@ -30,4 +30,4 @@ def resolve_fine_tuning_message(
 def resolve_fine_tuning_message_list(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> FineTuningMessageListType | None:
-    return fine_tuning_message.resolve_fine_tuning_message_list(info, **kwargs)
+    return get_repo("fine_tuning_message").list(info, **kwargs)

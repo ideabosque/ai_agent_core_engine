@@ -13,7 +13,7 @@ import boto3
 
 from silvaengine_utility import Debugger, Graphql
 
-from ..models import utils
+from ..models.dynamodb import utils
 
 
 class Config:
@@ -36,132 +36,140 @@ class Config:
     xml_convert = None
     internal_mcp = None
 
+    # Backend selection: "dynamodb" (default) or "postgresql"
+    DB_BACKEND: str = "dynamodb"
+    # PostgreSQL session (only initialized when DB_BACKEND == "postgresql")
+    db_session = None
+    # Table prefix for shared PostgreSQL databases
+    PG_TABLE_PREFIX: str = "aace_"
+
     # Cache Configuration
     CACHE_TTL = 1800  # 30 minutes default TTL
     CACHE_ENABLED: bool = True
 
     # Cache name patterns for different modules
     CACHE_NAMES = {
-        "models": "ai_agent_core_engine.models",
+        "models": "ai_agent_core_engine.models.dynamodb.dynamodb",
         "queries": "ai_agent_core_engine.queries",
     }
 
     # Cache entity metadata (module paths, getters, cache key templates)
-    CACHE_ENTITY_CONFIG = {
+    # DynamoDB cache config — populated; PG repos don't use @method_cache
+    CACHE_ENTITY_CONFIG_DYNAMODB = {
         "agent": {
-            "module": "ai_agent_core_engine.models.agent",
+            "module": "ai_agent_core_engine.models.dynamodb.agent",
             "model_class": "AgentModel",
             "getter": "get_agent",
             "list_resolver": "ai_agent_core_engine.queries.agent.resolve_agent_list",
             "cache_keys": ["context:partition_key", "key:agent_version_uuid"],
         },
         "thread": {
-            "module": "ai_agent_core_engine.models.thread",
+            "module": "ai_agent_core_engine.models.dynamodb.thread",
             "model_class": "ThreadModel",
             "getter": "get_thread",
             "list_resolver": "ai_agent_core_engine.queries.thread.resolve_thread_list",
             "cache_keys": ["context:partition_key", "key:thread_uuid"],
         },
         "run": {
-            "module": "ai_agent_core_engine.models.run",
+            "module": "ai_agent_core_engine.models.dynamodb.run",
             "model_class": "RunModel",
             "getter": "get_run",
             "list_resolver": "ai_agent_core_engine.queries.run.resolve_run_list",
             "cache_keys": ["key:thread_uuid", "key:run_uuid"],
         },
         "message": {
-            "module": "ai_agent_core_engine.models.message",
+            "module": "ai_agent_core_engine.models.dynamodb.message",
             "model_class": "MessageModel",
             "getter": "get_message",
             "list_resolver": "ai_agent_core_engine.queries.message.resolve_message_list",
             "cache_keys": ["key:thread_uuid", "key:message_uuid"],
         },
         "tool_call": {
-            "module": "ai_agent_core_engine.models.tool_call",
+            "module": "ai_agent_core_engine.models.dynamodb.tool_call",
             "model_class": "ToolCallModel",
             "getter": "get_tool_call",
             "list_resolver": "ai_agent_core_engine.queries.tool_call.resolve_tool_call_list",
             "cache_keys": ["key:thread_uuid", "key:tool_call_uuid"],
         },
         "llm": {
-            "module": "ai_agent_core_engine.models.llm",
+            "module": "ai_agent_core_engine.models.dynamodb.llm",
             "model_class": "LlmModel",
             "getter": "get_llm",
             "list_resolver": "ai_agent_core_engine.queries.llm.resolve_llm_list",
             "cache_keys": ["key:llm_provider", "key:llm_name"],
         },
         "flow_snippet": {
-            "module": "ai_agent_core_engine.models.flow_snippet",
+            "module": "ai_agent_core_engine.models.dynamodb.flow_snippet",
             "model_class": "FlowSnippetModel",
             "getter": "get_flow_snippet",
             "list_resolver": "ai_agent_core_engine.queries.flow_snippet.resolve_flow_snippet_list",
             "cache_keys": ["context:partition_key", "key:flow_snippet_version_uuid"],
         },
         "mcp_server": {
-            "module": "ai_agent_core_engine.models.mcp_server",
+            "module": "ai_agent_core_engine.models.dynamodb.mcp_server",
             "model_class": "MCPServerModel",
             "getter": "get_mcp_server",
             "list_resolver": "ai_agent_core_engine.queries.mcp_server.resolve_mcp_server_list",
             "cache_keys": ["context:partition_key", "key:mcp_server_uuid"],
         },
         "fine_tuning_message": {
-            "module": "ai_agent_core_engine.models.fine_tuning_message",
+            "module": "ai_agent_core_engine.models.dynamodb.fine_tuning_message",
             "model_class": "FineTuningMessageModel",
             "getter": "get_fine_tuning_message",
             "list_resolver": "ai_agent_core_engine.queries.fine_tuning_message.resolve_fine_tuning_message_list",
             "cache_keys": ["key:agent_uuid", "key:message_uuid"],
         },
         "async_task": {
-            "module": "ai_agent_core_engine.models.async_task",
+            "module": "ai_agent_core_engine.models.dynamodb.async_task",
             "model_class": "AsyncTaskModel",
             "getter": "get_async_task",
             "list_resolver": "ai_agent_core_engine.queries.async_task.resolve_async_task_list",
             "cache_keys": ["key:function_name", "key:async_task_uuid"],
         },
         "element": {
-            "module": "ai_agent_core_engine.models.element",
+            "module": "ai_agent_core_engine.models.dynamodb.element",
             "model_class": "ElementModel",
             "getter": "get_element",
             "list_resolver": "ai_agent_core_engine.queries.element.resolve_element_list",
             "cache_keys": ["context:partition_key", "key:element_uuid"],
         },
         "wizard": {
-            "module": "ai_agent_core_engine.models.wizard",
+            "module": "ai_agent_core_engine.models.dynamodb.wizard",
             "model_class": "WizardModel",
             "getter": "get_wizard",
             "list_resolver": "ai_agent_core_engine.queries.wizard.resolve_wizard_list",
             "cache_keys": ["context:partition_key", "key:wizard_uuid"],
         },
         "wizard_group": {
-            "module": "ai_agent_core_engine.models.wizard_group",
+            "module": "ai_agent_core_engine.models.dynamodb.wizard_group",
             "model_class": "WizardGroupModel",
             "getter": "get_wizard_group",
             "list_resolver": "ai_agent_core_engine.queries.wizard_group.resolve_wizard_group_list",
             "cache_keys": ["context:partition_key", "key:wizard_group_uuid"],
         },
         "wizard_group_filter": {
-            "module": "ai_agent_core_engine.models.wizard_group_filter",
+            "module": "ai_agent_core_engine.models.dynamodb.wizard_group_filter",
             "model_class": "WizardGroupFilterModel",
             "getter": "get_wizard_group_filter",
             "list_resolver": "ai_agent_core_engine.queries.wizard_group_filter.resolve_wizard_group_filter_list",
             "cache_keys": ["context:partition_key", "key:wizard_group_filter_uuid"],
         },
         "prompt_template": {
-            "module": "ai_agent_core_engine.models.prompt_template",
+            "module": "ai_agent_core_engine.models.dynamodb.prompt_template",
             "model_class": "PromptTemplateModel",
             "getter": "get_prompt_template",
             "list_resolver": "ai_agent_core_engine.queries.prompt_template.resolve_prompt_template_list",
             "cache_keys": ["context:partition_key", "key:prompt_version_uuid"],
         },
         "ui_component": {
-            "module": "ai_agent_core_engine.models.ui_component",
+            "module": "ai_agent_core_engine.models.dynamodb.ui_component",
             "model_class": "UIComponentModel",
             "getter": "get_ui_component",
             "list_resolver": "ai_agent_core_engine.queries.ui_component.resolve_ui_component_list",
             "cache_keys": ["key:ui_component_type", "key:ui_component_uuid"],
         },
         "wizard_schema": {
-            "module": "ai_agent_core_engine.models.wizard_schema",
+            "module": "ai_agent_core_engine.models.dynamodb.wizard_schema",
             "model_class": "WizardSchemaModel",
             "getter": "get_wizard_schema",
             "list_resolver": "ai_agent_core_engine.queries.wizard_schema.resolve_wizard_schema_list",
@@ -170,7 +178,7 @@ class Config:
     }
 
     # Entity cache dependency relationships
-    CACHE_RELATIONSHIPS = {
+    CACHE_RELATIONSHIPS_DYNAMODB = {
         "agent": [
             {
                 "entity_type": "thread",
@@ -280,10 +288,23 @@ class Config:
         ],
     }
 
+    # PostgreSQL cache config — empty (PG repos don't use @method_cache)
+    CACHE_ENTITY_CONFIG_POSTGRESQL: Dict[str, Dict[str, Any]] = {}
+    CACHE_RELATIONSHIPS_POSTGRESQL: Dict[str, List[Dict[str, Any]]] = {}
+
     @classmethod
     def get_cache_entity_config(cls) -> Dict[str, Dict[str, Any]]:
         """Get cache configuration metadata for each entity type."""
-        return cls.CACHE_ENTITY_CONFIG
+        if cls.DB_BACKEND == "postgresql":
+            return cls.CACHE_ENTITY_CONFIG_POSTGRESQL
+        return cls.CACHE_ENTITY_CONFIG_DYNAMODB
+
+    @classmethod
+    def get_cache_relationships(cls) -> Dict[str, List[Dict[str, str]]]:
+        """Get entity cache dependency relationships."""
+        if cls.DB_BACKEND == "postgresql":
+            return cls.CACHE_RELATIONSHIPS_POSTGRESQL
+        return cls.CACHE_RELATIONSHIPS_DYNAMODB
 
     @classmethod
     def initialize(cls, logger: logging.Logger, setting: Dict[str, Any]) -> None:
@@ -304,6 +325,18 @@ class Config:
                     cls._logger = logger
                     cls._setting = setting
                     cls._set_parameters(setting)
+
+                    # Read backend selection (deployment-time, not per request)
+                    cls.DB_BACKEND = str(setting.get("db_backend", "dynamodb")).lower()
+                    if cls.DB_BACKEND not in ("dynamodb", "postgresql"):
+                        raise ValueError(f"Unknown db_backend: {cls.DB_BACKEND}")
+
+                    if cls.DB_BACKEND == "dynamodb":
+                        cls._initialize_dynamodb_meta(setting)
+                    elif cls.DB_BACKEND == "postgresql":
+                        cls.PG_TABLE_PREFIX = setting.get("pg_table_prefix", "aace_")
+                        cls._initialize_db_session(setting)
+
                     cls._initialize_aws_services(setting)
                     cls._initialize_task_queue(setting)
                     cls._initialize_apigw_client(setting)
@@ -419,12 +452,51 @@ class Config:
         }
 
     @classmethod
+    def _initialize_dynamodb_meta(cls, setting: Dict[str, Any]) -> None:
+        """Set PynamoDB BaseModel.Meta credentials for DynamoDB mode."""
+        from silvaengine_dynamodb_base import BaseModel
+
+        BaseModel.Meta.region = setting.get("region_name")
+        BaseModel.Meta.aws_access_key_id = setting.get("aws_access_key_id")
+        BaseModel.Meta.aws_secret_access_key = setting.get("aws_secret_access_key")
+
+    @classmethod
+    def _initialize_db_session(cls, setting: Dict[str, Any]) -> None:
+        """Build SQLAlchemy scoped_session for PostgreSQL mode."""
+        from urllib.parse import quote_plus
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import scoped_session, sessionmaker
+
+        # Set Base.table_prefix before any models are imported so that
+        # declared_attr __tablename__ resolves with the correct prefix.
+        from ..models.postgresql.base import Base
+        Base.table_prefix = cls.PG_TABLE_PREFIX
+
+        password = quote_plus(setting["db_password"])
+        connection_string = (
+            f"postgresql+psycopg2://{setting['db_user']}:{password}"
+            f"@{setting['db_host']}:{setting['db_port']}/{setting['db_schema']}"
+        )
+        engine = create_engine(
+            connection_string,
+            pool_recycle=7200,
+            pool_size=10,
+            pool_pre_ping=True,
+            echo=False,
+        )
+        cls.db_session = scoped_session(
+            sessionmaker(autocommit=False, autoflush=False, bind=engine)
+        )
+
+    @classmethod
     def _initialize_tables(cls, logger: logging.Logger) -> None:
-        """
-        Initialize database tables by calling the utils.initialize_tables() method.
-        This is an internal method used during configuration setup.
-        """
-        utils.initialize_tables(logger)
+        """Initialize database tables — dispatched by backend."""
+        if cls.DB_BACKEND == "dynamodb":
+            utils.initialize_tables(logger)
+        elif cls.DB_BACKEND == "postgresql":
+            from ..models.postgresql.utils import initialize_tables as pg_init
+
+            pg_init(logger, cls.db_session)
 
     @classmethod
     def get_cache_name(cls, module_type: str, model_name: str) -> str:
@@ -454,14 +526,9 @@ class Config:
         return cls.CACHE_ENABLED
 
     @classmethod
-    def get_cache_relationships(cls) -> Dict[str, List[Dict[str, str]]]:
-        """Get entity cache dependency relationships."""
-        return cls.CACHE_RELATIONSHIPS
-
-    @classmethod
     def get_entity_children(cls, entity_type: str) -> List[Dict[str, str]]:
         """Get child entities for a specific entity type."""
-        return cls.CACHE_RELATIONSHIPS.get(entity_type, [])
+        return cls.get_cache_relationships().get(entity_type, [])
 
     @classmethod
     def get_setting(cls) -> Dict[str, Any]:

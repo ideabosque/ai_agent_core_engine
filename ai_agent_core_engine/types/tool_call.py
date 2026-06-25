@@ -31,7 +31,7 @@ class ToolCallType(ObjectType):
 
     def resolve_run(parent, info):
         """Resolve nested Run for this tool call using DataLoader."""
-        from ..models.batch_loaders import get_loaders
+        from ..models.repositories import get_loaders
         from .run import RunType
 
         # Case 2: already embedded

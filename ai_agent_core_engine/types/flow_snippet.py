@@ -36,7 +36,7 @@ class FlowSnippetType(FlowSnippetBaseType):
 
     def resolve_prompt_template(parent, info):
         """Resolve nested PromptTemplate for this flow snippet using DataLoader."""
-        from ..models.batch_loaders import get_loaders
+        from ..models.repositories import get_loaders
 
         # Case 2: already embedded
         existing = getattr(parent, "prompt_template", None)
