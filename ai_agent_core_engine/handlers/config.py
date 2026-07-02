@@ -346,6 +346,9 @@ class Config:
                         cls._initialize_tables(logger)
 
                     cls._initialized = True
+                    logger.info(
+                        f"Configuration initialized successfully (db_backend={cls.DB_BACKEND})."
+                    )
                 except Exception as e:
                     sys.stderr.write(f"Config Initialize Error: {e}\n")
                     traceback.print_exc(file=sys.stderr)
@@ -453,12 +456,23 @@ class Config:
 
     @classmethod
     def _initialize_dynamodb_meta(cls, setting: Dict[str, Any]) -> None:
-        """Set PynamoDB BaseModel.Meta credentials for DynamoDB mode."""
+        """Set PynamoDB BaseModel.Meta credentials for DynamoDB mode.
+
+        Only override the credentials when all three are explicitly provided.
+        Otherwise leave them unset so PynamoDB falls back to the default AWS
+        credential chain (IAM role, environment, shared config), instead of
+        clobbering it with ``None`` values.
+        """
         from silvaengine_dynamodb_base import BaseModel
 
-        BaseModel.Meta.region = setting.get("region_name")
-        BaseModel.Meta.aws_access_key_id = setting.get("aws_access_key_id")
-        BaseModel.Meta.aws_secret_access_key = setting.get("aws_secret_access_key")
+        if (
+            setting.get("region_name")
+            and setting.get("aws_access_key_id")
+            and setting.get("aws_secret_access_key")
+        ):
+            BaseModel.Meta.region = setting.get("region_name")
+            BaseModel.Meta.aws_access_key_id = setting.get("aws_access_key_id")
+            BaseModel.Meta.aws_secret_access_key = setting.get("aws_secret_access_key")
 
     @classmethod
     def _initialize_db_session(cls, setting: Dict[str, Any]) -> None:
@@ -467,9 +481,20 @@ class Config:
         from sqlalchemy import create_engine
         from sqlalchemy.orm import scoped_session, sessionmaker
 
+        # Fail fast with a clear message when the PostgreSQL backend is
+        # selected but its required connection settings are missing, instead
+        # of surfacing an opaque KeyError further down.
+        required = ["db_host", "db_port", "db_user", "db_password", "db_schema"]
+        missing = [k for k in required if not setting.get(k)]
+        if missing:
+            raise ValueError(
+                f"db_backend='postgresql' requires setting(s): {', '.join(missing)}"
+            )
+
         # Set Base.table_prefix before any models are imported so that
         # declared_attr __tablename__ resolves with the correct prefix.
         from ..models.postgresql.base import Base
+
         Base.table_prefix = cls.PG_TABLE_PREFIX
 
         password = quote_plus(setting["db_password"])
