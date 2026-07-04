@@ -337,6 +337,14 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> tuple:
 
     ai_agent_handler = get_ai_agent_handler(info=info, agent=agent)
     ai_agent_handler.context = info.context
+    # Gateway (non-Lambda) contexts carry no ``aws_lambda_invoker``, so the
+    # handler's fire-and-forget recordings (e.g. tool_call rows) would be
+    # silently dropped. Provide an in-process invoker when one is absent; the
+    # AWS Lambda path already injects its own and is left untouched.
+    if not callable(ai_agent_handler.context.get("aws_lambda_invoker")):
+        from ..main import _local_async_invoker
+
+        ai_agent_handler.context["aws_lambda_invoker"] = _local_async_invoker
     ai_agent_handler.run = run if isinstance(run, dict) else run.__dict__
     ai_agent_handler.task_queue = Config.task_queue
 

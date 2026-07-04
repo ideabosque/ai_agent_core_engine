@@ -94,7 +94,7 @@ def async_insert_update_tool_call(
         "updated_by": kwargs.get("updated_by"),
     }
 
-    _ = get_repo("tool_call").insert_update(
+    get_repo("tool_call").insert_update(
         info, **{k: v for k, v in tool_call_params.items() if v is not None}
     )
 
