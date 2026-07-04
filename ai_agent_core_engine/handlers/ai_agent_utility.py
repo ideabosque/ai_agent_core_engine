@@ -39,6 +39,7 @@ from graphene import ResolveInfo
 from silvaengine_utility import Debugger, Invoker, Serializer
 
 from ..models.repositories import get_repo
+
 # message list resolved via get_repo
 # tool_call list resolved via get_repo
 from ..types.agent import AgentType
@@ -131,7 +132,7 @@ def _load_runs_by_keys(
 
 def start_async_task(
     info: ResolveInfo, function_name: str, **arguments: Dict[str, Any]
-) -> str:
+) -> str | None:
     """
     Initialize and trigger an asynchronous task for processing the model request.
     Creates a task record in the database and invokes an AWS Lambda function asynchronously.
@@ -152,9 +153,11 @@ def start_async_task(
         # Create task record in database
         # PG repos require an explicit async_task_uuid (composite PK);
         # DynamoDB's insert_update_decorator auto-generates one when not provided.
-        from ...handlers.config import Config as _Config
+        from ..handlers.config import Config as _Config
 
-        _async_task_uuid = str(uuid.uuid4()) if _Config.DB_BACKEND == "postgresql" else None
+        _async_task_uuid = (
+            str(uuid.uuid4()) if _Config.DB_BACKEND == "postgresql" else None
+        )
         _async_task_kwargs = {
             "function_name": function_name,
             "arguments": {k: v for k, v in arguments.items() if k != "updated_by"},
@@ -162,12 +165,16 @@ def start_async_task(
         }
         if _async_task_uuid:
             _async_task_kwargs["async_task_uuid"] = _async_task_uuid
-        async_task = get_repo("async_task").insert_update(
-            info, **_async_task_kwargs
-        )
+        async_task = get_repo("async_task").insert_update(info, **_async_task_kwargs)
 
-        # Support both dict (PG) and ObjectType (DynamoDB) return types
-        _async_task_dict = async_task if isinstance(async_task, dict) else async_task.__dict__
+        # Support both dict (PG) and ObjectType (DynamoDB) return types;
+        # guard against a None return so we never AttributeError on __dict__.
+        if isinstance(async_task, dict):
+            _async_task_dict = async_task
+        elif async_task is not None:
+            _async_task_dict = async_task.__dict__
+        else:
+            _async_task_dict = {}
 
         # Prepare parameters for Lambda invocation
         params = {
@@ -806,8 +813,8 @@ def async_task_handler(function_name: str) -> Callable:
                             "async_task_uuid": async_task_uuid,
                             "status": "in_progress",
                             "updated_by": arguments["updated_by"],
-                    },
-                )
+                        },
+                    )
 
                 # Execute the wrapped function
                 result, output_files = func(info, **kwargs)

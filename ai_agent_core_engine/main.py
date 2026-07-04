@@ -661,6 +661,51 @@ def dispatch_ask_model(**params: Any) -> Any:
                     exc,
                 )
 
+        _ctx = params.get("context", {})
+
+        def _precreate_thread():
+            # The gateway streaming path takes ``thread_uuid`` from the client
+            # but never persists the thread itself, so runs/messages/tool_calls
+            # would reference a thread row that does not exist. Create it here
+            # (idempotently) the same way ``_get_thread`` does.
+            if not thread_uuid:
+                return
+            try:
+                # NB: the thread model (both backends) has no ``updated_by``
+                # field — only these columns/attributes.
+                _fields = {
+                    "agent_uuid": arguments.get("agent_uuid"),
+                    "user_id": arguments.get("user_id"),
+                    "endpoint_id": _ctx.get("endpoint_id"),
+                    "part_id": _ctx.get("part_id"),
+                }
+                _fields = {k: v for k, v in _fields.items() if v is not None}
+                if Config.DB_BACKEND == "postgresql":
+                    from ai_agent_core_engine.models.repositories import get_repo
+
+                    get_repo("thread").insert_update(
+                        None,
+                        thread_uuid=thread_uuid,
+                        partition_key=partition_key,
+                        **_fields,
+                    )
+                else:
+                    import pendulum as _pendulum
+                    from ai_agent_core_engine.models.dynamodb.thread import ThreadModel
+
+                    ThreadModel(
+                        partition_key,
+                        thread_uuid,
+                        created_at=_pendulum.now("UTC"),
+                        **_fields,
+                    ).save()
+            except Exception as exc:
+                engine.logger.warning(
+                    "Unable to pre-create thread %s for gateway ask_model: %s",
+                    thread_uuid,
+                    exc,
+                )
+
         def _precreate_run():
             if not (run_uuid and thread_uuid):
                 return
@@ -700,12 +745,18 @@ def dispatch_ask_model(**params: Any) -> Any:
                     exc,
                 )
 
-        # Parallelize the two pre-creation writes
+        # Parallelize the pre-creation writes. thread + run are independent of
+        # async_task; the thread has no FK to enforce ordering against the run.
         from concurrent.futures import ThreadPoolExecutor as _TPE
 
-        with _TPE(max_workers=2) as _pool:
-            _pool.submit(_precreate_async_task).result()
-            _pool.submit(_precreate_run).result()
+        with _TPE(max_workers=3) as _pool:
+            _futures = [
+                _pool.submit(_precreate_async_task),
+                _pool.submit(_precreate_thread),
+                _pool.submit(_precreate_run),
+            ]
+            for _f in _futures:
+                _f.result()
         _precreated = True
     else:
         if partition_key:

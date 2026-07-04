@@ -132,7 +132,7 @@ def _get_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType | Non
     try:
         # Only query for thread if thread_uuid is a valid non-empty string
         if "thread_uuid" in kwargs and kwargs["thread_uuid"]:
-            return resolve_thread(
+            return get_repo("thread").resolve_single(
                 info,
                 **{"thread_uuid": kwargs["thread_uuid"]},
             )
@@ -166,6 +166,11 @@ def _get_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType | Non
         if _thread_uuid:
             _thread_kwargs["thread_uuid"] = _thread_uuid
         thread = get_repo("thread").insert_update(info, **_thread_kwargs)
+        # PG insert_update returns a dict; normalize it to a ThreadType so every
+        # return path of _get_thread yields the same type (DynamoDB's
+        # insert_update already returns a ThreadType via its decorator).
+        if isinstance(thread, dict):
+            thread = get_repo("thread").get_type(info, thread)
         return thread
     except Exception as e:
         log = traceback.format_exc()
