@@ -4,7 +4,6 @@ from __future__ import print_function
 __author__ = "bibow"
 
 import threading
-import time
 import traceback
 import uuid
 from collections.abc import Iterable
@@ -17,11 +16,11 @@ from graphene import ResolveInfo
 from silvaengine_utility import Debugger, Serializer
 
 from ..models.repositories import get_repo
+
 # message insert via get_repo
 # run insert via get_repo
 # thread operations via get_repo
 from ..types.ai_agent import AskModelType, FileType, PresignedAWSS3UrlType
-from ..types.message import MessageType
 from ..types.thread import ThreadListType, ThreadType
 from ..utils.decorators import extract_token_usage, log_usage_record, usage_recorder
 from .ai_agent_utility import (
@@ -29,6 +28,7 @@ from .ai_agent_utility import (
     calculate_num_tokens,
     get_ai_agent_handler,
     get_input_messages,
+    local_async_invoker,
     start_async_task,
 )
 from .config import Config
@@ -70,7 +70,11 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
         # insert_update_decorator auto-generates one when not provided.
         _run_uuid = str(uuid.uuid4()) if Config.DB_BACKEND == "postgresql" else None
         _run_kwargs = {
-            "thread_uuid": thread.get("thread_uuid") if isinstance(thread, dict) else thread.thread_uuid,
+            "thread_uuid": (
+                thread.get("thread_uuid")
+                if isinstance(thread, dict)
+                else thread.thread_uuid
+            ),
             "updated_by": kwargs.get("updated_by"),
         }
         if _run_uuid:
@@ -83,7 +87,11 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
         _run_dict = run if isinstance(run, dict) else run.__dict__
         # Prepare arguments for async processing
         arguments = {
-            "thread_uuid": thread.get("thread_uuid") if isinstance(thread, dict) else thread.thread_uuid,
+            "thread_uuid": (
+                thread.get("thread_uuid")
+                if isinstance(thread, dict)
+                else thread.thread_uuid
+            ),
             "run_uuid": _run_dict.get("run_uuid"),
             "agent_uuid": kwargs["agent_uuid"],
             "user_query": kwargs["user_query"],
@@ -103,7 +111,11 @@ def ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AskModelType:
         )
 
         # Return response with all relevant IDs
-        _thread_uuid = thread.get("thread_uuid") if isinstance(thread, dict) else thread.thread_uuid
+        _thread_uuid = (
+            thread.get("thread_uuid")
+            if isinstance(thread, dict)
+            else thread.thread_uuid
+        )
         return AskModelType(
             agent_uuid=kwargs["agent_uuid"],
             thread_uuid=_thread_uuid,
@@ -205,6 +217,7 @@ def _get_agent(info: ResolveInfo, agent_uuid: str):
         # Return a shallow copy so the caller can mutate agent.__dict__
         # without polluting the cached entry.
         import copy
+
         return copy.copy(cached[0])
 
     agent = get_repo("agent").resolve_single(info, **{"agent_uuid": agent_uuid})
@@ -342,14 +355,10 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> tuple:
 
     ai_agent_handler = get_ai_agent_handler(info=info, agent=agent)
     ai_agent_handler.context = info.context
-    # Gateway (non-Lambda) contexts carry no ``aws_lambda_invoker``, so the
-    # handler's fire-and-forget recordings (e.g. tool_call rows) would be
-    # silently dropped. Provide an in-process invoker when one is absent; the
-    # AWS Lambda path already injects its own and is left untouched.
-    if not callable(ai_agent_handler.context.get("aws_lambda_invoker")):
-        from ..main import _local_async_invoker
-
-        ai_agent_handler.context["aws_lambda_invoker"] = _local_async_invoker
+    # All fire-and-forget engine "Event" dispatch (e.g. tool_call recording)
+    # runs in-process — no AWS Lambda. Install the local invoker under the key
+    # the LLM handler reads (``aws_lambda_invoker``); the name is legacy.
+    ai_agent_handler.context["aws_lambda_invoker"] = local_async_invoker
     ai_agent_handler.run = run if isinstance(run, dict) else run.__dict__
     ai_agent_handler.task_queue = Config.task_queue
 
@@ -410,7 +419,9 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> tuple:
         )
 
     # Record AI assistant response
-    _msg_uuid_assistant = str(uuid.uuid4()) if Config.DB_BACKEND == "postgresql" else None
+    _msg_uuid_assistant = (
+        str(uuid.uuid4()) if Config.DB_BACKEND == "postgresql" else None
+    )
     _assistant_kwargs = {
         "thread_uuid": arguments["thread_uuid"],
         "run_uuid": arguments["run_uuid"],
@@ -425,7 +436,11 @@ def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> tuple:
         info,
         **_assistant_kwargs,
     )
-    _assistant_msg = assistant_message if isinstance(assistant_message, dict) else assistant_message.__dict__
+    _assistant_msg = (
+        assistant_message
+        if isinstance(assistant_message, dict)
+        else assistant_message.__dict__
+    )
     info.context["logger"].info(
         f"Assistant message recorded - thread: {arguments['thread_uuid']}, "
         f"run: {arguments['run_uuid']}, message: {_assistant_msg.get('message_uuid')}, "
@@ -526,7 +541,8 @@ def _update_user_message_with_files(
     get_repo("message").insert_update(
         info,
         **{
-            "thread_uuid": _msg.get("thread_uuid") or _msg.get("run", {}).get("thread", {}).get("thread_uuid"),
+            "thread_uuid": _msg.get("thread_uuid")
+            or _msg.get("run", {}).get("thread", {}).get("thread_uuid"),
             "message_uuid": _msg.get("message_uuid"),
             "message": Serializer.json_dumps(message_content),
             "updated_by": updated_by,

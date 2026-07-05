@@ -486,66 +486,6 @@ def _build_engine_from_config() -> "AIAgentCoreEngine":
     return _engine_instance
 
 
-# ---------------------------------------------------------------------------
-# In-process async invoker for gateway (non-Lambda) deployments.
-#
-# The LLM handlers record side effects (e.g. tool_call rows) by dispatching
-# fire-and-forget "Event" functions through ``invoke_async_funct``, which
-# expects an ``aws_lambda_invoker`` callable in its context. On AWS Lambda that
-# key is injected by silvaengine_base; in the SilvaEngine Gateway it is absent,
-# so those calls would be silently dropped. ``execute_ask_model`` installs
-# ``_local_async_invoker`` when no invoker is present so the work runs in
-# process, dispatched to the already-initialized cached engine.
-#
-# A single-worker executor serializes the dispatches so the ordered
-# start -> in_progress -> completed events for one tool_call upsert the same
-# row instead of racing into duplicates.
-# ---------------------------------------------------------------------------
-import threading as _threading_mod
-from concurrent.futures import ThreadPoolExecutor as _ThreadPoolExecutor
-
-_local_dispatch_executor: Optional[_ThreadPoolExecutor] = None
-_local_dispatch_lock = _threading_mod.Lock()
-
-
-def _get_local_dispatch_executor() -> _ThreadPoolExecutor:
-    """Lazily create the single-worker executor for in-process dispatch."""
-    global _local_dispatch_executor
-    if _local_dispatch_executor is None:
-        with _local_dispatch_lock:
-            if _local_dispatch_executor is None:
-                _local_dispatch_executor = _ThreadPoolExecutor(
-                    max_workers=1, thread_name_prefix="aace-local-invoker"
-                )
-    return _local_dispatch_executor
-
-
-def _local_async_invoker(payload: Dict[str, Any], **_ignored: Any) -> None:
-    """In-process replacement for ``aws_lambda_invoker`` (gateway mode).
-
-    Unpacks the invoker payload built by ``Invoker.build_invoker_payload`` and
-    dispatches the target method on the already-initialized cached engine,
-    serialized on a single worker. Errors are logged, never raised — dispatch
-    is fire-and-forget.
-    """
-    function_name = payload.get("function_name")
-    if not function_name:
-        return
-    params = dict(payload.get("parameters") or {})
-    params["context"] = payload.get("context") or {}
-    logger = params["context"].get("logger") or Config.get_logger()
-
-    def _run() -> None:
-        try:
-            engine = _build_engine_from_config()
-            getattr(engine, function_name)(**params)
-            logger.debug("Local async invoker dispatched %s", function_name)
-        except Exception:
-            logger.exception("Local async invoker failed for %s", function_name)
-
-    _get_local_dispatch_executor().submit(_run)
-
-
 def _set_rls_context(partition_key: str) -> None:
     """Set RLS tenant context for PostgreSQL mode (no-op for DynamoDB)."""
     if Config.DB_BACKEND == "postgresql" and Config.db_session:

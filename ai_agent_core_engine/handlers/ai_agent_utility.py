@@ -5,16 +5,16 @@ from __future__ import print_function
 __author__ = "bibow"
 
 import functools
+import threading
 import traceback
 import uuid
 import xml.dom.minidom
 import xml.etree.ElementTree as ET
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Callable, Dict, List
 
 import pendulum
 from graphene import ResolveInfo
-
-from silvaengine_constants import InvocationType
 
 try:
     import tiktoken
@@ -130,6 +130,97 @@ def _load_runs_by_keys(
         return {}
 
 
+# ---------------------------------------------------------------------------
+# Unified in-process async dispatch (SilvaEngine Gateway / FastAPI).
+#
+# Engine "Event" functions (async_execute_ask_model, async_insert_update_tool_call)
+# are dispatched fire-and-forget. This deployment runs entirely on the gateway
+# (a long-lived process), so they always execute in-process here — AWS Lambda
+# is not used. (Lambda would require a separate invocation instead, since a
+# background thread is frozen once a Lambda handler returns.)
+#
+# ``local_async_invoker`` is a drop-in for ``context['aws_lambda_invoker']`` (the
+# LLM handler calls it as ``invoker(payload=...)``) and is also used by
+# ``dispatch_async_funct``. Heavy functions (a full model run) get their own
+# thread; lightweight ordered recordings (tool_call start->in_progress->
+# completed must stay in order) share a single serialized worker.
+# ---------------------------------------------------------------------------
+
+# Engine functions whose local execution is heavy and must not share the
+# serialized recording worker.
+_HEAVY_LOCAL_FUNCTIONS = {"async_execute_ask_model"}
+
+_local_dispatch_executor: ThreadPoolExecutor | None = None
+_local_dispatch_lock = threading.Lock()
+
+
+def _get_local_dispatch_executor() -> ThreadPoolExecutor:
+    """Lazily create the single-worker executor for ordered local dispatch."""
+    global _local_dispatch_executor
+    if _local_dispatch_executor is None:
+        with _local_dispatch_lock:
+            if _local_dispatch_executor is None:
+                _local_dispatch_executor = ThreadPoolExecutor(
+                    max_workers=1, thread_name_prefix="aace-local-invoker"
+                )
+    return _local_dispatch_executor
+
+
+def local_async_invoker(payload: Dict[str, Any], **_ignored: Any) -> None:
+    """In-process replacement for ``aws_lambda_invoker`` (SilvaEngine Gateway).
+
+    Drop-in for ``context['aws_lambda_invoker']``: the LLM handler calls it as
+    ``invoker(payload=...)``. Resolves the target engine method from the payload
+    (built by ``Invoker.build_invoker_payload``) and runs it on the cached
+    engine — heavy functions on their own thread, ordered recordings on the
+    shared single worker. Fire-and-forget: errors are logged, never raised.
+    """
+    function_name = payload.get("function_name")
+    if not function_name:
+        return
+    params = dict(payload.get("parameters") or {})
+    params["context"] = payload.get("context") or {}
+    logger = params["context"].get("logger")
+
+    def _run() -> None:
+        try:
+            from ..main import _build_engine_from_config
+
+            getattr(_build_engine_from_config(), function_name)(**params)
+        except Exception:
+            if logger:
+                logger.exception(
+                    "Local async dispatch of %s failed", function_name
+                )
+
+    if function_name in _HEAVY_LOCAL_FUNCTIONS:
+        threading.Thread(
+            target=_run, name=f"aace-{function_name}", daemon=True
+        ).start()
+    else:
+        _get_local_dispatch_executor().submit(_run)
+
+
+def dispatch_async_funct(
+    info: ResolveInfo, function_name: str, params: Dict[str, Any]
+) -> None:
+    """Dispatch an async engine "Event" function in-process.
+
+    All async dispatch runs locally (SilvaEngine Gateway / FastAPI); AWS Lambda
+    is not used. ``local_async_invoker`` runs heavy functions on their own
+    thread and lightweight ordered recordings on a shared single worker.
+    """
+    local_async_invoker(
+        payload=Invoker.build_invoker_payload(
+            context=info.context,
+            module_name="ai_agent_core_engine",
+            class_name="AIAgentCoreEngine",
+            function_name=function_name,
+            parameters=params,
+        )
+    )
+
+
 def start_async_task(
     info: ResolveInfo, function_name: str, **arguments: Dict[str, Any]
 ) -> str | None:
@@ -196,21 +287,11 @@ def start_async_task(
                 params[index] = value
 
         try:
-            invoker = info.context.get("aws_lambda_invoker")
-            aws_lambda_arn = info.context.get("aws_lambda_arn")
-
-            if callable(invoker) and aws_lambda_arn:
-                invoker(
-                    function_name=aws_lambda_arn,
-                    invocation_type=InvocationType.EVENT,
-                    payload=Invoker.build_invoker_payload(
-                        context=info.context,
-                        module_name="ai_agent_core_engine",
-                        class_name="AIAgentCoreEngine",
-                        function_name=function_name,
-                        parameters=params,
-                    ),
-                )
+            # AWS Lambda: dispatch via the injected invoker. SilvaEngine Gateway
+            # (no Lambda): run in-process (async_execute_ask_model is "heavy", so
+            # local_async_invoker gives it its own thread). Non-streaming when
+            # there is no connection_id; the client polls the async_task.
+            dispatch_async_funct(info, function_name, params)
         except Exception as e:
             Debugger.info(
                 variable=e,
