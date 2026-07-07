@@ -94,7 +94,7 @@ def get_mcp_servers(
     path does.
     """
     from ...handlers.config import Config
-    from ..dynamodb.mcp_server import load_list_tools
+    from ...utils.mcp_tools import load_list_tools
     from ..repositories.dispatch import get_repo
 
     partition_key = info.context.get("partition_key")

@@ -5,10 +5,8 @@ Mirrors the DynamoDB McpServerToolLoader contract:
 .load((mcp_server_url, headers_tuple)) returns a Promise that resolves to a
 **list** of tool dicts retrieved from the MCP server's ``tools/list`` endpoint.
 
-This loader is **not** a database query — it calls ``load_list_tools`` from the
-DynamoDB mcp_server module, which performs an HTTP call to the remote MCP
-server.  The PG backend reuses the same fetch function because tool discovery
-is transport-level, not storage-level.
+This loader is **not** a database query — it fetches tools from remote MCP
+servers via HTTP using the shared ``load_list_tools`` utility.
 """
 from __future__ import print_function
 
@@ -23,8 +21,7 @@ class McpServerToolLoader(SafeDataLoader):
     """Batch loader for MCP server tools keyed by (mcp_server_url, headers_tuple).
 
     Unlike other PG loaders, this does **not** query PostgreSQL — it fetches
-    tools from remote MCP servers via HTTP.  The DynamoDB ``load_list_tools``
-    function is reused because tool discovery is transport-level.
+    tools from remote MCP servers via HTTP using the shared transport utility.
     """
 
     def __init__(self, context: Dict[str, Any], cache_enabled: bool = True) -> None:
@@ -46,7 +43,7 @@ class McpServerToolLoader(SafeDataLoader):
         if self._internal_mcp is not None:
             if self._internal_mcp_tools is not None:
                 return self._internal_mcp_tools
-            from ..dynamodb.mcp_server import load_list_tools
+            from ....utils.mcp_tools import load_list_tools
 
             self._internal_mcp_tools = load_list_tools(
                 self._context.get("logger"),
@@ -61,7 +58,7 @@ class McpServerToolLoader(SafeDataLoader):
     def _batch_load_fn(
         self, keys: List[tuple]
     ) -> Dict[tuple, List[Dict[str, Any]]]:
-        from ..dynamodb.mcp_server import load_list_tools
+        from ....utils.mcp_tools import load_list_tools
 
         unique_keys = list(dict.fromkeys(keys))
         key_map: Dict[tuple, List[Dict[str, Any]]] = {}

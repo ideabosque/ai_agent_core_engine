@@ -150,26 +150,20 @@ def get_mcp_server_count(partition_key: str, mcp_server_uuid: str) -> int:
 async def _run_list_tools(
     logger: logging.Logger, mcp_server: MCPServerModel | Dict[str, Any]
 ):
-    if MCPHttpClient is None:
-        raise ImportError("mcp_http_client is required to list MCP server tools.")
+    # Delegate to the shared transport-level implementation.
+    from ...utils.mcp_tools import _run_list_tools as _shared_run_list_tools
 
     if isinstance(mcp_server, MCPServerModel):
-        base_url = mcp_server.mcp_server_url
-        headers = mcp_server.headers.__dict__["attribute_values"]
-    else:
-        base_url = mcp_server["mcp_server_url"]
-        headers = mcp_server["headers"]
-
-    mcp_http_client = MCPHttpClient(
-        logger,
-        **{
-            "base_url": base_url,
-            "headers": headers,
-        },
-    )
-
-    async with mcp_http_client as client:
-        return await client.list_tools()
+        mcp_server = {
+            "mcp_server_url": mcp_server.mcp_server_url,
+            "headers": (
+                mcp_server.headers.__dict__["attribute_values"]
+                if hasattr(mcp_server.headers, "__dict__")
+                else mcp_server.headers
+            ),
+            "mcp_server_uuid": mcp_server.mcp_server_uuid,
+        }
+    return await _shared_run_list_tools(logger, mcp_server)
 
 
 @method_cache(
@@ -180,34 +174,20 @@ async def _run_list_tools(
 def load_list_tools(
     logger: logging.Logger, mcp_server: MCPServerModel | Dict[str, Any]
 ) -> List[Dict[str, Any]]:
-    try:
-        tools = Invoker.sync_call_async_compatible(_run_list_tools(logger, mcp_server))
-    except Exception as e:
-        tools = []
-        mcp_server_uuid = "internal_mcp"
-
-        if isinstance(mcp_server, MCPServerModel) and hasattr(
-            mcp_server, "mcp_server_uuid"
-        ):
-            mcp_server_uuid = mcp_server.mcp_server_uuid
-        elif isinstance(mcp_server, dict) and "mcp_server_uuid" in mcp_server:
-            mcp_server_uuid = mcp_server["mcp_server_uuid"]
-        logger.error(
-            f"Failed to list tools from MCP server {mcp_server_uuid}: {str(e)}"
-        )
-
-    return [
-        {
-            "name": tool.name,
-            "description": tool.description,
-            "input_schema": (
-                tool.get("inputSchema", tool.get("input_schema", {}))
-                if isinstance(tool, dict)
-                else getattr(tool, "input_schema", getattr(tool, "inputSchema", {}))
+    # Convert MCPServerModel to dict for the shared implementation.
+    if isinstance(mcp_server, MCPServerModel):
+        mcp_server = {
+            "mcp_server_url": mcp_server.mcp_server_url,
+            "headers": (
+                mcp_server.headers.__dict__["attribute_values"]
+                if hasattr(mcp_server.headers, "__dict__")
+                else mcp_server.headers
             ),
+            "mcp_server_uuid": mcp_server.mcp_server_uuid,
         }
-        for tool in tools
-    ]
+    from ...utils.mcp_tools import load_list_tools as _shared_load_list_tools
+
+    return _shared_load_list_tools(logger, mcp_server)
 
 
 def get_mcp_server_type(
