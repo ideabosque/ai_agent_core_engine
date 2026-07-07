@@ -38,6 +38,13 @@ class SafeDataLoader:
         if key in self._cache and self._cache_enabled:
             return Promise.resolve(self._cache[key])
 
+        # If the key is already queued in the current batch (not yet dispatched),
+        # return the existing Promise.  This prevents the second .load(key) call
+        # from overwriting the first entry and orphaning its Promise — which
+        # would cause Promise.all() to hang forever.
+        if key in self._batch:
+            return self._batch[key][0]
+
         # Create a Promise with an executor that captures resolve/reject
         # so _dispatch_batch can resolve it later.
         resolver_holder: Dict[str, Any] = {}

@@ -48,9 +48,11 @@ def get_repo(entity_type: str) -> EntityRepository:
             repo = _repo_registry["postgresql"].get(entity_type)
 
     if repo is None:
+        registered = list(_repo_registry.get(backend, {}).keys())
         raise KeyError(
             f"No repository registered for entity '{entity_type}' "
-            f"on backend '{backend}'"
+            f"on backend '{backend}'. "
+            f"Registered entities: {registered}"
         )
     return repo
 
@@ -91,11 +93,13 @@ def _init_dynamodb_repos() -> None:
     global _dynamodb_repos_initialized
     if _dynamodb_repos_initialized:
         return
-    _dynamodb_repos_initialized = True
 
     from .dynamodb import register_all as register_dynamodb
 
     register_dynamodb(_repo_registry["dynamodb"])
+    # Only mark as initialized after successful registration —
+    # if register_all raises, a subsequent get_repo() call should retry.
+    _dynamodb_repos_initialized = True
 
 
 def _init_postgresql_repos() -> None:
@@ -103,11 +107,13 @@ def _init_postgresql_repos() -> None:
     global _postgresql_repos_initialized
     if _postgresql_repos_initialized:
         return
-    _postgresql_repos_initialized = True
 
     from .postgresql import register_all as register_postgresql
 
     register_postgresql(_repo_registry["postgresql"])
+    # Only mark as initialized after successful registration —
+    # if register_all raises, a subsequent get_repo() call should retry.
+    _postgresql_repos_initialized = True
 
 
 def clear_registry() -> None:
