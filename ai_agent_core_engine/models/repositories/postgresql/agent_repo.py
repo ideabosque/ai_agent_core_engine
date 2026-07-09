@@ -325,10 +325,14 @@ class AgentRepository(EntityRepository):
         # When agent_uuid is provided (e.g. from _get_agent), fetch the
         # single active agent via resolve_active — mirrors the DynamoDB
         # resolve_agent path which routes agent_uuid to _get_active_agent.
+        partition_key = kwargs.get("partition_key") or _get_partition_key(info)
         if "agent_uuid" in kwargs and "agent_version_uuid" not in kwargs:
-            partition_key = kwargs.get("partition_key") or _get_partition_key(info)
             data = self.resolve_active(partition_key, kwargs["agent_uuid"])
         else:
+            # get() requires partition_key in kwargs; it lives in info.context
+            # (injected by the gateway via Graphql.execute context_value), not
+            # in the GraphQL field arguments.
+            kwargs.setdefault("partition_key", partition_key)
             data = self.get(**kwargs)
         if data is None:
             return None
