@@ -45,11 +45,36 @@ from ..models.repositories import get_repo
 from ..types.agent import AgentType
 
 
+import copy as _copy
 import time as _time
 
-# Handler instance cache — reuse httpx.Client connection pool across requests
+# Handler instance cache — reuse httpx.Client connection pool across requests.
+# Cached entries are templates only: never hand one out directly, because
+# callers stash per-request state on the instance (context/run/task_queue) and
+# the cache key is per-agent, not per-request. See _per_request_handler().
 _handler_cache: Dict[tuple, tuple] = {}
 _HANDLER_CACHE_TTL = 300  # 5 minutes
+
+
+def _per_request_handler(handler: Any, info: ResolveInfo) -> Any:
+    """Return a per-request view of a cached handler.
+
+    The cache is keyed by (endpoint, part_id, agent_uuid), so concurrent
+    requests to the same agent resolve to the same object. Callers then assign
+    per-request state onto it — ``handler.context`` carries the WebSocket
+    ``connection_id`` that ``send_data_to_stream`` routes chunks by, and
+    ``ask_model`` streams from a background thread reading ``self.context``.
+    Handing out the shared instance let a second request overwrite the first's
+    context mid-stream, so its tokens were delivered to the other client's
+    socket (and its own response came back empty).
+
+    A shallow copy gives each request its own attribute namespace while still
+    sharing the expensive bits the cache exists for (the imported module and
+    the handler's httpx.Client connection pool).
+    """
+    request_handler = _copy.copy(handler)
+    request_handler.context = info.context
+    return request_handler
 
 
 def get_ai_agent_handler(info: ResolveInfo, agent: AgentType):
@@ -74,10 +99,9 @@ def get_ai_agent_handler(info: ResolveInfo, agent: AgentType):
     )
     cached = _handler_cache.get(cache_key)
     if cached and (_time.time() - cached[1] < _HANDLER_CACHE_TTL):
-        handler = cached[0]
-        # Refresh per-request context on the cached handler
-        handler.context = info.context
-        return handler
+        # Never return the cached instance itself — concurrent requests would
+        # overwrite each other's per-request context. See _per_request_handler.
+        return _per_request_handler(cached[0], info)
 
     # Dynamically load and initialize AI agent handler
     ai_agent_handler = Invoker.resolve_proxied_callable(
@@ -95,8 +119,10 @@ def get_ai_agent_handler(info: ResolveInfo, agent: AgentType):
             f"Can't import module `{agent.llm.get('module_name')}` or not class `{agent.llm.get('class_name')}`"
         )
 
+    # Cache the freshly built instance as a template and hand back a
+    # per-request copy, so the very first request is isolated too.
     _handler_cache[cache_key] = (ai_agent_handler, _time.time())
-    return ai_agent_handler
+    return _per_request_handler(ai_agent_handler, info)
 
 
 def _load_runs_by_keys(
