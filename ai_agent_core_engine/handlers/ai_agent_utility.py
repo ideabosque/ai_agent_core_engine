@@ -57,20 +57,27 @@ _HANDLER_CACHE_TTL = 300  # 5 minutes
 
 
 def _per_request_handler(handler: Any, info: ResolveInfo) -> Any:
-    """Return a per-request view of a cached handler.
+    """Return an isolated per-request view of a cached handler.
 
     The cache is keyed by (endpoint, part_id, agent_uuid), so concurrent
-    requests to the same agent resolve to the same object. Callers then assign
-    per-request state onto it — ``handler.context`` carries the WebSocket
-    ``connection_id`` that ``send_data_to_stream`` routes chunks by, and
-    ``ask_model`` streams from a background thread reading ``self.context``.
+    requests to the same agent resolve to the same object, and callers stash
+    per-request state on the instance. ``handler.context`` carries the
+    WebSocket ``connection_id`` that ``send_data_to_stream`` routes chunks by,
+    and ``ask_model`` streams from a background thread reading ``self.context``.
     Handing out the shared instance let a second request overwrite the first's
-    context mid-stream, so its tokens were delivered to the other client's
-    socket (and its own response came back empty).
+    context mid-stream, so its tokens went to the other client's socket and its
+    own response came back empty.
 
     A shallow copy gives each request its own attribute namespace while still
-    sharing the expensive bits the cache exists for (the imported module and
-    the handler's httpx.Client connection pool).
+    sharing what the cache exists for: the imported module and the handler's
+    httpx.Client connection pool.
+
+    The handler's own per-run state (``final_output``, ``_short_term_memory``,
+    ...) is not reset here — each ``ask_model`` establishes it via
+    ``AIAgentEventHandler._reset_run_state()``. Keeping that inside the handlers
+    means this function needs no knowledge of their internals, and a new
+    provider handler cannot silently reintroduce the bug by adding a container
+    this list didn't know about.
     """
     request_handler = _copy.copy(handler)
     request_handler.context = info.context

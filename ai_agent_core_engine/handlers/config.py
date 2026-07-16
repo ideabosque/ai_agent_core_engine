@@ -35,6 +35,10 @@ class Config:
     schemas = {}
     xml_convert = None
     internal_mcp = None
+    # Optional callable supplied by the gateway that returns a currently-valid
+    # internal MCP bearer token. Without it the token baked in at startup is
+    # frozen and internal MCP calls 401 once it expires. See get_internal_mcp().
+    internal_mcp_token_provider = None
 
     # Backend selection: "dynamodb" (default) or "postgresql"
     DB_BACKEND: str = "dynamodb"
@@ -453,6 +457,11 @@ class Config:
             "base_url": mcp_server["base_url"],
             "headers": headers,
         }
+        # The header above is only the token as of startup. When the gateway
+        # supplies a provider, get_internal_mcp() refreshes it per request so
+        # the call keeps working after that token expires.
+        provider = mcp_server.get("token_provider")
+        cls.internal_mcp_token_provider = provider if callable(provider) else None
 
     @classmethod
     def _initialize_dynamodb_meta(cls, setting: Dict[str, Any]) -> None:
@@ -606,6 +615,21 @@ class Config:
         internal_mcp["base_url"] = internal_mcp["base_url"].format(
             endpoint_id=endpoint_id
         )
+        # Auth belongs to the request, not to startup: the token minted when the
+        # gateway booted expires (~1h for Cognito), and a frozen Authorization
+        # header would 401 from then until a restart. The provider is cached and
+        # expiry-aware, so this is a cheap read except when a refresh is due.
+        if cls.internal_mcp_token_provider is not None:
+            try:
+                token = cls.internal_mcp_token_provider()
+                if token:
+                    internal_mcp["headers"]["Authorization"] = f"Bearer {token}"
+            except Exception as e:
+                # Fall back to the existing header — it may still be valid.
+                if cls.logger:
+                    cls.logger.warning(
+                        f"Internal MCP token provider failed, using existing token: {e}"
+                    )
         # Tenant routing belongs to request context, not static gateway config.
         if part_id:
             internal_mcp["headers"]["Part-Id"] = part_id
