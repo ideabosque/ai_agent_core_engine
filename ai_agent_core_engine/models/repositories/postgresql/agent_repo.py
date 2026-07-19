@@ -202,41 +202,111 @@ class AgentRepository(EntityRepository):
             AgentModel.status == "active",
         ).update({AgentModel.status: "inactive"}, synchronize_session=False)
 
+    def _get_active_row(
+        self, session: Any, partition_key: str, agent_uuid: Optional[str]
+    ) -> Optional[AgentModel]:
+        """Return the active AgentModel row for an agent_uuid (same session)."""
+        if not agent_uuid:
+            return None
+        return (
+            session.query(AgentModel)
+            .filter(
+                AgentModel.partition_key == partition_key,
+                AgentModel.agent_uuid == agent_uuid,
+                AgentModel.status == "active",
+            )
+            .order_by(AgentModel.updated_at.desc())
+            .first()
+        )
+
     # ---- write ----
 
     def insert_update(self, info: Any, **kwargs: Any) -> Optional[Dict[str, Any]]:
+        import uuid as _uuid
+
         from ....handlers.config import Config
 
         partition_key = kwargs.get("partition_key") or _get_partition_key(info)
-        agent_version_uuid = kwargs.get("agent_version_uuid")
-        if not partition_key or not agent_version_uuid:
-            raise ValueError("partition_key and agent_version_uuid are required")
+        if not partition_key:
+            raise ValueError("partition_key is required")
 
+        agent_version_uuid = kwargs.get("agent_version_uuid")
         session = Config.db_session()
         try:
             now = pendulum.now("UTC")
-            row = (
-                session.query(AgentModel)
-                .filter(
-                    AgentModel.partition_key == partition_key,
-                    AgentModel.agent_version_uuid == agent_version_uuid,
+
+            # Only look up an existing row when an explicit version was given.
+            row = None
+            if agent_version_uuid:
+                row = (
+                    session.query(AgentModel)
+                    .filter(
+                        AgentModel.partition_key == partition_key,
+                        AgentModel.agent_version_uuid == agent_version_uuid,
+                    )
+                    .first()
                 )
-                .first()
-            )
 
             if row is None:
+                # New version / agent. The DynamoDB path auto-generates the
+                # version id (and agent_uuid) here via its insert_update
+                # decorator; the PG repo must do the same. Version id matches
+                # the DynamoDB 20-digit format.
+                if not agent_version_uuid:
+                    agent_version_uuid = f"{_uuid.uuid1().int % (10 ** 20):020d}"
+
+                # Seed defaults mirroring the DynamoDB AgentModel
+                # (status='active', tool_call_role='developer').
+                seed: Dict[str, Any] = {
+                    "configuration": {},
+                    "mcp_server_uuids": [],
+                    "variables": [],
+                    "status": "active",
+                    "tool_call_role": "developer",
+                }
+
+                agent_uuid = kwargs.get("agent_uuid")
+                duplicate = kwargs.get("duplicate", False)
+                active = self._get_active_row(session, partition_key, agent_uuid)
+                if active is not None:
+                    # New version of an existing agent: inherit its fields.
+                    excluded = {
+                        "partition_key", "endpoint_id", "part_id",
+                        "agent_version_uuid", "status", "updated_by",
+                        "created_at", "updated_at",
+                    }
+                    for k, v in (_normalize(active) or {}).items():
+                        if k not in excluded:
+                            seed[k] = v
+                    if duplicate:
+                        seed["agent_name"] = f"{seed.get('agent_name', '')} (Copy)"
+                else:
+                    # Brand-new agent identity.
+                    seed["agent_uuid"] = (
+                        f"agent-{now.int_timestamp}-{str(_uuid.uuid4())[:8]}"
+                    )
+
                 row = AgentModel(
                     partition_key=partition_key,
                     agent_version_uuid=agent_version_uuid,
                     created_at=now,
                     updated_at=now,
                 )
+                for _k, _v in seed.items():
+                    setattr(row, _k, _v)
             else:
                 row.updated_at = now
 
+            # Caller-provided fields override seeded/inherited values.
             for field in _UPDATABLE_FIELDS:
                 if field in kwargs:
                     setattr(row, field, kwargs[field])
+
+            # Derive endpoint_id/part_id from partition_key when absent.
+            if not getattr(row, "endpoint_id", None) and "#" in partition_key:
+                _ep, _pt = partition_key.split("#", 1)
+                row.endpoint_id = _ep
+                row.part_id = _pt
 
             # Enforce single-active: if status == 'active', deactivate others
             # BEFORE adding the new row to the session, to avoid violating
