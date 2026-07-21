@@ -4,6 +4,7 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
+import uuid
 from typing import Any, Dict, Optional
 
 from ...repositories.base import EntityRepository
@@ -40,6 +41,21 @@ class AgentRepository(EntityRepository):
         return _agent_mod.resolve_agent_list(info, **filters)
 
     def insert_update(self, info: Any, **kwargs: Any) -> Optional[Dict[str, Any]]:
+        if not kwargs.get("partition_key"):
+            context = getattr(info, "context", None) or {}
+            partition_key = context.get("partition_key")
+            if (
+                not partition_key
+                and context.get("endpoint_id")
+                and context.get("part_id")
+            ):
+                partition_key = f"{context['endpoint_id']}#{context['part_id']}"
+            if partition_key:
+                kwargs["partition_key"] = partition_key
+
+        if not kwargs.get("agent_version_uuid"):
+            kwargs["agent_version_uuid"] = f"{uuid.uuid1().int % (10 ** 20):020d}"
+
         return _agent_mod.insert_update_agent(info, **kwargs)
 
     def delete(self, info: Any, **kwargs: Any) -> bool:
