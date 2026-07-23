@@ -7,13 +7,19 @@ import logging
 import sys
 import threading
 import traceback
-from typing import Any, Dict, List
+from typing import TYPE_CHECKING, Any, Dict, List
 
 import boto3
 
 from silvaengine_utility import Debugger, Graphql
 
 from ..models.dynamodb import utils
+
+if TYPE_CHECKING:  # pragma: no cover - typing only
+    # SQLAlchemy is an optional extra ([postgresql]); import it for type
+    # checkers only so annotating ``db_session`` never adds a runtime
+    # dependency for DynamoDB-only installs.
+    from sqlalchemy.orm import scoped_session
 
 
 class Config:
@@ -42,8 +48,16 @@ class Config:
 
     # Backend selection: "dynamodb" (default) or "postgresql"
     DB_BACKEND: str = "dynamodb"
-    # PostgreSQL session (only initialized when DB_BACKEND == "postgresql")
-    db_session = None
+    # PostgreSQL session. Populated by ``_initialize_db_session()`` when
+    # DB_BACKEND == "postgresql"; the PG repositories only run in that mode, so
+    # by the time they call it the session always exists.
+    #
+    # Declared as the non-optional ``scoped_session`` on purpose: a bare
+    # ``= None`` infers ``None`` (breaking every call site), while
+    # ``scoped_session | None`` makes Pylance report ``reportOptionalCall`` at
+    # each of the ~200 ``Config.db_session()`` / ``.remove()`` uses. The
+    # ``type: ignore`` covers only the ``None`` placeholder assignment.
+    db_session: "scoped_session" = None  # type: ignore[assignment]
     # Table prefix for shared PostgreSQL databases
     PG_TABLE_PREFIX: str = "aace_"
 
