@@ -181,41 +181,103 @@ class PromptTemplateRepository(EntityRepository):
             PromptTemplateModel.status == "active",
         ).update({PromptTemplateModel.status: "inactive"}, synchronize_session=False)
 
+    def _get_active_row(
+        self, session: Any, partition_key: str, prompt_uuid: Optional[str]
+    ) -> Optional[PromptTemplateModel]:
+        """Return the active PromptTemplateModel row for a prompt_uuid (same session)."""
+        if not prompt_uuid:
+            return None
+        return (
+            session.query(PromptTemplateModel)
+            .filter(
+                PromptTemplateModel.partition_key == partition_key,
+                PromptTemplateModel.prompt_uuid == prompt_uuid,
+                PromptTemplateModel.status == "active",
+            )
+            .order_by(PromptTemplateModel.updated_at.desc())
+            .first()
+        )
+
     # ---- write ----
 
     def insert_update(self, info: Any, **kwargs: Any) -> Optional[Dict[str, Any]]:
+        import uuid as _uuid
+
         from ....handlers.config import Config
 
         partition_key = kwargs.get("partition_key") or _get_partition_key(info)
-        prompt_version_uuid = kwargs.get("prompt_version_uuid")
-        if not partition_key or not prompt_version_uuid:
-            raise ValueError("partition_key and prompt_version_uuid are required")
+        if not partition_key:
+            raise ValueError("partition_key is required")
 
+        prompt_version_uuid = kwargs.get("prompt_version_uuid")
         session = Config.db_session()
         try:
             now = pendulum.now("UTC")
-            row = (
-                session.query(PromptTemplateModel)
-                .filter(
-                    PromptTemplateModel.partition_key == partition_key,
-                    PromptTemplateModel.prompt_version_uuid == prompt_version_uuid,
+
+            # Only look up an existing row when an explicit version was given.
+            row = None
+            if prompt_version_uuid:
+                row = (
+                    session.query(PromptTemplateModel)
+                    .filter(
+                        PromptTemplateModel.partition_key == partition_key,
+                        PromptTemplateModel.prompt_version_uuid == prompt_version_uuid,
+                    )
+                    .first()
                 )
-                .first()
-            )
 
             if row is None:
+                # New version / template. The DynamoDB path auto-generates the
+                # version id (and prompt_uuid) via its insert_update decorator;
+                # the PG repo must do the same.
+                if not prompt_version_uuid:
+                    prompt_version_uuid = f"{_uuid.uuid1().int % (10 ** 20):020d}"
+
+                seed: Dict[str, Any] = {"status": "active"}
+                prompt_uuid = kwargs.get("prompt_uuid")
+                duplicate = kwargs.get("duplicate", False)
+                active = self._get_active_row(session, partition_key, prompt_uuid)
+                if active is not None:
+                    excluded = {
+                        "partition_key", "endpoint_id", "part_id",
+                        "prompt_version_uuid", "status", "updated_by",
+                        "created_at", "updated_at",
+                    }
+                    for k, v in (_normalize(active) or {}).items():
+                        if k not in excluded:
+                            seed[k] = v
+                    if duplicate:
+                        # A duplicate becomes a NEW template identity.
+                        seed["prompt_uuid"] = (
+                            f"prompt-{now.int_timestamp}-{str(_uuid.uuid4())[:8]}"
+                        )
+                        seed["prompt_name"] = f"{seed.get('prompt_name', '')} (Copy)"
+                else:
+                    seed["prompt_uuid"] = (
+                        f"prompt-{now.int_timestamp}-{str(_uuid.uuid4())[:8]}"
+                    )
+
                 row = PromptTemplateModel(
                     partition_key=partition_key,
                     prompt_version_uuid=prompt_version_uuid,
                     created_at=now,
                     updated_at=now,
                 )
+                for _k, _v in seed.items():
+                    setattr(row, _k, _v)
             else:
                 row.updated_at = now
 
+            # Caller-provided fields override seeded/inherited values.
             for field in _UPDATABLE_FIELDS:
                 if field in kwargs:
                     setattr(row, field, kwargs[field])
+
+            # Derive endpoint_id/part_id from partition_key when absent.
+            if not getattr(row, "endpoint_id", None) and "#" in partition_key:
+                _ep, _pt = partition_key.split("#", 1)
+                row.endpoint_id = _ep
+                row.part_id = _pt
 
             # Enforce single-active
             if getattr(row, "status", None) == "active" and getattr(

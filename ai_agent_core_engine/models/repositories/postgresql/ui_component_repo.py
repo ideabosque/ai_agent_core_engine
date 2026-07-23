@@ -134,9 +134,15 @@ class UIComponentRepository(EntityRepository):
         from ....handlers.config import Config
 
         ui_component_type = kwargs.get("ui_component_type") or _get_partition_key(info)
+        if not ui_component_type:
+            raise ValueError("ui_component_type is required")
         ui_component_uuid = kwargs.get("ui_component_uuid")
-        if not ui_component_type or not ui_component_uuid:
-            raise ValueError("ui_component_type and ui_component_uuid are required")
+        if not ui_component_uuid:
+            # DynamoDB's insert_update decorator auto-generates this id when
+            # the caller omits it (new record); the PG repo must do the same.
+            import uuid as _uuid
+
+            ui_component_uuid = f"{_uuid.uuid1().int % (10 ** 20):020d}"
 
         session = Config.db_session()
         try:

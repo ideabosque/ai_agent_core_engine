@@ -132,9 +132,15 @@ class MCPServerRepository(EntityRepository):
         from ....handlers.config import Config
 
         partition_key = kwargs.get("partition_key") or _get_partition_key(info)
+        if not partition_key:
+            raise ValueError("partition_key is required")
         mcp_server_uuid = kwargs.get("mcp_server_uuid")
-        if not partition_key or not mcp_server_uuid:
-            raise ValueError("partition_key and mcp_server_uuid are required")
+        if not mcp_server_uuid:
+            # DynamoDB's insert_update decorator auto-generates this id when
+            # the caller omits it (new record); the PG repo must do the same.
+            import uuid as _uuid
+
+            mcp_server_uuid = f"{_uuid.uuid1().int % (10 ** 20):020d}"
 
         session = Config.db_session()
         try:

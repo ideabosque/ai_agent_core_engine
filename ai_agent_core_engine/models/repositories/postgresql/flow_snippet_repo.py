@@ -179,41 +179,113 @@ class FlowSnippetRepository(EntityRepository):
             FlowSnippetModel.status == "active",
         ).update({FlowSnippetModel.status: "inactive"}, synchronize_session=False)
 
+    def _get_active_row(
+        self, session: Any, partition_key: str, flow_snippet_uuid: Optional[str]
+    ) -> Optional[FlowSnippetModel]:
+        """Return the active FlowSnippetModel row for a flow_snippet_uuid (same session)."""
+        if not flow_snippet_uuid:
+            return None
+        return (
+            session.query(FlowSnippetModel)
+            .filter(
+                FlowSnippetModel.partition_key == partition_key,
+                FlowSnippetModel.flow_snippet_uuid == flow_snippet_uuid,
+                FlowSnippetModel.status == "active",
+            )
+            .order_by(FlowSnippetModel.updated_at.desc())
+            .first()
+        )
+
     # ---- write ----
 
     def insert_update(self, info: Any, **kwargs: Any) -> Optional[Dict[str, Any]]:
+        import uuid as _uuid
+
         from ....handlers.config import Config
 
         partition_key = kwargs.get("partition_key") or _get_partition_key(info)
-        flow_snippet_version_uuid = kwargs.get("flow_snippet_version_uuid")
-        if not partition_key or not flow_snippet_version_uuid:
-            raise ValueError("partition_key and flow_snippet_version_uuid are required")
+        if not partition_key:
+            raise ValueError("partition_key is required")
 
+        flow_snippet_version_uuid = kwargs.get("flow_snippet_version_uuid")
         session = Config.db_session()
         try:
             now = pendulum.now("UTC")
-            row = (
-                session.query(FlowSnippetModel)
-                .filter(
-                    FlowSnippetModel.partition_key == partition_key,
-                    FlowSnippetModel.flow_snippet_version_uuid == flow_snippet_version_uuid,
+
+            # Only look up an existing row when an explicit version was given.
+            row = None
+            if flow_snippet_version_uuid:
+                row = (
+                    session.query(FlowSnippetModel)
+                    .filter(
+                        FlowSnippetModel.partition_key == partition_key,
+                        FlowSnippetModel.flow_snippet_version_uuid
+                        == flow_snippet_version_uuid,
+                    )
+                    .first()
                 )
-                .first()
-            )
 
             if row is None:
+                # New version / snippet. The DynamoDB path auto-generates the
+                # version id (and flow_snippet_uuid) via its insert_update
+                # decorator; the PG repo must do the same. Version id matches
+                # the DynamoDB 20-digit format.
+                if not flow_snippet_version_uuid:
+                    flow_snippet_version_uuid = (
+                        f"{_uuid.uuid1().int % (10 ** 20):020d}"
+                    )
+
+                seed: Dict[str, Any] = {"status": "active"}
+                flow_snippet_uuid = kwargs.get("flow_snippet_uuid")
+                duplicate = kwargs.get("duplicate", False)
+                active = self._get_active_row(
+                    session, partition_key, flow_snippet_uuid
+                )
+                if active is not None:
+                    # New version of an existing snippet: inherit its fields.
+                    excluded = {
+                        "partition_key", "endpoint_id", "part_id",
+                        "flow_snippet_version_uuid", "status", "updated_by",
+                        "created_at", "updated_at",
+                    }
+                    for k, v in (_normalize(active) or {}).items():
+                        if k not in excluded:
+                            seed[k] = v
+                    if duplicate:
+                        # A duplicate becomes a NEW snippet identity.
+                        seed["flow_snippet_uuid"] = (
+                            f"flow-snippet-{now.int_timestamp}-"
+                            f"{str(_uuid.uuid4())[:8]}"
+                        )
+                        seed["flow_name"] = f"{seed.get('flow_name', '')} (Copy)"
+                else:
+                    # Brand-new snippet identity.
+                    seed["flow_snippet_uuid"] = (
+                        f"flow-snippet-{now.int_timestamp}-"
+                        f"{str(_uuid.uuid4())[:8]}"
+                    )
+
                 row = FlowSnippetModel(
                     partition_key=partition_key,
                     flow_snippet_version_uuid=flow_snippet_version_uuid,
                     created_at=now,
                     updated_at=now,
                 )
+                for _k, _v in seed.items():
+                    setattr(row, _k, _v)
             else:
                 row.updated_at = now
 
+            # Caller-provided fields override seeded/inherited values.
             for field in _UPDATABLE_FIELDS:
                 if field in kwargs:
                     setattr(row, field, kwargs[field])
+
+            # Derive endpoint_id/part_id from partition_key when absent.
+            if not getattr(row, "endpoint_id", None) and "#" in partition_key:
+                _ep, _pt = partition_key.split("#", 1)
+                row.endpoint_id = _ep
+                row.part_id = _pt
 
             # Enforce single-active
             if getattr(row, "status", None) == "active" and getattr(
