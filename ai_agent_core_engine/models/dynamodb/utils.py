@@ -274,7 +274,7 @@ def update_agents_by_flow_snippet(
             **{
                 "agent_uuid": agent.agent_uuid,
                 "flow_snippet_version_uuid": updated_flow_snippet_version_uuid,
-                "updated_by": agent.updated_by,
+                "updated_by": getattr(agent, "updated_by", None) or "system",
             },
         )
 

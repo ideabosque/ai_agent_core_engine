@@ -274,6 +274,7 @@ def resolve_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AgentType | No
         "partition_key",
         "agent_version_uuid",
         "agent_uuid",
+        "updated_by",
         "updated_at",
     ],
     list_type_class=AgentListType,

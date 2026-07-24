@@ -438,6 +438,15 @@ def insert_update_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> A
         FlowSnippetModel.updated_at.set(pendulum.now("UTC")),
     ]
 
+    _content_changed = False
+    _content_fields = (
+        "prompt_uuid",
+        "flow_name",
+        "flow_relationship",
+        "flow_context",
+        "enabled_tools",
+    )
+
     if "status" in kwargs and (
         kwargs["status"] == "active" and flow_snippet.status == "inactive"
     ):
@@ -454,14 +463,28 @@ def insert_update_flow_snippet(info: ResolveInfo, **kwargs: Dict[str, Any]) -> A
 
     for key, field in field_map.items():
         if key in kwargs:
-            if key == "flow_context" and Config.xml_convert:
-                actions.append(field.set(convert_flow_snippet_xml(kwargs[key])))
-            else:
-                actions.append(
-                    field.set(None if kwargs[key] == "null" else kwargs[key])
-                )
+            new_value = (
+                convert_flow_snippet_xml(kwargs[key])
+                if key == "flow_context" and Config.xml_convert
+                else (None if kwargs[key] == "null" else kwargs[key])
+            )
+            actions.append(field.set(new_value))
+            if key in _content_fields and new_value != getattr(
+                flow_snippet, key, None
+            ):
+                _content_changed = True
 
     flow_snippet.update(actions=actions)
+
+    # In-place content edit on an existing version: rebuild each referencing
+    # agent's denormalized ``instructions`` from the updated snippet (creates
+    # a new agent version pointing at the same version_uuid).
+    if _content_changed and flow_snippet.status == "active":
+        update_agents_by_flow_snippet(
+            info,
+            flow_snippet.flow_snippet_version_uuid,
+            flow_snippet.flow_snippet_version_uuid,
+        )
 
     return
 

@@ -20,6 +20,13 @@ from ._base import (
 )
 
 _PK_FIELDS = ("partition_key", "flow_snippet_version_uuid")
+_CONTENT_FIELDS = (
+    "prompt_uuid",
+    "flow_name",
+    "flow_relationship",
+    "flow_context",
+    "enabled_tools",
+)
 _UPDATABLE_FIELDS = (
     "endpoint_id",
     "part_id",
@@ -196,6 +203,52 @@ class FlowSnippetRepository(EntityRepository):
             .first()
         )
 
+    def _repoint_agents(
+        self,
+        info: Any,
+        partition_key: str,
+        from_version_uuid: str,
+        to_version_uuid: str,
+    ) -> None:
+        """Create a new agent version for every agent referencing
+        ``from_version_uuid``, pointing it at ``to_version_uuid``.
+
+        ``agent_repo.insert_update`` rebuilds the denormalized ``instructions``
+        (and mcp_server_uuids / enabled_tools) from the referenced snippet via
+        ``_apply_flow_snippet``, so the agent reflects the updated snippet.
+
+        Failures are logged rather than raised — the snippet write itself has
+        already been committed.
+        """
+        try:
+            from .. import get_repo
+
+            agent_repo = get_repo("agent")
+            listing = agent_repo.list(
+                info,
+                flow_snippet_version_uuid=from_version_uuid,
+                limit=1000,
+            )
+            seen = set()
+            for agent in (getattr(listing, "agent_list", None) or []):
+                agent_uuid = getattr(agent, "agent_uuid", None)
+                if not agent_uuid or agent_uuid in seen:
+                    continue
+                seen.add(agent_uuid)
+                agent_repo.insert_update(
+                    info,
+                    partition_key=partition_key,
+                    agent_uuid=agent_uuid,
+                    flow_snippet_version_uuid=to_version_uuid,
+                    updated_by=getattr(agent, "updated_by", None) or "system",
+                )
+        except Exception:
+            _get_logger(info).exception(
+                "Failed to repoint agents %s -> %s",
+                from_version_uuid,
+                to_version_uuid,
+            )
+
     def _propagate_to_agents(
         self,
         info: Any,
@@ -209,38 +262,28 @@ class FlowSnippetRepository(EntityRepository):
         referenced the old version gets a new version pointing at the updated
         snippet, which rebuilds its ``instructions``. Without this an edited
         flow snippet never reaches the agents using it.
-
-        Failures are logged rather than raised — the snippet write itself has
-        already been committed.
         """
-        try:
-            from .. import get_repo
+        self._repoint_agents(
+            info, partition_key, previous_version_uuid, new_version_uuid
+        )
 
-            agent_repo = get_repo("agent")
-            listing = agent_repo.list(
-                info,
-                flow_snippet_version_uuid=previous_version_uuid,
-                limit=1000,
-            )
-            seen = set()
-            for agent in (getattr(listing, "agent_list", None) or []):
-                agent_uuid = getattr(agent, "agent_uuid", None)
-                if not agent_uuid or agent_uuid in seen:
-                    continue
-                seen.add(agent_uuid)
-                agent_repo.insert_update(
-                    info,
-                    partition_key=partition_key,
-                    agent_uuid=agent_uuid,
-                    flow_snippet_version_uuid=new_version_uuid,
-                    updated_by=getattr(agent, "updated_by", None) or "system",
-                )
-        except Exception:
-            _get_logger(info).exception(
-                "Failed to propagate flow snippet %s -> %s to agents",
-                previous_version_uuid,
-                new_version_uuid,
-            )
+    def _refresh_agents_instructions(
+        self,
+        info: Any,
+        partition_key: str,
+        flow_snippet_version_uuid: str,
+    ) -> None:
+        """Rebuild denormalized ``instructions`` for agents referencing an
+        in-place-edited snippet version.
+
+        The snippet's ``flow_snippet_version_uuid`` is unchanged, so each agent
+        keeps the same FK — but a new agent version is created so
+        ``_apply_flow_snippet`` re-renders ``instructions`` from the updated
+        snippet content.
+        """
+        self._repoint_agents(
+            info, partition_key, flow_snippet_version_uuid, flow_snippet_version_uuid
+        )
 
     # ---- write ----
 
@@ -255,6 +298,7 @@ class FlowSnippetRepository(EntityRepository):
 
         flow_snippet_version_uuid = kwargs.get("flow_snippet_version_uuid")
         _prev_version_uuid = None
+        _inplace_content_changed = False
         session = Config.db_session()
         try:
             now = pendulum.now("UTC")
@@ -326,6 +370,14 @@ class FlowSnippetRepository(EntityRepository):
                     setattr(row, _k, _v)
             else:
                 row.updated_at = now
+                # In-place update of an existing version: track whether any
+                # content field changed so referencing agents can have their
+                # denormalized ``instructions`` rebuilt after the commit.
+                _inplace_content_changed = any(
+                    f in kwargs
+                    and getattr(row, f, None) != kwargs[f]
+                    for f in _CONTENT_FIELDS
+                )
 
             # Caller-provided fields override seeded/inherited values.
             for field in _UPDATABLE_FIELDS:
@@ -366,6 +418,14 @@ class FlowSnippetRepository(EntityRepository):
             if _prev_version_uuid and _prev_version_uuid != _new_version_uuid:
                 self._propagate_to_agents(
                     info, partition_key, _prev_version_uuid, _new_version_uuid
+                )
+            elif _inplace_content_changed and _new_version_uuid:
+                # In-place content edit on an existing version: agents still
+                # reference the same version_uuid, so re-touch each one to
+                # rebuild its denormalized ``instructions`` from the updated
+                # snippet (creates a new agent version, same FK).
+                self._refresh_agents_instructions(
+                    info, partition_key, _new_version_uuid
                 )
             return result
         except Exception:
