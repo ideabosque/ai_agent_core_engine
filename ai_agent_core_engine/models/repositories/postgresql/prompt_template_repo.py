@@ -172,14 +172,28 @@ class PromptTemplateRepository(EntityRepository):
             Config.db_session.remove()  # session lifecycle managed by scoped_session
 
     def _deactivate_others(
-        self, session: Any, partition_key: str, prompt_uuid: str
+        self,
+        session: Any,
+        partition_key: str,
+        prompt_uuid: str,
+        keep_version_uuid: Optional[str] = None,
     ) -> None:
-        """Set status='inactive' for all other active prompt_templates with the same prompt_uuid."""
-        session.query(PromptTemplateModel).filter(
+        """Set status='inactive' for other active prompt_templates with the same
+        prompt_uuid, excluding ``keep_version_uuid`` (the row being written) so
+        an in-place edit of the active version isn't left inactive.
+        """
+        query = session.query(PromptTemplateModel).filter(
             PromptTemplateModel.partition_key == partition_key,
             PromptTemplateModel.prompt_uuid == prompt_uuid,
             PromptTemplateModel.status == "active",
-        ).update({PromptTemplateModel.status: "inactive"}, synchronize_session=False)
+        )
+        if keep_version_uuid:
+            query = query.filter(
+                PromptTemplateModel.prompt_version_uuid != keep_version_uuid
+            )
+        query.update(
+            {PromptTemplateModel.status: "inactive"}, synchronize_session=False
+        )
 
     def _get_active_row(
         self, session: Any, partition_key: str, prompt_uuid: Optional[str]
@@ -284,7 +298,10 @@ class PromptTemplateRepository(EntityRepository):
                 row, "prompt_uuid", None
             ):
                 self._deactivate_others(
-                    session, row.partition_key, row.prompt_uuid
+                    session,
+                    row.partition_key,
+                    row.prompt_uuid,
+                    keep_version_uuid=row.prompt_version_uuid,
                 )
                 row.status = "active"
 

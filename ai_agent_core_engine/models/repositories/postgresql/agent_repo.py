@@ -193,14 +193,29 @@ class AgentRepository(EntityRepository):
             Config.db_session.remove()  # session lifecycle managed by scoped_session
 
     def _deactivate_others(
-        self, session: Any, partition_key: str, agent_uuid: str
+        self,
+        session: Any,
+        partition_key: str,
+        agent_uuid: str,
+        keep_version_uuid: Optional[str] = None,
     ) -> None:
-        """Set status='inactive' for all other active agents with the same agent_uuid."""
-        session.query(AgentModel).filter(
+        """Set status='inactive' for other active agents with the same agent_uuid.
+
+        ``keep_version_uuid`` (the row being written) is excluded so an in-place
+        update of the active version is not flipped to inactive by this bulk
+        UPDATE — which, with synchronize_session=False, the subsequent no-op
+        ``row.status='active'`` would fail to restore, leaving 0 active rows.
+        """
+        query = session.query(AgentModel).filter(
             AgentModel.partition_key == partition_key,
             AgentModel.agent_uuid == agent_uuid,
             AgentModel.status == "active",
-        ).update({AgentModel.status: "inactive"}, synchronize_session=False)
+        )
+        if keep_version_uuid:
+            query = query.filter(
+                AgentModel.agent_version_uuid != keep_version_uuid
+            )
+        query.update({AgentModel.status: "inactive"}, synchronize_session=False)
 
     def _apply_flow_snippet(
         self, partition_key: str, row: AgentModel, kwargs: Dict[str, Any]
@@ -395,9 +410,11 @@ class AgentRepository(EntityRepository):
                 row, "agent_uuid", None
             ):
                 self._deactivate_others(
-                    session, row.partition_key, row.agent_uuid
+                    session,
+                    row.partition_key,
+                    row.agent_uuid,
+                    keep_version_uuid=row.agent_version_uuid,
                 )
-                # Ensure this row is active (the bulk update may have set it inactive)
                 row.status = "active"
 
             # Add to session after deactivation to avoid unique index violation
