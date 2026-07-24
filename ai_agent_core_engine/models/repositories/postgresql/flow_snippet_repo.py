@@ -275,39 +275,6 @@ class FlowSnippetRepository(EntityRepository):
                 active_version_uuid,
             )
 
-    def _propagate_to_agents(
-        self,
-        info: Any,
-        partition_key: str,
-        flow_snippet_uuid: str,
-        active_version_uuid: str,
-    ) -> None:
-        """Re-point active agents to the newly-created active snippet version.
-
-        Mirrors DynamoDB's ``update_agents_by_flow_snippet``: every active agent
-        that referenced any version of this snippet gets a new version pointing
-        at the updated snippet, which rebuilds its ``instructions``. Without
-        this an edited flow snippet never reaches the agents using it.
-        """
-        self._repoint_agents(info, partition_key, flow_snippet_uuid, active_version_uuid)
-
-    def _refresh_agents_instructions(
-        self,
-        info: Any,
-        partition_key: str,
-        flow_snippet_uuid: str,
-        active_version_uuid: str,
-    ) -> None:
-        """Rebuild denormalized ``instructions`` for the active agent(s)
-        referencing an in-place-edited snippet.
-
-        The snippet's ``flow_snippet_version_uuid`` is unchanged, so each agent
-        keeps the same FK — but a new agent version is created so
-        ``_apply_flow_snippet`` re-renders ``instructions`` from the updated
-        snippet content.
-        """
-        self._repoint_agents(info, partition_key, flow_snippet_uuid, active_version_uuid)
-
     # ---- write ----
 
     def insert_update(self, info: Any, **kwargs: Any) -> Optional[Dict[str, Any]]:
@@ -435,20 +402,18 @@ class FlowSnippetRepository(EntityRepository):
                 context_keys={"partition_key": partition_key},
             )
 
-            # Propagate to agents referencing this snippet (after commit, so
-            # they resolve the updated snippet).
+            # Propagate to agents when this write changed what they should see:
+            # a new version superseded the previous active one, or an in-place
+            # content edit changed the snippet. Both re-point the active agents
+            # referencing this snippet and rebuild their denormalized
+            # ``instructions`` (after commit, so they resolve the updated data).
             _new_version_uuid = result.get("flow_snippet_version_uuid")
             _flow_snippet_uuid = result.get("flow_snippet_uuid")
-            if _prev_version_uuid and _prev_version_uuid != _new_version_uuid:
-                self._propagate_to_agents(
-                    info, partition_key, _flow_snippet_uuid, _new_version_uuid
-                )
-            elif _inplace_content_changed and _new_version_uuid:
-                # In-place content edit on an existing version: agents still
-                # reference the same version_uuid, so re-touch each one to
-                # rebuild its denormalized ``instructions`` from the updated
-                # snippet (creates a new agent version, same FK).
-                self._refresh_agents_instructions(
+            _superseded = bool(
+                _prev_version_uuid and _prev_version_uuid != _new_version_uuid
+            )
+            if (_superseded or _inplace_content_changed) and _new_version_uuid and _flow_snippet_uuid:
+                self._repoint_agents(
                     info, partition_key, _flow_snippet_uuid, _new_version_uuid
                 )
             return result
