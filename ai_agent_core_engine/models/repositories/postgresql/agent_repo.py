@@ -202,6 +202,82 @@ class AgentRepository(EntityRepository):
             AgentModel.status == "active",
         ).update({AgentModel.status: "inactive"}, synchronize_session=False)
 
+    def _apply_flow_snippet(
+        self, partition_key: str, row: AgentModel, kwargs: Dict[str, Any]
+    ) -> None:
+        """Rebuild ``instructions`` (and mcp_server_uuids / enabled_tools) from
+        the referenced flow snippet + its active prompt template.
+
+        Mirrors the DynamoDB ``insert_update_agent`` behaviour: the agent's
+        instructions are *derived* from the snippet's flow_context rendered into
+        the prompt template, with agent variables substituted. Without this, an
+        updated flow snippet never reaches the agent's instructions.
+        """
+        flow_snippet_version_uuid = getattr(row, "flow_snippet_version_uuid", None)
+        if not flow_snippet_version_uuid:
+            return
+
+        from .. import get_repo
+
+        flow_snippet = get_repo("flow_snippet").get(
+            partition_key=partition_key,
+            flow_snippet_version_uuid=flow_snippet_version_uuid,
+        )
+        if not flow_snippet:
+            return
+        prompt_template = get_repo("prompt_template").resolve_active(
+            partition_key, flow_snippet.get("prompt_uuid")
+        )
+        if not isinstance(prompt_template, dict) or not prompt_template:
+            return
+
+        variables = (
+            kwargs.get("variables")
+            if "variables" in kwargs
+            else getattr(row, "variables", None)
+        ) or []
+        agent_variables = {
+            v["name"]: v["value"]
+            for v in variables
+            if isinstance(v, dict) and "name" in v and "value" in v
+        }
+        replace_vars = [
+            v["name"]
+            for v in (prompt_template.get("variables") or [])
+            if isinstance(v, dict) and v.get("name") in agent_variables
+        ]
+
+        flow_context = flow_snippet.get("flow_context")
+        has_flow_context = False
+        if flow_context not in (None, ""):
+            for name in replace_vars:
+                flow_context = flow_context.replace(
+                    f"{{{name}}}", agent_variables[name]
+                )
+            has_flow_context = True
+
+        instructions = (prompt_template.get("template_context") or "").replace(
+            "{flow_snippet}", flow_context or ""
+        )
+        if not has_flow_context:
+            for name in replace_vars:
+                instructions = instructions.replace(
+                    f"{{{name}}}", agent_variables[name]
+                )
+        row.instructions = instructions
+
+        row.mcp_server_uuids = [
+            m["mcp_server_uuid"]
+            for m in (prompt_template.get("mcp_servers") or [])
+            if isinstance(m, dict) and m.get("mcp_server_uuid")
+        ]
+
+        if "enabled_tools" in flow_snippet:
+            # Reassign a new dict so SQLAlchemy detects the JSONB change.
+            configuration = dict(getattr(row, "configuration", None) or {})
+            configuration["enabled_tools"] = flow_snippet.get("enabled_tools")
+            row.configuration = configuration
+
     def _get_active_row(
         self, session: Any, partition_key: str, agent_uuid: Optional[str]
     ) -> Optional[AgentModel]:
@@ -307,6 +383,10 @@ class AgentRepository(EntityRepository):
                 _ep, _pt = partition_key.split("#", 1)
                 row.endpoint_id = _ep
                 row.part_id = _pt
+
+            # Derive instructions from the referenced flow snippet, so snippet
+            # edits propagate into the agent (matches the DynamoDB behaviour).
+            self._apply_flow_snippet(partition_key, row, kwargs)
 
             # Enforce single-active: if status == 'active', deactivate others
             # BEFORE adding the new row to the session, to avoid violating

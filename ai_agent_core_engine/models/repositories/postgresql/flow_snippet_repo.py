@@ -196,6 +196,52 @@ class FlowSnippetRepository(EntityRepository):
             .first()
         )
 
+    def _propagate_to_agents(
+        self,
+        info: Any,
+        partition_key: str,
+        previous_version_uuid: str,
+        new_version_uuid: str,
+    ) -> None:
+        """Re-point agents from the previous snippet version to the new one.
+
+        Mirrors DynamoDB's ``update_agents_by_flow_snippet``: every agent that
+        referenced the old version gets a new version pointing at the updated
+        snippet, which rebuilds its ``instructions``. Without this an edited
+        flow snippet never reaches the agents using it.
+
+        Failures are logged rather than raised — the snippet write itself has
+        already been committed.
+        """
+        try:
+            from .. import get_repo
+
+            agent_repo = get_repo("agent")
+            listing = agent_repo.list(
+                info,
+                flow_snippet_version_uuid=previous_version_uuid,
+                limit=1000,
+            )
+            seen = set()
+            for agent in (getattr(listing, "agent_list", None) or []):
+                agent_uuid = getattr(agent, "agent_uuid", None)
+                if not agent_uuid or agent_uuid in seen:
+                    continue
+                seen.add(agent_uuid)
+                agent_repo.insert_update(
+                    info,
+                    partition_key=partition_key,
+                    agent_uuid=agent_uuid,
+                    flow_snippet_version_uuid=new_version_uuid,
+                    updated_by=getattr(agent, "updated_by", None) or "system",
+                )
+        except Exception:
+            _get_logger(info).exception(
+                "Failed to propagate flow snippet %s -> %s to agents",
+                previous_version_uuid,
+                new_version_uuid,
+            )
+
     # ---- write ----
 
     def insert_update(self, info: Any, **kwargs: Any) -> Optional[Dict[str, Any]]:
@@ -208,6 +254,7 @@ class FlowSnippetRepository(EntityRepository):
             raise ValueError("partition_key is required")
 
         flow_snippet_version_uuid = kwargs.get("flow_snippet_version_uuid")
+        _prev_version_uuid = None
         session = Config.db_session()
         try:
             now = pendulum.now("UTC")
@@ -241,6 +288,10 @@ class FlowSnippetRepository(EntityRepository):
                 active = self._get_active_row(
                     session, partition_key, flow_snippet_uuid
                 )
+                if active is not None and not duplicate:
+                    # New version of the same snippet — agents referencing the
+                    # previous version must be re-pointed after the commit.
+                    _prev_version_uuid = active.flow_snippet_version_uuid
                 if active is not None:
                     # New version of an existing snippet: inherit its fields.
                     excluded = {
@@ -308,6 +359,14 @@ class FlowSnippetRepository(EntityRepository):
                 {"flow_snippet_version_uuid": row.flow_snippet_version_uuid},
                 context_keys={"partition_key": partition_key},
             )
+
+            # Propagate the new version to agents that referenced the previous
+            # one (after commit, so they resolve the updated snippet).
+            _new_version_uuid = result.get("flow_snippet_version_uuid")
+            if _prev_version_uuid and _prev_version_uuid != _new_version_uuid:
+                self._propagate_to_agents(
+                    info, partition_key, _prev_version_uuid, _new_version_uuid
+                )
             return result
         except Exception:
             session.rollback()
