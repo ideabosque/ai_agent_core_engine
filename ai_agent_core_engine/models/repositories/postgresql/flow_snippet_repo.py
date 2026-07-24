@@ -286,6 +286,20 @@ class FlowSnippetRepository(EntityRepository):
         if not partition_key:
             raise ValueError("partition_key is required")
 
+        # Persist flow_context as XML when xml_convert is enabled (matches the
+        # DynamoDB path). The stored value feeds the agent's instructions via
+        # ``_apply_flow_snippet``, so converting here — before storage and the
+        # content-change comparison — keeps instructions rendered as XML, not
+        # raw JSON. flow_relationship stays JSON (it drives the visual editor).
+        if (
+            Config.xml_convert
+            and kwargs.get("flow_context") not in (None, "", "null")
+        ):
+            from ....handlers.ai_agent_utility import convert_flow_snippet_xml
+
+            kwargs = dict(kwargs)
+            kwargs["flow_context"] = convert_flow_snippet_xml(kwargs["flow_context"])
+
         flow_snippet_version_uuid = kwargs.get("flow_snippet_version_uuid")
         _prev_version_uuid = None
         _inplace_content_changed = False
@@ -412,7 +426,15 @@ class FlowSnippetRepository(EntityRepository):
             _superseded = bool(
                 _prev_version_uuid and _prev_version_uuid != _new_version_uuid
             )
-            if (_superseded or _inplace_content_changed) and _new_version_uuid and _flow_snippet_uuid:
+            # Only re-point agents when this write is the active version —
+            # otherwise (an in-place edit of an inactive version) we'd pin
+            # agents to an inactive snippet, leaving them stale.
+            if (
+                (_superseded or _inplace_content_changed)
+                and _new_version_uuid
+                and _flow_snippet_uuid
+                and result.get("status") == "active"
+            ):
                 self._repoint_agents(
                     info, partition_key, _flow_snippet_uuid, _new_version_uuid
                 )

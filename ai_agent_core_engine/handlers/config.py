@@ -380,7 +380,7 @@ class Config:
         Args:
             setting (Dict[str, Any]): Configuration dictionary.
         """
-        cls.xml_convert = setting.get("xml_convert", False)
+        cls.xml_convert = setting.get("xml_convert", True)
 
         # Set cache enabled flag (defaults to True if not specified)
         if "cache_enabled" in setting:
