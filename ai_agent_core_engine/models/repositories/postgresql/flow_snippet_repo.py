@@ -207,30 +207,56 @@ class FlowSnippetRepository(EntityRepository):
         self,
         info: Any,
         partition_key: str,
-        from_version_uuid: str,
-        to_version_uuid: str,
+        flow_snippet_uuid: str,
+        active_version_uuid: str,
     ) -> None:
-        """Create a new agent version for every agent referencing
-        ``from_version_uuid``, pointing it at ``to_version_uuid``.
+        """Update the active agent(s) that reference any version of the snippet
+        identified by ``flow_snippet_uuid`` so they point at the currently
+        active version ``active_version_uuid``.
 
-        ``agent_repo.insert_update`` rebuilds the denormalized ``instructions``
-        (and mcp_server_uuids / enabled_tools) from the referenced snippet via
-        ``_apply_flow_snippet``, so the agent reflects the updated snippet.
+        A new agent version is created for each, and ``_apply_flow_snippet``
+        rebuilds the denormalized ``instructions`` from the referenced snippet.
 
         Failures are logged rather than raised — the snippet write itself has
         already been committed.
         """
         try:
+            from ....handlers.config import Config
             from .. import get_repo
+            from ...postgresql.agent import AgentModel
+
+            session = Config.db_session()
+            try:
+                # Collect every version_uuid belonging to this snippet identity
+                # (active or not) so we can find agents referencing any of them.
+                version_uuids = [
+                    r.flow_snippet_version_uuid
+                    for r in session.query(FlowSnippetModel)
+                    .filter(
+                        FlowSnippetModel.partition_key == partition_key,
+                        FlowSnippetModel.flow_snippet_uuid == flow_snippet_uuid,
+                    )
+                    .all()
+                ]
+                if not version_uuids:
+                    return
+
+                # Find active agents referencing any version of this snippet.
+                agents = (
+                    session.query(AgentModel)
+                    .filter(
+                        AgentModel.partition_key == partition_key,
+                        AgentModel.status == "active",
+                        AgentModel.flow_snippet_version_uuid.in_(version_uuids),
+                    )
+                    .all()
+                )
+            finally:
+                Config.db_session.remove()
 
             agent_repo = get_repo("agent")
-            listing = agent_repo.list(
-                info,
-                flow_snippet_version_uuid=from_version_uuid,
-                limit=1000,
-            )
             seen = set()
-            for agent in (getattr(listing, "agent_list", None) or []):
+            for agent in agents:
                 agent_uuid = getattr(agent, "agent_uuid", None)
                 if not agent_uuid or agent_uuid in seen:
                     continue
@@ -239,51 +265,48 @@ class FlowSnippetRepository(EntityRepository):
                     info,
                     partition_key=partition_key,
                     agent_uuid=agent_uuid,
-                    flow_snippet_version_uuid=to_version_uuid,
+                    flow_snippet_version_uuid=active_version_uuid,
                     updated_by=getattr(agent, "updated_by", None) or "system",
                 )
         except Exception:
             _get_logger(info).exception(
-                "Failed to repoint agents %s -> %s",
-                from_version_uuid,
-                to_version_uuid,
+                "Failed to repoint agents for snippet %s -> %s",
+                flow_snippet_uuid,
+                active_version_uuid,
             )
 
     def _propagate_to_agents(
         self,
         info: Any,
         partition_key: str,
-        previous_version_uuid: str,
-        new_version_uuid: str,
+        flow_snippet_uuid: str,
+        active_version_uuid: str,
     ) -> None:
-        """Re-point agents from the previous snippet version to the new one.
+        """Re-point active agents to the newly-created active snippet version.
 
-        Mirrors DynamoDB's ``update_agents_by_flow_snippet``: every agent that
-        referenced the old version gets a new version pointing at the updated
-        snippet, which rebuilds its ``instructions``. Without this an edited
-        flow snippet never reaches the agents using it.
+        Mirrors DynamoDB's ``update_agents_by_flow_snippet``: every active agent
+        that referenced any version of this snippet gets a new version pointing
+        at the updated snippet, which rebuilds its ``instructions``. Without
+        this an edited flow snippet never reaches the agents using it.
         """
-        self._repoint_agents(
-            info, partition_key, previous_version_uuid, new_version_uuid
-        )
+        self._repoint_agents(info, partition_key, flow_snippet_uuid, active_version_uuid)
 
     def _refresh_agents_instructions(
         self,
         info: Any,
         partition_key: str,
-        flow_snippet_version_uuid: str,
+        flow_snippet_uuid: str,
+        active_version_uuid: str,
     ) -> None:
-        """Rebuild denormalized ``instructions`` for agents referencing an
-        in-place-edited snippet version.
+        """Rebuild denormalized ``instructions`` for the active agent(s)
+        referencing an in-place-edited snippet.
 
         The snippet's ``flow_snippet_version_uuid`` is unchanged, so each agent
         keeps the same FK — but a new agent version is created so
         ``_apply_flow_snippet`` re-renders ``instructions`` from the updated
         snippet content.
         """
-        self._repoint_agents(
-            info, partition_key, flow_snippet_version_uuid, flow_snippet_version_uuid
-        )
+        self._repoint_agents(info, partition_key, flow_snippet_uuid, active_version_uuid)
 
     # ---- write ----
 
@@ -412,12 +435,13 @@ class FlowSnippetRepository(EntityRepository):
                 context_keys={"partition_key": partition_key},
             )
 
-            # Propagate the new version to agents that referenced the previous
-            # one (after commit, so they resolve the updated snippet).
+            # Propagate to agents referencing this snippet (after commit, so
+            # they resolve the updated snippet).
             _new_version_uuid = result.get("flow_snippet_version_uuid")
+            _flow_snippet_uuid = result.get("flow_snippet_uuid")
             if _prev_version_uuid and _prev_version_uuid != _new_version_uuid:
                 self._propagate_to_agents(
-                    info, partition_key, _prev_version_uuid, _new_version_uuid
+                    info, partition_key, _flow_snippet_uuid, _new_version_uuid
                 )
             elif _inplace_content_changed and _new_version_uuid:
                 # In-place content edit on an existing version: agents still
@@ -425,7 +449,7 @@ class FlowSnippetRepository(EntityRepository):
                 # rebuild its denormalized ``instructions`` from the updated
                 # snippet (creates a new agent version, same FK).
                 self._refresh_agents_instructions(
-                    info, partition_key, _new_version_uuid
+                    info, partition_key, _flow_snippet_uuid, _new_version_uuid
                 )
             return result
         except Exception:
