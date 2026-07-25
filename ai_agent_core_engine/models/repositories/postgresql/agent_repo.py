@@ -287,13 +287,18 @@ class AgentRepository(EntityRepository):
             if isinstance(m, dict) and m.get("mcp_server_uuid")
         ]
 
-        # Only override enabled_tools when the snippet actually carries a value.
+        # Only override enabled_tools when the snippet actually carries a list.
         # PG's _normalize always includes the column (as None when unset), so a
         # blanket copy would clobber the agent's own enabled_tools with None —
         # and the LLM handler does ``set(config["enabled_tools"])``, which
         # raises TypeError on None. (DynamoDB omits the key when unset.)
+        #
+        # "No value" (None, or a stray non-list) is left untouched: the agent
+        # keeps its own enabled_tools and nothing null/garbage is propagated.
+        # An explicit ``[]`` *is* a real value ("no tools enabled") and is
+        # propagated, matching DynamoDB's "key present" behaviour.
         _enabled_tools = flow_snippet.get("enabled_tools")
-        if _enabled_tools is not None:
+        if isinstance(_enabled_tools, list):
             # Reassign a new dict so SQLAlchemy detects the JSONB change.
             configuration = dict(getattr(row, "configuration", None) or {})
             configuration["enabled_tools"] = _enabled_tools
