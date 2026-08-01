@@ -26,6 +26,7 @@ from ..utils.decorators import extract_token_usage, log_usage_record, usage_reco
 from .ai_agent_utility import (
     async_task_handler,
     calculate_num_tokens,
+    clear_cached_agent_handler,
     get_ai_agent_handler,
     get_input_messages,
     local_async_invoker,
@@ -190,6 +191,41 @@ def _get_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType | Non
         raise e
 
 
+def clear_cached_agent(
+    agent_uuid: str | None = None,
+    endpoint_id: str | None = None,
+    part_id: str | None = None,
+    partition_key: str | None = None,
+) -> None:
+    """Clear runtime agent and handler caches after agent config changes."""
+    if partition_key and (not endpoint_id or not part_id) and "#" in partition_key:
+        endpoint_id, part_id = partition_key.split("#", 1)
+
+    _cache = getattr(_get_agent, "_cache", None)
+    if _cache is not None and not agent_uuid:
+        _cache.clear()
+    elif _cache is not None:
+        keys_to_delete = []
+        for key in list(_cache.keys()):
+            key_endpoint_id, key_part_id, key_agent_uuid = key
+            if key_agent_uuid != agent_uuid:
+                continue
+            if endpoint_id and key_endpoint_id != endpoint_id:
+                continue
+            if part_id and key_part_id != part_id:
+                continue
+            keys_to_delete.append(key)
+
+        for key in keys_to_delete:
+            _cache.pop(key, None)
+
+    clear_cached_agent_handler(
+        agent_uuid=agent_uuid,
+        endpoint_id=endpoint_id,
+        part_id=part_id,
+        partition_key=partition_key,
+    )
+
 def _get_agent(info: ResolveInfo, agent_uuid: str):
     from ..models.repositories import get_loaders
 
@@ -214,11 +250,10 @@ def _get_agent(info: ResolveInfo, agent_uuid: str):
 
     cached = _cache.get(cache_key)
     if cached and (_time.time() - cached[1] < _get_agent._ttl):
-        # Return a shallow copy so the caller can mutate agent.__dict__
-        # without polluting the cached entry.
+        # Return an isolated copy so caller mutations do not pollute the cached entry.
         import copy
 
-        return copy.copy(cached[0])
+        return copy.deepcopy(cached[0])
 
     agent = get_repo("agent").resolve_single(info, **{"agent_uuid": agent_uuid})
 

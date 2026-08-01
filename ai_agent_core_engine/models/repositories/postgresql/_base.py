@@ -65,7 +65,7 @@ def _purge_cache(
 ) -> None:
     """Purge cascading cache after a successful mutation."""
     try:
-        from ..dynamodb.cache import purge_entity_cascading_cache
+        from ...dynamodb.cache import purge_entity_cascading_cache
 
         logger = _get_logger(info)
         purge_entity_cascading_cache(
@@ -75,6 +75,17 @@ def _purge_cache(
             entity_keys=entity_keys,
             cascade_depth=3,
         )
+
+        if entity_type == "agent":
+            from ....handlers.ai_agent import clear_cached_agent
+
+            ctx = getattr(info, "context", None) or {}
+            clear_cached_agent(
+                agent_uuid=entity_keys.get("agent_uuid"),
+                endpoint_id=ctx.get("endpoint_id"),
+                part_id=ctx.get("part_id"),
+                partition_key=(context_keys or {}).get("partition_key"),
+            )
     except Exception as exc:  # pragma: no cover - defensive
         _get_logger(info).debug("Cache purge skipped: %s", exc)
 

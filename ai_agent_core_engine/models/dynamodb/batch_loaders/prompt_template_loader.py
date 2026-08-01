@@ -22,7 +22,7 @@ class PromptTemplateLoader(SafeDataLoader):
         )
         if self.cache_enabled:
             self.cache = HybridCacheEngine(
-                Config.get_cache_name("models", "prompt_template")
+                Config.get_cache_name("models", "active_prompt_template")
             )
             cache_meta = Config.get_cache_entity_config().get("prompt_template")
             self.cache_func_prefix = ""

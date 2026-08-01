@@ -56,6 +56,35 @@ _handler_cache: Dict[tuple, tuple] = {}
 _HANDLER_CACHE_TTL = 300  # 5 minutes
 
 
+def clear_cached_agent_handler(
+    agent_uuid: str | None = None,
+    endpoint_id: str | None = None,
+    part_id: str | None = None,
+    partition_key: str | None = None,
+) -> None:
+    """Clear cached handler templates for an agent after its config changes."""
+    if partition_key and (not endpoint_id or not part_id) and "#" in partition_key:
+        endpoint_id, part_id = partition_key.split("#", 1)
+
+    if not agent_uuid:
+        _handler_cache.clear()
+        return
+
+    keys_to_delete = []
+    for key in list(_handler_cache.keys()):
+        key_endpoint_id, key_part_id, key_agent_uuid = key
+        if key_agent_uuid != agent_uuid:
+            continue
+        if endpoint_id and key_endpoint_id != endpoint_id:
+            continue
+        if part_id and key_part_id != part_id:
+            continue
+        keys_to_delete.append(key)
+
+    for key in keys_to_delete:
+        _handler_cache.pop(key, None)
+
+
 def _per_request_handler(handler: Any, info: ResolveInfo) -> Any:
     """Return an isolated per-request view of a cached handler.
 

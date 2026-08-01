@@ -64,8 +64,7 @@ class ToolCallsByThreadLoader(SafeDataLoader):
         # Check cache first if enabled
         if self.cache_enabled:
             for key in unique_keys:
-                cache_key = key  # thread_uuid
-                cached_item = self.cache.get(cache_key)
+                cached_item = self.get_cache_data(key)
                 if cached_item:
                     key_map[key] = cached_item
                 else:

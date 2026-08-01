@@ -87,12 +87,12 @@ class RequestLoaders:
                     (entity_keys.get("partition_key"), entity_keys["mcp_server_uuid"])
                 )
                 self.mcp_server_loader.cache.delete(cache_key)
-        elif entity_type == "agent" and "agent_version_uuid" in entity_keys:
+        elif entity_type == "agent" and "agent_uuid" in entity_keys:
             if hasattr(self.agent_loader, "cache"):
                 cache_key = self.agent_loader.generate_cache_key(
                     (
                         entity_keys.get("partition_key"),
-                        entity_keys["agent_version_uuid"],
+                        entity_keys["agent_uuid"],
                     )
                 )
                 self.agent_loader.cache.delete(cache_key)
@@ -108,12 +108,12 @@ class RequestLoaders:
                     (entity_keys.get("thread_uuid"), entity_keys["run_uuid"])
                 )
                 self.run_loader.cache.delete(cache_key)
-        elif entity_type == "prompt_template":
+        elif entity_type == "prompt_template" and "prompt_uuid" in entity_keys:
             # prompt_uuid = entity_keys.get("prompt_uuid")
             # prompt_version_uuid = entity_keys.get("prompt_version_uuid")
             # partition_key = entity_keys.get("partition_key")
             if hasattr(self.prompt_template_loader, "cache"):
-                cache_key = self.run_loader.generate_cache_key(
+                cache_key = self.prompt_template_loader.generate_cache_key(
                     (entity_keys.get("partition_key"), entity_keys["prompt_uuid"])
                 )
                 self.prompt_template_loader.cache.delete(cache_key)

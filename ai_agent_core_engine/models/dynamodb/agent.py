@@ -187,6 +187,16 @@ def purge_cache():
                 )
                 active_cache.clear()
 
+                from ...handlers.ai_agent import clear_cached_agent
+
+                context = getattr(args[0], "context", {}) or {}
+                clear_cached_agent(
+                    agent_uuid=entity_keys.get("agent_uuid"),
+                    endpoint_id=context.get("endpoint_id") or kwargs.get("endpoint_id"),
+                    part_id=context.get("part_id") or kwargs.get("part_id"),
+                    partition_key=partition_key,
+                )
+
                 return result
             except Exception as e:
                 log = traceback.format_exc()
