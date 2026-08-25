@@ -8,6 +8,7 @@ import logging
 import uuid
 from typing import Any, Dict, List, Optional
 
+import pendulum
 from graphene import Schema
 from silvaengine_dynamodb_base import BaseModel
 from silvaengine_utility import Graphql
@@ -538,8 +539,6 @@ def dispatch_ask_model(**params: Any) -> Any:
     ``insert_update_decorator`` raising "Cannot find the async_task"
     when it sees count==0 with a caller-provided async_task_uuid.
     """
-    import pendulum
-
     engine = _build_engine_from_config()
     engine._apply_partition_defaults(params)
 
@@ -564,8 +563,6 @@ def dispatch_ask_model(**params: Any) -> Any:
         # Set RLS context for PG mode
         _set_rls_context(partition_key)
 
-        from ai_agent_core_engine.handlers.config import Config
-
         def _precreate_async_task():
             try:
                 if Config.DB_BACKEND == "postgresql":
@@ -581,7 +578,6 @@ def dispatch_ask_model(**params: Any) -> Any:
                         updated_by=updated_by,
                     )
                 else:
-                    import pendulum as _pendulum
                     from ai_agent_core_engine.models.dynamodb.async_task import AsyncTaskModel
 
                     AsyncTaskModel(
@@ -591,8 +587,8 @@ def dispatch_ask_model(**params: Any) -> Any:
                         output_files=[],
                         status="in_progress",
                         updated_by=updated_by,
-                        created_at=_pendulum.now("UTC"),
-                        updated_at=_pendulum.now("UTC"),
+                        created_at=pendulum.now("UTC"),
+                        updated_at=pendulum.now("UTC"),
                     ).save()
             except Exception as exc:
                 engine.logger.warning(
@@ -630,13 +626,12 @@ def dispatch_ask_model(**params: Any) -> Any:
                         **_fields,
                     )
                 else:
-                    import pendulum as _pendulum
                     from ai_agent_core_engine.models.dynamodb.thread import ThreadModel
 
                     ThreadModel(
                         partition_key,
                         thread_uuid,
-                        created_at=_pendulum.now("UTC"),
+                        created_at=pendulum.now("UTC"),
                         **_fields,
                     ).save()
             except Exception as exc:
@@ -664,7 +659,6 @@ def dispatch_ask_model(**params: Any) -> Any:
                         updated_by=updated_by,
                     )
                 else:
-                    import pendulum as _pendulum
                     from ai_agent_core_engine.models.dynamodb.run import RunModel
 
                     RunModel(
@@ -675,8 +669,8 @@ def dispatch_ask_model(**params: Any) -> Any:
                         completion_tokens=0,
                         total_tokens=0,
                         updated_by=updated_by,
-                        created_at=_pendulum.now("UTC"),
-                        updated_at=_pendulum.now("UTC"),
+                        created_at=pendulum.now("UTC"),
+                        updated_at=pendulum.now("UTC"),
                     ).save()
             except Exception as exc:
                 engine.logger.warning(
