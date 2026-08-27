@@ -758,7 +758,7 @@ def dispatch_ask_model(**params: Any) -> Any:
     """WebSocket streaming entry point for ask_model.
 
     Thin gateway shim: builds the engine from gateway-initialized settings and
-    delegates to ``AIAgentCoreEngine.dispatch_ask_model`` (which pre-creates the
+    delegates to ``AIAgentCoreEngine.ask_model`` (which pre-creates the
     async_task/thread/run rows and calls ``async_execute_ask_model``).
     """
     return _build_engine_from_config().ask_model(**params)

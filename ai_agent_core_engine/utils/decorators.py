@@ -9,7 +9,6 @@ from typing import Any, Callable, Dict, Optional
 
 import pendulum
 from graphene import ResolveInfo
-from ..handlers import at_agent_listener
 
 def usage_recorder(
     service_name: str,
@@ -229,5 +228,9 @@ def send_usage_limit_error(info: ResolveInfo, error_message: str):
             "error_message": error_message
         }
     }
+    # Imported lazily to avoid a circular import at module load:
+    # handlers.ai_agent_listener -> handlers.ai_agent -> utils.decorators.
+    from ..handlers import at_agent_listener
+
     at_agent_listener.send_data_to_stream(logger, **params)
     
