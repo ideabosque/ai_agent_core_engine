@@ -283,6 +283,21 @@ def dispatch_async_funct(
     )
 
 
+def generate_async_task_uuid() -> str:
+    """Pre-generate an async_task_uuid for a new AsyncTask row.
+
+    Single source of truth for every call site that writes an AsyncTask
+    directly via ``get_repo("async_task").insert_update(...)`` instead of
+    going through the DynamoDB ``insert_update_decorator`` (which can
+    auto-generate a range key on its own). PostgreSQL's composite primary
+    key (``function_name`` + ``async_task_uuid``) has no equivalent
+    auto-generation, so it always needs the value supplied explicitly; we
+    generate it unconditionally on both backends so every direct-insert call
+    site behaves the same way regardless of ``Config.DB_BACKEND``.
+    """
+    return str(uuid.uuid4())
+
+
 def start_async_task(
     info: ResolveInfo, function_name: str, **arguments: Dict[str, Any]
 ) -> str | None:
@@ -304,20 +319,12 @@ def start_async_task(
     """
     try:
         # Create task record in database
-        # PG repos require an explicit async_task_uuid (composite PK);
-        # DynamoDB's insert_update_decorator auto-generates one when not provided.
-        from ..handlers.config import Config as _Config
-
-        _async_task_uuid = (
-            str(uuid.uuid4()) if _Config.DB_BACKEND == "postgresql" else None
-        )
         _async_task_kwargs = {
             "function_name": function_name,
+            "async_task_uuid": generate_async_task_uuid(),
             "arguments": {k: v for k, v in arguments.items() if k != "updated_by"},
             "updated_by": arguments["updated_by"],
         }
-        if _async_task_uuid:
-            _async_task_kwargs["async_task_uuid"] = _async_task_uuid
         async_task = get_repo("async_task").insert_update(info, **_async_task_kwargs)
 
         # Support both dict (PG) and ObjectType (DynamoDB) return types;

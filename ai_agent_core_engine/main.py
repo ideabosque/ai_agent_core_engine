@@ -10,10 +10,10 @@ from typing import Any, Dict, List, Optional
 
 import pendulum
 from graphene import Schema
-from silvaengine_dynamodb_base import BaseModel
 from silvaengine_utility import Graphql
 
-from .handlers import at_agent_listener
+from .handlers import ai_agent_listener
+from .handlers.ai_agent_utility import generate_async_task_uuid
 from .handlers.config import Config
 from .schema import Mutations, Query, type_class
 
@@ -406,7 +406,7 @@ class AIAgentCoreEngine(Graphql):
         if partition_key:
             _set_rls_context(partition_key)
         try:
-            return at_agent_listener.async_execute_ask_model(
+            return ai_agent_listener.async_execute_ask_model(
                 self.logger, self.setting, **params
             )
         finally:
@@ -420,21 +420,35 @@ class AIAgentCoreEngine(Graphql):
         propagates it into ``context``, which activates streaming mode in
         ``execute_ask_model`` (ai_agent.py:289).
 
-        The Lambda path pre-creates the async_task record via the invoker
-        before calling ``async_execute_ask_model``.  In the WebSocket path
-        we call directly, so we pre-create the task here to avoid the
-        ``insert_update_decorator`` raising "Cannot find the async_task"
-        when it sees count==0 with a caller-provided async_task_uuid.
+        This method is the sole source of truth for ``run_uuid`` and
+        ``async_task_uuid`` on the WebSocket path: the gateway forwards the
+        client's message unmodified and never generates either id itself.
+        ``async_task_uuid`` in particular is always server-generated here and
+        never taken from the client, since it's a tracking id for our own
+        async_task row, not something the caller should be able to set or
+        collide on. Both are pre-created (via ``_precreate_gateway_records``)
+        before dispatching, because the WebSocket path calls
+        ``async_execute_ask_model`` directly rather than through the Lambda
+        invoker the GraphQL path uses, so the ``insert_update_decorator``
+        would otherwise raise "Cannot find the async_task" on a count==0 row.
         """
         self._apply_partition_defaults(params)
 
         arguments = params.get("arguments", {})
-        async_task_uuid = params.get("async_task_uuid")
         partition_key = params.get("context", {}).get("partition_key", "")
 
-        # Generate run_uuid if not provided by the client.
+        # Default run_uuid when the client doesn't supply one, and always
+        # generate async_task_uuid server-side (never trust a client-supplied
+        # value). Without a value here, params never carries the key at all,
+        # so _precreate_gateway_records short-circuits (no DynamoDB/
+        # PostgreSQL async_task row is created to track this request) and the
+        # downstream ai_agent_listener.async_execute_ask_model raises a bare
+        # KeyError('async_task_uuid') instead of returning a trackable result
+        # over the WebSocket connection.
         if arguments and "run_uuid" not in arguments:
             arguments["run_uuid"] = str(uuid.uuid4())
+        async_task_uuid = generate_async_task_uuid()
+        params["async_task_uuid"] = async_task_uuid
 
         # Pre-create async_task/thread/run rows before dispatching. When they
         # were created here, tell the core engine to skip its own init write.
@@ -454,7 +468,7 @@ class AIAgentCoreEngine(Graphql):
     def _precreate_gateway_records(
         self,
         arguments: Dict[str, Any],
-        async_task_uuid: Optional[str],
+        async_task_uuid: str,
         partition_key: str,
         context: Dict[str, Any],
     ) -> bool:
@@ -462,11 +476,14 @@ class AIAgentCoreEngine(Graphql):
 
         The Lambda path creates these via the invoker; the WebSocket path calls
         ``async_execute_ask_model`` directly, so the ``insert_update_decorator``
-        would raise "Cannot find the async_task" for a caller-provided
-        ``async_task_uuid`` when it sees count==0.  Returns ``True`` when the
-        rows were created (so the caller sets ``_skip_init_write``).
+        would raise "Cannot find the async_task" on a count==0 row. Returns
+        ``True`` when the rows were created (so the caller sets
+        ``_skip_init_write``).
+
+        ``async_task_uuid`` is guaranteed non-empty by ``ask_model``, its only
+        caller; only ``partition_key`` can legitimately be absent here.
         """
-        if not (async_task_uuid and partition_key):
+        if not partition_key:
             return False
 
         run_uuid = arguments.get("run_uuid")
@@ -624,7 +641,7 @@ class AIAgentCoreEngine(Graphql):
         if partition_key:
             _set_rls_context(partition_key)
         try:
-            return at_agent_listener.async_insert_update_tool_call(
+            return ai_agent_listener.async_insert_update_tool_call(
                 self.logger, self.setting, **params
             )
         finally:
@@ -639,7 +656,7 @@ class AIAgentCoreEngine(Graphql):
         """
         self._apply_partition_defaults(params)
 
-        return at_agent_listener.send_data_to_stream(self.logger, **params)
+        return ai_agent_listener.send_data_to_stream(self.logger, **params)
 
     def ai_agent_core_graphql(self, **params: Dict[str, Any]) -> Any:
         """

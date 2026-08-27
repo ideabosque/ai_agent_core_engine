@@ -33,12 +33,17 @@ def async_execute_ask_model(
     try:
         info = create_listener_info(logger, "ask_model", setting, **kwargs)
 
+        async_task_uuid = kwargs.get("async_task_uuid")
+        arguments = kwargs.get("arguments")
+        if not async_task_uuid or not arguments:
+            raise ValueError(
+                "Missing required parameter(s): async_task_uuid or arguments"
+            )
+
         execute_ask_model(
             info=info,
-            **{
-                "async_task_uuid": kwargs["async_task_uuid"],
-                "arguments": kwargs["arguments"],
-            },
+            async_task_uuid=async_task_uuid,
+            arguments=arguments,
         )
     except Exception as e:
         log = traceback.format_exc()
