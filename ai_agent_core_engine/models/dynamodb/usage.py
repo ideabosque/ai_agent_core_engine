@@ -1,41 +1,26 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+"""DynamoDB usage models and helpers (usage_limit / usage_summary).
+
+This module is the DynamoDB backend for the usage-tracking facade in
+``ai_agent_core_engine.models.usage``.  It is only imported when
+``Config.DB_BACKEND == "dynamodb"`` (or by the DynamoDB table initializer).
+"""
 from __future__ import print_function
 
 __author__ = "jeffreyw"
 
-import functools
-import logging
-import traceback
-import secrets
-
-from typing import Any, Dict
-
 import pendulum
-from graphene import ResolveInfo
 from pynamodb.attributes import (
-    MapAttribute,
+    BooleanAttribute,
+    NumberAttribute,
     UnicodeAttribute,
     UTCDateTimeAttribute,
-    ListAttribute,
-    NumberAttribute,
-    BooleanAttribute
 )
 from pynamodb.exceptions import UpdateError
-from pynamodb.indexes import AllProjection, LocalSecondaryIndex
-from tenacity import retry, stop_after_attempt, wait_exponential
 
-from silvaengine_dynamodb_base import (
-    BaseModel,
-    delete_decorator,
-    insert_update_decorator,
-    monitor_decorator,
-    resolve_list_decorator,
-)
-from silvaengine_utility import method_cache
-from silvaengine_utility.serializer import Serializer
+from silvaengine_dynamodb_base import BaseModel
 
-from ..handlers.config import Config
 
 class UsageLimitModel(BaseModel):
     class Meta(BaseModel.Meta):
@@ -43,7 +28,7 @@ class UsageLimitModel(BaseModel):
 
     partition_key = UnicodeAttribute(hash_key=True)
     usage_key = UnicodeAttribute(range_key=True)
-    
+
     usage_limit = NumberAttribute()
     allow_overage = BooleanAttribute()
     period_start = UTCDateTimeAttribute()
@@ -55,52 +40,42 @@ class UsageLimitModel(BaseModel):
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()
 
+
 class UsageSummaryModel(BaseModel):
     class Meta(BaseModel.Meta):
         table_name = "aace-usage_summary"
 
     partition_key = UnicodeAttribute(hash_key=True)
     usage_key_period_start = UnicodeAttribute(range_key=True)
-    
+
     usage_key = UnicodeAttribute()
     total = NumberAttribute()
 
-def create_usage_table(logger: logging.Logger) -> bool:
-    """Create the Subscription table if it doesn't exist."""
-    if not UsageLimitModel.exists():
-        # Create with on-demand billing (PAY_PER_REQUEST)
-        UsageLimitModel.create_table(billing_mode="PAY_PER_REQUEST", wait=True)
-        logger.info("The Usage Limit table has been created.")
 
-    if not UsageSummaryModel.exists():
-        # Create with on-demand billing (PAY_PER_REQUEST)
-        UsageSummaryModel.create_table(billing_mode="PAY_PER_REQUEST", wait=True)
-        logger.info("The Usage Summary table has been created.")
-    return True
-
-
-def add_usage_summary(partition_key: str, usage_key: str, usage_key_period_start: str, limit: int):
+def add_usage_summary(
+    partition_key: str, usage_key: str, usage_key_period_start: str, limit: int
+) -> None:
+    """Atomically increment the period total, rejecting once it reaches ``limit``."""
     try:
         UsageSummaryModel(partition_key, usage_key_period_start).update(
             actions=[
                 UsageSummaryModel.usage_key.set(usage_key),
-                UsageSummaryModel.total.add(1)
+                UsageSummaryModel.total.add(1),
             ],
-            condition=(
-                UsageSummaryModel.total < limit
-            ) | (
-                UsageSummaryModel.total.does_not_exist()
-            )
+            condition=(UsageSummaryModel.total < limit)
+            | (UsageSummaryModel.total.does_not_exist()),
         )
-    except UpdateError as e:
+    except UpdateError:
         raise Exception("Usage Limit Exceeded")
 
 
-def get_usage_limit(partition_key: str, usage_key: str) -> Any:
+def get_usage_limit(partition_key: str, usage_key: str):
+    """Return the usage_limit row (or ``None`` when absent)."""
     try:
         return UsageLimitModel.get(partition_key, usage_key)
-    except Exception as e:
+    except Exception:
         return None
+
 
 def insert_update_usage_limit(**kwargs):
     partition_key = kwargs.get("partition_key")
@@ -134,7 +109,7 @@ def insert_update_usage_limit(**kwargs):
         "period_start": UsageLimitModel.period_start,
         "period_end": UsageLimitModel.period_end,
         "created_from": UsageLimitModel.created_from,
-        "status": UsageLimitModel.status
+        "status": UsageLimitModel.status,
     }
 
     for key, field in field_map.items():
@@ -143,3 +118,12 @@ def insert_update_usage_limit(**kwargs):
 
     entity.update(actions=actions)
     return
+
+
+__all__ = [
+    "UsageLimitModel",
+    "UsageSummaryModel",
+    "add_usage_summary",
+    "get_usage_limit",
+    "insert_update_usage_limit",
+]

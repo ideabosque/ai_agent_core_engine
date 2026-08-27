@@ -34,6 +34,7 @@ _REPOS = [
     ("ui_component_repo", "UIComponentRepository"),
     ("flow_snippet_repo", "FlowSnippetRepository"),
     ("prompt_template_repo", "PromptTemplateRepository"),
+    ("usage_repo", "UsageRepository"),
 ]
 
 

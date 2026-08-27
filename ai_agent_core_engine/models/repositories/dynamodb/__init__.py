@@ -32,6 +32,7 @@ def register_all(registry: Dict[str, EntityRepository]) -> None:
     from .ui_component_repo import UiComponentRepository
     from .flow_snippet_repo import FlowSnippetRepository
     from .prompt_template_repo import PromptTemplateRepository
+    from .usage_repo import UsageRepository
 
     repos = [
         AgentRepository(),
@@ -51,6 +52,7 @@ def register_all(registry: Dict[str, EntityRepository]) -> None:
         UiComponentRepository(),
         FlowSnippetRepository(),
         PromptTemplateRepository(),
+        UsageRepository(),
     ]
     for repo in repos:
         registry[repo.entity_type] = repo
