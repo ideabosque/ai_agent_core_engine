@@ -1302,6 +1302,20 @@ Follow the detailed instructions for configration provided in the [Ollama Agent 
 
 ---
 
+## Gateway WebSocket Integration
+
+Recent updates add a direct SilvaEngine Gateway integration path alongside the existing Lambda/API Gateway flow.
+
+- `ai_agent_core_engine.main:dispatch_graphql` is the HTTP GraphQL dispatch wrapper used by gateway route manifests.
+- `ai_agent_core_engine.main:dispatch_ask_model` is the WebSocket ask-model dispatch wrapper. It applies partition defaults, generates a `run_uuid` when the caller does not provide one, and pre-creates async tracking records before invoking `async_execute_ask_model`.
+- `Config.set_connection_manager(manager)` injects the gateway WebSocket connection manager. When a manager is present, `send_data_to_stream` sends through that local manager; when it is absent, the existing AWS API Gateway Management API fallback remains in use.
+- The gateway path expects `endpoint_id`, `part_id`, `connection_id`, `async_task_uuid`, and `arguments` in the dispatch payload or initialized settings so the engine can build `partition_key` and stream responses to the active connection.
+- Agent resolution is cached for five minutes per `(endpoint_id, part_id, agent_uuid)` to avoid repeatedly resolving MCP tools during active conversations.
+
+Validation added with this update covers the dual-mode `send_data_to_stream` behavior: gateway manager delivery, AWS fallback delivery, and manager priority when both paths are configured.
+
+---
+
 ## 🧪 Testing and Prototype
 
 This script provides a unified test harness for validating AI agent orchestration in both:
@@ -1319,7 +1333,7 @@ This script provides a unified test harness for validating AI agent orchestratio
 🔧 **Environment Variables Required**:
 - `base_dir`, `agent_uuid`, `user_id`
 - AWS credentials: `region_name`, `aws_access_key_id`, `aws_secret_access_key`
-- API test setup: `api_url`, `api_key`, `endpoint_id`
+- API test setup: `api_url`, `api_key`, `endpoint_id`, `part_id`
 
 🧩 **Key Integrations**:
 - SilvaEngine GraphQL schema loader (`Graphql.fetch_graphql_schema`)

@@ -8,10 +8,7 @@ from typing import Any, Dict
 from graphene import Boolean, Field, List, Mutation, String
 from silvaengine_utility import JSONCamelCase
 
-from ..models.wizard_schema import (
-    delete_wizard_schema,
-    insert_update_wizard_schema,
-)
+from ..models.repositories import get_repo
 from ..types.wizard_schema import WizardSchemaType
 
 
@@ -29,7 +26,7 @@ class InsertUpdateWizardSchema(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "InsertUpdateWizardSchema":
         try:
-            wizard_schema = insert_update_wizard_schema(info, **kwargs)
+            wizard_schema = get_repo("wizard_schema").insert_update(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
             info.context.get("logger").error(log)
@@ -48,7 +45,7 @@ class DeleteWizardSchema(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteWizardSchema":
         try:
-            ok = delete_wizard_schema(info, **kwargs)
+            ok = get_repo("wizard_schema").delete(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
             info.context.get("logger").error(log)

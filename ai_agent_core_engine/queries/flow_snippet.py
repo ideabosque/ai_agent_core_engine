@@ -12,14 +12,14 @@ from silvaengine_utility import method_cache
 
 from ..handlers.config import Config
 
-from ..models import flow_snippet
+from ..models.repositories import get_repo
 from ..types.flow_snippet import FlowSnippetListType, FlowSnippetType
 
 
 def resolve_flow_snippet(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> FlowSnippetType | None:
-    return flow_snippet.resolve_flow_snippet(info, **kwargs)
+    return get_repo("flow_snippet").resolve_single(info, **kwargs)
 
 
 @method_cache(
@@ -30,4 +30,4 @@ def resolve_flow_snippet(
 def resolve_flow_snippet_list(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> FlowSnippetListType | None:
-    return flow_snippet.resolve_flow_snippet_list(info, **kwargs)
+    return get_repo("flow_snippet").list(info, **kwargs)

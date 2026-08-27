@@ -7,17 +7,19 @@ __author__ = "bibow"
 from typing import Any, Dict
 
 from graphene import ResolveInfo
+
 from silvaengine_utility import method_cache
 
 from ..handlers.config import Config
-from ..models import prompt_template
+
+from ..models.repositories import get_repo
 from ..types.prompt_template import PromptTemplateListType, PromptTemplateType
 
 
 def resolve_prompt_template(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> PromptTemplateType | None:
-    return prompt_template.resolve_prompt_template(info, **kwargs)
+    return get_repo("prompt_template").resolve_single(info, **kwargs)
 
 
 @method_cache(
@@ -28,4 +30,4 @@ def resolve_prompt_template(
 def resolve_prompt_template_list(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> PromptTemplateListType | None:
-    return prompt_template.resolve_prompt_template_list(info, **kwargs)
+    return get_repo("prompt_template").list(info, **kwargs)

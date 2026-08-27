@@ -12,14 +12,14 @@ from silvaengine_utility import method_cache
 
 from ..handlers.config import Config
 
-from ..models import tool_call
+from ..models.repositories import get_repo
 from ..types.tool_call import ToolCallListType, ToolCallType
 
 
 def resolve_tool_call(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> ToolCallType | None:
-    return tool_call.resolve_tool_call(info, **kwargs)
+    return get_repo("tool_call").resolve_single(info, **kwargs)
 
 
 @method_cache(
@@ -30,4 +30,4 @@ def resolve_tool_call(
 def resolve_tool_call_list(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> ToolCallListType | None:
-    return tool_call.resolve_tool_call_list(info, **kwargs)
+    return get_repo("tool_call").list(info, **kwargs)

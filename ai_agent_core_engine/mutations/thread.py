@@ -7,7 +7,7 @@ from graphene import Boolean, Field, List, Mutation, String
 
 from silvaengine_utility import JSONCamelCase
 
-from ..models.thread import delete_thread, insert_thread
+from ..models.repositories import get_repo
 from ..types.thread import ThreadType
 
 
@@ -22,7 +22,7 @@ class InsertThread(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "InsertThread":
         try:
-            thread = insert_thread(info, **kwargs)
+            thread = get_repo("thread").insert_update(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
             info.context.get("logger").error(log)
@@ -40,7 +40,7 @@ class DeleteThread(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteThread":
         try:
-            ok = delete_thread(info, **kwargs)
+            ok = get_repo("thread").delete(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
             info.context.get("logger").error(log)

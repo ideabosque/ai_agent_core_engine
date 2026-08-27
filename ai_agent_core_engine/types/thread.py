@@ -31,7 +31,7 @@ class ThreadType(ObjectType):
 
     def resolve_agent(parent, info):
         """Resolve nested Agent for this thread using DataLoader."""
-        from ..models.batch_loaders import get_loaders
+        from ..models.repositories import get_loaders
         from .agent import AgentType
 
         # Case 2: already embedded
@@ -58,7 +58,7 @@ class ThreadType(ObjectType):
         """Resolve nested Messages for this thread as JSON-friendly list."""
         from silvaengine_utility import Serializer
 
-        from ..models.batch_loaders import get_loaders
+        from ..models.repositories import get_loaders
 
         # Check if already embedded
         existing = getattr(parent, "messages", None)
@@ -171,7 +171,7 @@ class ThreadType(ObjectType):
 
     def resolve_tool_calls(parent, info):
         """Resolve nested Tool Calls for this thread as JSON-friendly list."""
-        from ..models.batch_loaders import get_loaders
+        from ..models.repositories import get_loaders
 
         # Check if already embedded
         existing = getattr(parent, "tool_calls", None)
