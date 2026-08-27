@@ -5,15 +5,16 @@ from __future__ import print_function
 __author__ = "bibow"
 
 import functools
+import threading
 import traceback
+import uuid
 import xml.dom.minidom
 import xml.etree.ElementTree as ET
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Callable, Dict, List
 
 import pendulum
 from graphene import ResolveInfo
-
-from silvaengine_constants import InvocationType
 
 try:
     import tiktoken
@@ -37,10 +38,79 @@ from graphene import ResolveInfo
 
 from silvaengine_utility import Debugger, Invoker, Serializer
 
-from ..models.async_task import insert_update_async_task
-from ..models.message import resolve_message_list
-from ..models.tool_call import resolve_tool_call_list
+from ..models.repositories import get_repo
+
+# message list resolved via get_repo
+# tool_call list resolved via get_repo
 from ..types.agent import AgentType
+
+
+import copy as _copy
+import time as _time
+
+# Handler instance cache — reuse httpx.Client connection pool across requests.
+# Cached entries are templates only: never hand one out directly, because
+# callers stash per-request state on the instance (context/run/task_queue) and
+# the cache key is per-agent, not per-request. See _per_request_handler().
+_handler_cache: Dict[tuple, tuple] = {}
+_HANDLER_CACHE_TTL = 300  # 5 minutes
+
+
+def clear_cached_agent_handler(
+    agent_uuid: str | None = None,
+    endpoint_id: str | None = None,
+    part_id: str | None = None,
+    partition_key: str | None = None,
+) -> None:
+    """Clear cached handler templates for an agent after its config changes."""
+    if partition_key and (not endpoint_id or not part_id) and "#" in partition_key:
+        endpoint_id, part_id = partition_key.split("#", 1)
+
+    if not agent_uuid:
+        _handler_cache.clear()
+        return
+
+    keys_to_delete = []
+    for key in list(_handler_cache.keys()):
+        key_endpoint_id, key_part_id, key_agent_uuid = key
+        if key_agent_uuid != agent_uuid:
+            continue
+        if endpoint_id and key_endpoint_id != endpoint_id:
+            continue
+        if part_id and key_part_id != part_id:
+            continue
+        keys_to_delete.append(key)
+
+    for key in keys_to_delete:
+        _handler_cache.pop(key, None)
+
+
+def _per_request_handler(handler: Any, info: ResolveInfo) -> Any:
+    """Return an isolated per-request view of a cached handler.
+
+    The cache is keyed by (endpoint, part_id, agent_uuid), so concurrent
+    requests to the same agent resolve to the same object, and callers stash
+    per-request state on the instance. ``handler.context`` carries the
+    WebSocket ``connection_id`` that ``send_data_to_stream`` routes chunks by,
+    and ``ask_model`` streams from a background thread reading ``self.context``.
+    Handing out the shared instance let a second request overwrite the first's
+    context mid-stream, so its tokens went to the other client's socket and its
+    own response came back empty.
+
+    A shallow copy gives each request its own attribute namespace while still
+    sharing what the cache exists for: the imported module and the handler's
+    httpx.Client connection pool.
+
+    The handler's own per-run state (``final_output``, ``_short_term_memory``,
+    ...) is not reset here — each ``ask_model`` establishes it via
+    ``AIAgentEventHandler._reset_run_state()``. Keeping that inside the handlers
+    means this function needs no knowledge of their internals, and a new
+    provider handler cannot silently reintroduce the bug by adding a container
+    this list didn't know about.
+    """
+    request_handler = _copy.copy(handler)
+    request_handler.context = info.context
+    return request_handler
 
 
 def get_ai_agent_handler(info: ResolveInfo, agent: AgentType):
@@ -53,6 +123,21 @@ def get_ai_agent_handler(info: ResolveInfo, agent: AgentType):
 
     if not all(llm_config.get(field) for field in required_fields):
         raise RuntimeError("LLM requires both module_name and class_name")
+
+    # Cache handler instance per (endpoint, part_id, agent_uuid) to reuse
+    # the httpx.Client connection pool and avoid re-importing the module
+    # on every request (~50-100ms savings + TLS reuse).
+    _agent_uuid = getattr(agent, "agent_uuid", None)
+    cache_key = (
+        info.context.get("endpoint_id", ""),
+        info.context.get("part_id", ""),
+        _agent_uuid,
+    )
+    cached = _handler_cache.get(cache_key)
+    if cached and (_time.time() - cached[1] < _HANDLER_CACHE_TTL):
+        # Never return the cached instance itself — concurrent requests would
+        # overwrite each other's per-request context. See _per_request_handler.
+        return _per_request_handler(cached[0], info)
 
     # Dynamically load and initialize AI agent handler
     ai_agent_handler = Invoker.resolve_proxied_callable(
@@ -70,7 +155,10 @@ def get_ai_agent_handler(info: ResolveInfo, agent: AgentType):
             f"Can't import module `{agent.llm.get('module_name')}` or not class `{agent.llm.get('class_name')}`"
         )
 
-    return ai_agent_handler
+    # Cache the freshly built instance as a template and hand back a
+    # per-request copy, so the very first request is isolated too.
+    _handler_cache[cache_key] = (ai_agent_handler, _time.time())
+    return _per_request_handler(ai_agent_handler, info)
 
 
 def _load_runs_by_keys(
@@ -80,7 +168,7 @@ def _load_runs_by_keys(
     if not run_keys:
         return {}
     try:
-        from ..models.batch_loaders import get_loaders
+        from ..models.repositories import get_loaders
 
         loaders = get_loaders(info.context)
         run_loader = loaders.run_loader
@@ -104,9 +192,115 @@ def _load_runs_by_keys(
         return {}
 
 
+# ---------------------------------------------------------------------------
+# Unified in-process async dispatch (SilvaEngine Gateway / FastAPI).
+#
+# Engine "Event" functions (async_execute_ask_model, async_insert_update_tool_call)
+# are dispatched fire-and-forget. This deployment runs entirely on the gateway
+# (a long-lived process), so they always execute in-process here — AWS Lambda
+# is not used. (Lambda would require a separate invocation instead, since a
+# background thread is frozen once a Lambda handler returns.)
+#
+# ``local_async_invoker`` is a drop-in for ``context['aws_lambda_invoker']`` (the
+# LLM handler calls it as ``invoker(payload=...)``) and is also used by
+# ``dispatch_async_funct``. Heavy functions (a full model run) get their own
+# thread; lightweight ordered recordings (tool_call start->in_progress->
+# completed must stay in order) share a single serialized worker.
+# ---------------------------------------------------------------------------
+
+# Engine functions whose local execution is heavy and must not share the
+# serialized recording worker.
+_HEAVY_LOCAL_FUNCTIONS = {"async_execute_ask_model"}
+
+_local_dispatch_executor: ThreadPoolExecutor | None = None
+_local_dispatch_lock = threading.Lock()
+
+
+def _get_local_dispatch_executor() -> ThreadPoolExecutor:
+    """Lazily create the single-worker executor for ordered local dispatch."""
+    global _local_dispatch_executor
+    if _local_dispatch_executor is None:
+        with _local_dispatch_lock:
+            if _local_dispatch_executor is None:
+                _local_dispatch_executor = ThreadPoolExecutor(
+                    max_workers=1, thread_name_prefix="aace-local-invoker"
+                )
+    return _local_dispatch_executor
+
+
+def local_async_invoker(payload: Dict[str, Any], **_ignored: Any) -> None:
+    """In-process replacement for ``aws_lambda_invoker`` (SilvaEngine Gateway).
+
+    Drop-in for ``context['aws_lambda_invoker']``: the LLM handler calls it as
+    ``invoker(payload=...)``. Resolves the target engine method from the payload
+    (built by ``Invoker.build_invoker_payload``) and runs it on the cached
+    engine — heavy functions on their own thread, ordered recordings on the
+    shared single worker. Fire-and-forget: errors are logged, never raised.
+    """
+    function_name = payload.get("function_name")
+    if not function_name:
+        return
+    params = dict(payload.get("parameters") or {})
+    params["context"] = payload.get("context") or {}
+    logger = params["context"].get("logger")
+
+    def _run() -> None:
+        try:
+            from ..main import _build_engine_from_config
+
+            getattr(_build_engine_from_config(), function_name)(**params)
+        except Exception:
+            if logger:
+                logger.exception(
+                    "Local async dispatch of %s failed", function_name
+                )
+
+    if function_name in _HEAVY_LOCAL_FUNCTIONS:
+        threading.Thread(
+            target=_run, name=f"aace-{function_name}", daemon=True
+        ).start()
+    else:
+        _get_local_dispatch_executor().submit(_run)
+
+
+def dispatch_async_funct(
+    info: ResolveInfo, function_name: str, params: Dict[str, Any]
+) -> None:
+    """Dispatch an async engine "Event" function in-process.
+
+    All async dispatch runs locally (SilvaEngine Gateway / FastAPI); AWS Lambda
+    is not used. ``local_async_invoker`` runs heavy functions on their own
+    thread and lightweight ordered recordings on a shared single worker.
+    """
+    local_async_invoker(
+        payload=Invoker.build_invoker_payload(
+            context=info.context,
+            module_name="ai_agent_core_engine",
+            class_name="AIAgentCoreEngine",
+            function_name=function_name,
+            parameters=params,
+        )
+    )
+
+
+def generate_async_task_uuid() -> str:
+    """Pre-generate an async_task_uuid for a new AsyncTask row.
+
+    Single source of truth for every call site that writes an AsyncTask
+    directly via ``get_repo("async_task").insert_update(...)`` instead of
+    going through the DynamoDB ``insert_update_decorator`` (which can
+    auto-generate a range key on its own). PostgreSQL's composite primary
+    key (``function_name`` + ``async_task_uuid``) has no equivalent
+    auto-generation, so it always needs the value supplied explicitly; we
+    generate it unconditionally on both backends so every direct-insert call
+    site behaves the same way regardless of ``Config.DB_BACKEND``.
+    """
+    return str(uuid.uuid4())
+
+
 def start_async_task(
     info: ResolveInfo, function_name: str, **arguments: Dict[str, Any]
-) -> str:
+) -> str | None:
     """
     Initialize and trigger an asynchronous task for processing the model request.
     Creates a task record in the database and invokes an AWS Lambda function asynchronously.
@@ -125,18 +319,26 @@ def start_async_task(
     """
     try:
         # Create task record in database
-        async_task = insert_update_async_task(
-            info,
-            **{
-                "function_name": function_name,
-                "arguments": {k: v for k, v in arguments.items() if k != "updated_by"},
-                "updated_by": arguments["updated_by"],
-            },
-        )
+        _async_task_kwargs = {
+            "function_name": function_name,
+            "async_task_uuid": generate_async_task_uuid(),
+            "arguments": {k: v for k, v in arguments.items() if k != "updated_by"},
+            "updated_by": arguments["updated_by"],
+        }
+        async_task = get_repo("async_task").insert_update(info, **_async_task_kwargs)
+
+        # Support both dict (PG) and ObjectType (DynamoDB) return types;
+        # guard against a None return so we never AttributeError on __dict__.
+        if isinstance(async_task, dict):
+            _async_task_dict = async_task
+        elif async_task is not None:
+            _async_task_dict = async_task.__dict__
+        else:
+            _async_task_dict = {}
 
         # Prepare parameters for Lambda invocation
         params = {
-            "async_task_uuid": async_task.async_task_uuid,
+            "async_task_uuid": _async_task_dict.get("async_task_uuid"),
             "arguments": arguments,
         }
         required = [
@@ -154,21 +356,11 @@ def start_async_task(
                 params[index] = value
 
         try:
-            invoker = info.context.get("aws_lambda_invoker")
-            aws_lambda_arn = info.context.get("aws_lambda_arn")
-
-            if callable(invoker) and aws_lambda_arn:
-                invoker(
-                    function_name=aws_lambda_arn,
-                    invocation_type=InvocationType.EVENT,
-                    payload=Invoker.build_invoker_payload(
-                        context=info.context,
-                        module_name="ai_agent_core_engine",
-                        class_name="AIAgentCoreEngine",
-                        function_name=function_name,
-                        parameters=params,
-                    ),
-                )
+            # AWS Lambda: dispatch via the injected invoker. SilvaEngine Gateway
+            # (no Lambda): run in-process (async_execute_ask_model is "heavy", so
+            # local_async_invoker gives it its own thread). Non-streaming when
+            # there is no connection_id; the client polls the async_task.
+            dispatch_async_funct(info, function_name, params)
         except Exception as e:
             Debugger.info(
                 variable=e,
@@ -178,7 +370,7 @@ def start_async_task(
             )
             pass
 
-        return async_task.async_task_uuid
+        return _async_task_dict.get("async_task_uuid")
     except Exception as e:
         raise e
 
@@ -230,26 +422,32 @@ def combine_thread_messages(
     # Only retrieve messages and tool calls from the past 24 hours
     updated_at_gt = pendulum.now("UTC").subtract(hours=24)
 
-    # Get message list for thread
-    message_list = resolve_message_list(
-        info,
-        **{
-            "thread_uuid": thread_uuid,
-            "pageNumber": 1,
-            "limit": 100,
-            "updated_at_gt": updated_at_gt,
-        },
-    )
-    # Get tool call list for thread
-    tool_call_list = resolve_tool_call_list(
-        info,
-        **{
-            "thread_uuid": thread_uuid,
-            "pageNumber": 1,
-            "limit": 100,
-            "updated_at_gt": updated_at_gt,
-        },
-    )
+    # Parallelize message_list and tool_call_list queries (independent)
+    from concurrent.futures import ThreadPoolExecutor
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        msg_future = pool.submit(
+            get_repo("message").list,
+            info,
+            **{
+                "thread_uuid": thread_uuid,
+                "pageNumber": 1,
+                "limit": 100,
+                "updated_at_gt": updated_at_gt,
+            },
+        )
+        tc_future = pool.submit(
+            get_repo("tool_call").list,
+            info,
+            **{
+                "thread_uuid": thread_uuid,
+                "pageNumber": 1,
+                "limit": 100,
+                "updated_at_gt": updated_at_gt,
+            },
+        )
+        message_list = msg_future.result()
+        tool_call_list = tc_future.result()
 
     # Return empty list if no messages or no tool_call found
     if message_list.total == 0 and tool_call_list.total == 0:
@@ -746,6 +944,9 @@ def async_task_handler(function_name: str) -> Callable:
         def wrapper(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
             async_task_uuid = kwargs.get("async_task_uuid")
             arguments = kwargs.get("arguments", {})
+            # When the gateway pre-created the async_task, skip the redundant
+            # "in_progress" write to save a DB round-trip (~100-200ms).
+            _skip_init_write = kwargs.pop("_skip_init_write", False)
 
             if not async_task_uuid or not arguments:
                 raise Exception(
@@ -753,22 +954,23 @@ def async_task_handler(function_name: str) -> Callable:
                 )
 
             try:
-                # Initialize async task as in_progress
-                insert_update_async_task(
-                    info,
-                    **{
-                        "function_name": function_name,
-                        "async_task_uuid": async_task_uuid,
-                        "status": "in_progress",
-                        "updated_by": arguments["updated_by"],
-                    },
-                )
+                # Initialize async task as in_progress (skip if pre-created)
+                if not _skip_init_write:
+                    get_repo("async_task").insert_update(
+                        info,
+                        **{
+                            "function_name": function_name,
+                            "async_task_uuid": async_task_uuid,
+                            "status": "in_progress",
+                            "updated_by": arguments["updated_by"],
+                        },
+                    )
 
                 # Execute the wrapped function
                 result, output_files = func(info, **kwargs)
 
                 # Mark async task as completed with results
-                insert_update_async_task(
+                get_repo("async_task").insert_update(
                     info,
                     **{
                         "function_name": function_name,
@@ -786,7 +988,7 @@ def async_task_handler(function_name: str) -> Callable:
                 # Log and record any errors
                 log = traceback.format_exc()
                 info.context["logger"].error(log)
-                insert_update_async_task(
+                get_repo("async_task").insert_update(
                     info,
                     **{
                         "function_name": function_name,

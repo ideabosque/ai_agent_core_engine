@@ -302,3 +302,34 @@ def validate_graphql_response(
         assert key in current, f"{path_str} missing expected key '{key}'"
 
     logger.info(f"Validated structure at {path_str}: {list(current.keys())}")
+
+
+def test_internal_mcp_preserves_headers_with_bearer_and_part_id():
+    """Internal MCP auth merges Authorization into existing headers."""
+    from ai_agent_core_engine.handlers.config import Config
+
+    Config.internal_mcp = None
+    Config._initialize_internal_mcp(
+        {
+            "internal_mcp": {
+                "base_url": "http://localhost:8765/{endpoint_id}/mcp",
+                "bearer_token": "token-123",
+                "headers": {
+                    "x-api-key": "silvaengine",
+                    "Content-Type": "application/json",
+                },
+            }
+        }
+    )
+
+    internal_mcp = Config.get_internal_mcp("gpt", "nestaging")
+
+    assert internal_mcp["base_url"] == "http://localhost:8765/gpt/mcp"
+    assert internal_mcp["headers"] == {
+        "x-api-key": "silvaengine",
+        "Content-Type": "application/json",
+        "Authorization": "Bearer token-123",
+        "Part-Id": "nestaging",
+    }
+    assert "Part-Id" not in Config.internal_mcp["headers"]
+

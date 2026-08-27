@@ -26,6 +26,13 @@ dependencies = [
     "openai",
 ]
 
+[project.optional-dependencies]
+postgresql = [
+    "SQLAlchemy>=1.4",
+    "psycopg2-binary>=2.9",
+    "alembic>=1.10",
+]
+
 [tool.setuptools]
 include-package-data = true
 zip-safe = false

@@ -8,7 +8,7 @@ from typing import Any, Dict
 from graphene import Boolean, Field, List, Mutation, String
 from silvaengine_utility import JSONCamelCase
 
-from ..models.llm import delete_llm, insert_update_llm
+from ..models.repositories import get_repo
 from ..types.llm import LlmType
 
 
@@ -26,7 +26,7 @@ class InsertUpdateLlm(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "InsertUpdateLlm":
         try:
-            llm = insert_update_llm(info, **kwargs)
+            llm = get_repo("llm").insert_update(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
             info.context.get("logger").error(log)
@@ -45,7 +45,7 @@ class DeleteLlm(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteLlm":
         try:
-            ok = delete_llm(info, **kwargs)
+            ok = get_repo("llm").delete(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
             info.context.get("logger").error(log)

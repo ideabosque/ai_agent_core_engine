@@ -12,14 +12,14 @@ from silvaengine_utility import method_cache
 
 from ..handlers.config import Config
 
-from ..models import wizard_group
+from ..models.repositories import get_repo
 from ..types.wizard_group import WizardGroupListType, WizardGroupType
 
 
 def resolve_wizard_group(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> WizardGroupType | None:
-    return wizard_group.resolve_wizard_group(info, **kwargs)
+    return get_repo("wizard_group").resolve_single(info, **kwargs)
 
 
 @method_cache(
@@ -30,4 +30,4 @@ def resolve_wizard_group(
 def resolve_wizard_group_list(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> WizardGroupListType | None:
-    return wizard_group.resolve_wizard_group_list(info, **kwargs)
+    return get_repo("wizard_group").list(info, **kwargs)

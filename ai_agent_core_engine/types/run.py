@@ -31,7 +31,7 @@ class RunType(ObjectType):
 
     def resolve_thread(parent, info):
         """Resolve nested Thread for this run using DataLoader."""
-        from ..models.batch_loaders import get_loaders
+        from ..models.repositories import get_loaders
 
         # Case 2: already embedded
         existing = getattr(parent, "thread", None)

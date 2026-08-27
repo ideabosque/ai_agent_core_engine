@@ -19,17 +19,28 @@ def create_listener_info(
     """
     Build a minimal ResolveInfo for async listener contexts.
     """
+    request_context = kwargs.get("context", {}) or {}
+
     context = {
         "setting": setting,
         "endpoint_id": kwargs.get("endpoint_id"),
         "logger": logger,
         "part_id": kwargs.get("part_id"),
         "connection_id": kwargs.get("connection_id"),
-        "context": kwargs.get("context", {}),
+        "context": request_context,
         "partition_key": kwargs.get(
-            "partition_key", kwargs.get("context", {}).get("partition_key")
+            "partition_key", request_context.get("partition_key")
         ),
     }
+
+    # Surface the gateway's cooperative stream-cancellation signal at the top
+    # level so consumers (e.g. AIAgentEventHandler.is_stream_cancelled) read it
+    # uniformly instead of reaching into the nested request context. Both are
+    # live in-process objects (a threading.Event and its bound is_set); they are
+    # simply absent outside the SilvaEngine Gateway streaming path.
+    for _signal in ("is_cancelled", "cancel_event"):
+        if _signal in request_context and _signal not in context:
+            context[_signal] = request_context[_signal]
 
     if "metadata" in kwargs and isinstance(kwargs["metadata"], dict):
         context.update(kwargs.get("metadata", {}))

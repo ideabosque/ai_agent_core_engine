@@ -44,7 +44,7 @@ class MCPServerType(ObjectType):
         if not mcp_server_url or not headers:
             return None
 
-        from ..models.batch_loaders import get_loaders
+        from ..models.repositories import get_loaders
 
         mcp_server_tool_loader = get_loaders(info.context).mcp_server_tool_loader
         mcp_server_tool_loader.set_internal_mcp(endpoint_id, part_id)

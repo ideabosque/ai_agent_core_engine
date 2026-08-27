@@ -8,7 +8,7 @@ from typing import Any, Dict
 from graphene import Boolean, Field, Int, List, Mutation, String
 from silvaengine_utility import JSONCamelCase
 
-from ..models.agent import delete_agent, insert_update_agent
+from ..models.repositories import get_repo
 from ..types.agent import AgentType
 
 
@@ -36,7 +36,7 @@ class InsertUpdateAgent(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "InsertUpdateAgent":
         try:
-            agent = insert_update_agent(info, **kwargs)
+            agent = get_repo("agent").insert_update(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
             info.context.get("logger").error(log)
@@ -54,7 +54,7 @@ class DeleteAgent(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteAgent":
         try:
-            ok = delete_agent(info, **kwargs)
+            ok = get_repo("agent").delete(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
             info.context.get("logger").error(log)

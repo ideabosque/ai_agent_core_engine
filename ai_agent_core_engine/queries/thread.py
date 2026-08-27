@@ -12,12 +12,12 @@ from silvaengine_utility import method_cache
 
 from ..handlers.config import Config
 
-from ..models import thread
+from ..models.repositories import get_repo
 from ..types.thread import ThreadListType, ThreadType
 
 
 def resolve_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType | None:
-    return thread.resolve_thread(info, **kwargs)
+    return get_repo("thread").resolve_single(info, **kwargs)
 
 
 @method_cache(
@@ -28,4 +28,4 @@ def resolve_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType | 
 def resolve_thread_list(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> ThreadListType | None:
-    return thread.resolve_thread_list(info, **kwargs)
+    return get_repo("thread").list(info, **kwargs)

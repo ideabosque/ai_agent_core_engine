@@ -10,7 +10,7 @@ from graphene import Boolean, Field, Int, List, Mutation, String
 
 from silvaengine_utility import JSONCamelCase
 
-from ..models.tool_call import delete_tool_call, insert_update_tool_call
+from ..models.repositories import get_repo
 from ..types.tool_call import ToolCallType
 
 
@@ -35,7 +35,7 @@ class InsertUpdateToolCall(Mutation):
         root: Any, info: Any, **kwargs: Dict[str, Any]
     ) -> "InsertUpdateToolCall":
         try:
-            tool_call = insert_update_tool_call(info, **kwargs)
+            tool_call = get_repo("tool_call").insert_update(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
             info.context.get("logger").error(log)
@@ -54,7 +54,7 @@ class DeleteToolCall(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteToolCall":
         try:
-            ok = delete_tool_call(info, **kwargs)
+            ok = get_repo("tool_call").delete(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
             info.context.get("logger").error(log)

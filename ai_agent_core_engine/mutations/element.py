@@ -10,7 +10,7 @@ from graphene import Boolean, Field, Int, List, Mutation, String
 
 from silvaengine_utility import JSONCamelCase
 
-from ..models.element import delete_element, insert_update_element
+from ..models.repositories import get_repo
 from ..types.element import ElementType
 
 
@@ -32,7 +32,7 @@ class InsertUpdateElement(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "InsertUpdateElement":
         try:
-            element = insert_update_element(info, **kwargs)
+            element = get_repo("element").insert_update(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
             info.context.get("logger").error(log)
@@ -50,7 +50,7 @@ class DeleteElement(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteElement":
         try:
-            ok = delete_element(info, **kwargs)
+            ok = get_repo("element").delete(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
             info.context.get("logger").error(log)

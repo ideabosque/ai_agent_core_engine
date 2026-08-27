@@ -10,10 +10,7 @@ from graphene import Boolean, Field, Int, List, Mutation, String
 
 from silvaengine_utility import JSONCamelCase
 
-from ..models.message import (
-    delete_message,
-    insert_update_message,
-)
+from ..models.repositories import get_repo
 from ..types.message import MessageType
 
 
@@ -32,7 +29,7 @@ class InsertUpdateMessage(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "InsertUpdateMessage":
         try:
-            message = insert_update_message(info, **kwargs)
+            message = get_repo("message").insert_update(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
             info.context.get("logger").error(log)
@@ -51,7 +48,7 @@ class DeleteMessage(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteMessage":
         try:
-            ok = delete_message(info, **kwargs)
+            ok = get_repo("message").delete(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
             info.context.get("logger").error(log)
