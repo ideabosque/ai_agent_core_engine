@@ -9,7 +9,7 @@ from typing import Any, Callable, Dict, Optional
 
 import pendulum
 from graphene import ResolveInfo
-
+from ..handlers import at_agent_listener
 
 def usage_recorder(
     service_name: str,
@@ -57,6 +57,11 @@ def usage_recorder(
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         def wrapper(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
+            try:    
+                check_usage_limit(info, service_name)
+            except Exception as e:
+                send_usage_limit_error(info, str(e))
+                return
             # Execute the wrapped function first
             result = func(info, **kwargs)
 
@@ -128,7 +133,7 @@ def extract_token_usage(
     Returns:
         Dict with individual_identity_id, usage and details, or None if not available
     """
-    from ..models.run import get_run
+    from ..models.repositories import get_repo
 
     arguments = kwargs.get("arguments", {})
     thread_uuid = arguments.get("thread_uuid")
@@ -140,7 +145,9 @@ def extract_token_usage(
         )
         return None
 
-    run = get_run(thread_uuid, run_uuid)
+    run = get_repo("run").get(
+        thread_uuid=thread_uuid, run_uuid=run_uuid,
+    )
 
     if not run:
         info.context["logger"].warning(
@@ -148,19 +155,22 @@ def extract_token_usage(
         )
         return None
 
+    # Support both ObjectType (DynamoDB) and dict (PostgreSQL) return types
+    _run = run if isinstance(run, dict) else run.__dict__
+
     return {
         "individual_identity_id": arguments.get("user_id"),
-        "usage": int(run.total_tokens or 0),
+        "usage": int(_run.get("total_tokens") or 0),
         "details": {
             "thread_uuid": thread_uuid,
             "run_uuid": run_uuid,
-            "run_id": run.run_id,
+            "run_id": _run.get("run_id"),
             "agent_uuid": arguments.get("agent_uuid"),
-            "partition_key": run.partition_key,
+            "partition_key": _run.get("partition_key"),
             "token_usage": {
-                "prompt_tokens": int(run.prompt_tokens or 0),
-                "completion_tokens": int(run.completion_tokens or 0),
-                "total_tokens": int(run.total_tokens or 0),
+                "prompt_tokens": int(_run.get("prompt_tokens") or 0),
+                "completion_tokens": int(_run.get("completion_tokens") or 0),
+                "total_tokens": int(_run.get("total_tokens") or 0),
             },
         },
     }
@@ -182,3 +192,40 @@ def log_usage_record(info: ResolveInfo, usage_record: Dict[str, Any]) -> None:
         f"usage: {usage_record['usage']}, "
         f"details: {usage_record['details']}"
     )
+
+def check_usage_limit(info: ResolveInfo, usage_key: str):
+    setting = info.context.get("setting")
+    ignore_partition_keys = setting.get("ignore_usage_limit_partition_keys", [])
+    partition_key = info.context.get("partition_key")
+    if partition_key in ignore_partition_keys:
+        return
+    
+    from ..models.usage import get_usage_limit, add_usage_summary
+    
+    usage_limit = get_usage_limit(partition_key, usage_key)
+    if usage_limit is None:
+        raise Exception(f"No subscription for service: {usage_key}")
+    
+    if usage_limit.status == "CANCELLED":
+        raise Exception(f"Subscription is cancelled. Please contact support.")
+    
+    now = pendulum.now("UTC")
+    if now > usage_limit.period_end:
+        raise Exception(f"Subscription is expired. Please renew your subscription.")
+    usage_key_period_start = "{usage_key}#{period_start}".format(usage_key=usage_key, period_start=usage_limit.period_start.strftime("%Y-%m-%d"))
+    add_usage_summary(partition_key, usage_key, usage_key_period_start, usage_limit.usage_limit)
+
+def send_usage_limit_error(info: ResolveInfo, error_message: str):
+    connection_id = info.context.get("connection_id")
+    if connection_id is None:
+        return
+    logger = info.context.get("logger")
+    params = {
+        "connection_id": connection_id,
+        "data": {
+            "error_code": "USAGE_LIMIT_EXCEEDED",
+            "error_message": error_message
+        }
+    }
+    at_agent_listener.send_data_to_stream(logger, **params)
+    

@@ -11,14 +11,15 @@ from graphene import ResolveInfo
 from silvaengine_utility import method_cache
 
 from ..handlers.config import Config
-from ..models import wizard_group_filter
+
+from ..models.repositories import get_repo
 from ..types.wizard_group_filter import WizardGroupFilterListType, WizardGroupFilterType
 
 
 def resolve_wizard_group_filter(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> WizardGroupFilterType | None:
-    return wizard_group_filter.resolve_wizard_group_filter(info, **kwargs)
+    return get_repo("wizard_group_filter").resolve_single(info, **kwargs)
 
 
 @method_cache(
@@ -29,4 +30,4 @@ def resolve_wizard_group_filter(
 def resolve_wizard_group_filter_list(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> WizardGroupFilterListType | None:
-    return wizard_group_filter.resolve_wizard_group_filter_list(info, **kwargs)
+    return get_repo("wizard_group_filter").list(info, **kwargs)

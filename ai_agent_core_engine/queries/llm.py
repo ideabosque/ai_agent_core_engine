@@ -12,12 +12,12 @@ from silvaengine_utility import method_cache
 
 from ..handlers.config import Config
 
-from ..models import llm
+from ..models.repositories import get_repo
 from ..types.llm import LlmListType, LlmType
 
 
 def resolve_llm(info: ResolveInfo, **kwargs: Dict[str, Any]) -> LlmType | None:
-    return llm.resolve_llm(info, **kwargs)
+    return get_repo("llm").resolve_single(info, **kwargs)
 
 
 @method_cache(
@@ -28,4 +28,4 @@ def resolve_llm(info: ResolveInfo, **kwargs: Dict[str, Any]) -> LlmType | None:
 def resolve_llm_list(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> LlmListType | None:
-    return llm.resolve_llm_list(info, **kwargs)
+    return get_repo("llm").list(info, **kwargs)

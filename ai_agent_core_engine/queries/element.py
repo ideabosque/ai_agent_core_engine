@@ -7,15 +7,17 @@ __author__ = "bibow"
 from typing import Any, Dict
 
 from graphene import ResolveInfo
+
 from silvaengine_utility import method_cache
 
 from ..handlers.config import Config
-from ..models import element
+
+from ..models.repositories import get_repo
 from ..types.element import ElementListType, ElementType
 
 
 def resolve_element(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ElementType | None:
-    return element.resolve_element(info, **kwargs)
+    return get_repo("element").resolve_single(info, **kwargs)
 
 
 @method_cache(
@@ -26,4 +28,4 @@ def resolve_element(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ElementType 
 def resolve_element_list(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> ElementListType | None:
-    return element.resolve_element_list(info, **kwargs)
+    return get_repo("element").list(info, **kwargs)

@@ -39,7 +39,7 @@ class WizardGroupFilterType(ObjectType):
         """
 
         """Resolve nested Run for this tool call using DataLoader."""
-        from ..models.batch_loaders import get_loaders
+        from ..models.repositories import get_loaders
 
         # Case 1: Already embedded (backward compatibility)
         existing = getattr(parent, "wizard_group", None)

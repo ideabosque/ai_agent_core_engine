@@ -1,0 +1,298 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+from __future__ import print_function
+
+__author__ = "bibow"
+
+import functools
+import traceback
+from typing import Any, Dict
+
+import pendulum
+from graphene import ResolveInfo
+from pynamodb.attributes import UnicodeAttribute, UTCDateTimeAttribute
+from pynamodb.indexes import AllProjection, LocalSecondaryIndex
+from silvaengine_dynamodb_base import (
+    BaseModel,
+    delete_decorator,
+    insert_update_decorator,
+    monitor_decorator,
+    resolve_list_decorator,
+)
+from silvaengine_utility import method_cache
+from tenacity import retry, stop_after_attempt, wait_exponential
+
+from ...handlers.config import Config
+from ...types.thread import ThreadListType, ThreadType
+from ...utils.normalization import normalize_to_json
+from .run import resolve_run_list
+
+
+class AgentUuidIndex(LocalSecondaryIndex):
+    """
+    This class represents a local secondary index
+    """
+
+    class Meta:
+        billing_mode = "PAY_PER_REQUEST"
+        # All attributes are projected
+        projection = AllProjection()
+        index_name = "agent_uuid-index"
+
+    partition_key = UnicodeAttribute(hash_key=True)
+    agent_uuid = UnicodeAttribute(range_key=True)
+
+
+class CreatedAtIndex(LocalSecondaryIndex):
+    """
+    This class represents a local secondary index
+    """
+
+    class Meta:
+        billing_mode = "PAY_PER_REQUEST"
+        # All attributes are projected
+        projection = AllProjection()
+        index_name = "updated_at-index"
+
+    partition_key = UnicodeAttribute(hash_key=True)
+    created_at = UnicodeAttribute(range_key=True)
+
+
+class ThreadModel(BaseModel):
+    class Meta(BaseModel.Meta):
+        table_name = "aace-threads"
+
+    partition_key = UnicodeAttribute(hash_key=True)
+    thread_uuid = UnicodeAttribute(range_key=True)
+    endpoint_id = UnicodeAttribute()
+    part_id = UnicodeAttribute()
+    agent_uuid = UnicodeAttribute()
+    user_id = UnicodeAttribute(null=True)
+    created_at = UTCDateTimeAttribute()
+    agent_uuid_index = AgentUuidIndex()
+    created_at_index = CreatedAtIndex()
+
+
+def purge_cache():
+    def actual_decorator(original_function):
+        @functools.wraps(original_function)
+        def wrapper_function(*args, **kwargs):
+            try:
+                # Execute original function first
+                result = original_function(*args, **kwargs)
+
+                # Then purge cache after successful operation
+                from .cache import purge_entity_cascading_cache
+
+                # Get entity keys from kwargs or entity parameter
+                entity_keys = {}
+
+                # Try to get from entity parameter first (for updates)
+                entity = kwargs.get("entity")
+                if entity:
+                    entity_keys["thread_uuid"] = getattr(entity, "thread_uuid", None)
+
+                # Fallback to kwargs (for creates/deletes)
+                if not entity_keys.get("thread_uuid"):
+                    entity_keys["thread_uuid"] = kwargs.get("thread_uuid")
+
+                # Get partition_key from context or kwargs
+                partition_key = args[0].context.get("partition_key") or kwargs.get(
+                    "partition_key"
+                )
+
+                # Only purge if we have the required keys
+                if entity_keys.get("thread_uuid"):
+                    purge_entity_cascading_cache(
+                        args[0].context.get("logger"),
+                        entity_type="thread",
+                        context_keys=(
+                            {"partition_key": partition_key} if partition_key else None
+                        ),
+                        entity_keys=entity_keys,
+                        cascade_depth=3,
+                    )
+
+                return result
+            except Exception as e:
+                log = traceback.format_exc()
+                args[0].context.get("logger").error(log)
+                raise e
+
+        return wrapper_function
+
+    return actual_decorator
+
+
+@retry(
+    reraise=True,
+    wait=wait_exponential(multiplier=1, max=60),
+    stop=stop_after_attempt(5),
+)
+@method_cache(
+    ttl=Config.get_cache_ttl(),
+    cache_name=Config.get_cache_name("models", "thread"),
+    cache_enabled=Config.is_cache_enabled,
+)
+def get_thread(partition_key: str, thread_uuid: str) -> ThreadModel:
+    return ThreadModel.get(partition_key, thread_uuid)
+
+
+def get_thread_count(partition_key: str, thread_uuid: str) -> int:
+    return ThreadModel.count(partition_key, ThreadModel.thread_uuid == thread_uuid)
+
+
+def get_thread_type(info: ResolveInfo, thread: ThreadModel) -> ThreadType:
+    _ = info  # Keep for signature compatibility with decorators
+    thread_dict = thread.__dict__["attribute_values"].copy()
+    return ThreadType(**normalize_to_json(thread_dict))
+
+
+def resolve_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType | None:
+    partition_key = info.context.get("partition_key")
+    thread_uuid = kwargs.get("thread_uuid")
+
+    # Validate parameters before querying - must be non-empty strings
+    if not partition_key or not isinstance(partition_key, str):
+        info.context.get("logger").warning(
+            f"resolve_thread: Invalid partition_key: {partition_key}"
+        )
+        return None
+    if not thread_uuid or not isinstance(thread_uuid, str):
+        info.context.get("logger").warning(
+            f"resolve_thread: Invalid thread_uuid: {thread_uuid}"
+        )
+        return None
+
+    # Additional validation: partition_key should not contain "None"
+    if "None" in partition_key:
+        info.context.get("logger").warning(
+            f"resolve_thread: partition_key contains 'None': {partition_key}"
+        )
+        return None
+
+    count = get_thread_count(partition_key, thread_uuid)
+
+    if count == 0:
+        return None
+
+    return get_thread_type(info, get_thread(partition_key, thread_uuid))
+
+
+@monitor_decorator
+@resolve_list_decorator(
+    attributes_to_get=[
+        "partition_key",
+        "thread_uuid",
+        "agent_uuid",
+        "user_id",
+        "created_at",
+    ],
+    list_type_class=ThreadListType,
+    type_funct=get_thread_type,
+    scan_index_forward=False,
+)
+def resolve_thread_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
+    partition_key = info.context.get("partition_key")
+    agent_uuid = kwargs.get("agent_uuid", None)
+    user_id = kwargs.get("user_id", None)
+    created_at_gt = kwargs.get("created_at_gt", None)
+    created_at_lt = kwargs.get("created_at_lt", None)
+
+    args = []
+    inquiry_funct = ThreadModel.scan
+    count_funct = ThreadModel.count
+    range_key_condition = None
+
+    if partition_key:
+        # Build range key condition for created_at when using created_at_index
+        if created_at_gt is not None and created_at_lt is not None:
+            range_key_condition = ThreadModel.created_at.between(
+                created_at_gt, created_at_lt
+            )
+        elif created_at_gt is not None:
+            range_key_condition = ThreadModel.created_at > created_at_gt
+        elif created_at_lt is not None:
+            range_key_condition = ThreadModel.created_at < created_at_lt
+
+        args = [partition_key, range_key_condition]
+        inquiry_funct = ThreadModel.created_at_index.query
+        count_funct = ThreadModel.created_at_index.count
+
+        if agent_uuid and args[1] is None:
+            inquiry_funct = ThreadModel.agent_uuid_index.query
+            args[1] = ThreadModel.agent_uuid == agent_uuid
+            count_funct = ThreadModel.agent_uuid_index.count
+
+    the_filters = None
+
+    if agent_uuid and range_key_condition is not None:
+        the_filters &= ThreadModel.agent_uuid == agent_uuid
+    if user_id is not None:
+        the_filters &= ThreadModel.user_id.exists()
+        the_filters &= ThreadModel.user_id == user_id
+    if the_filters is not None:
+        args.append(the_filters)
+
+    return inquiry_funct, count_funct, args
+
+
+@insert_update_decorator(
+    keys={
+        "hash_key": "partition_key",
+        "range_key": "thread_uuid",
+    },
+    model_funct=get_thread,
+    count_funct=get_thread_count,
+    type_funct=get_thread_type,
+    # data_attributes_except_for_data_diff=["created_at", "updated_at"],
+    # activity_history_funct=None,
+)
+@purge_cache()
+def insert_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
+    # partition_key = kwargs.get("partition_key")
+    partition_key = info.context.get("partition_key")
+    thread_uuid = kwargs.get("thread_uuid")
+
+    if kwargs.get("entity") is None:
+        cols = {
+            "agent_uuid": kwargs["agent_uuid"],
+            "created_at": pendulum.now("UTC"),
+        }
+        for key in ["user_id"]:
+            if key in kwargs:
+                cols[key] = kwargs[key]
+
+        cols["endpoint_id"] = kwargs.get("endpoint_id") or (info.context.get("endpoint_id") if info is not None else None)
+        cols["part_id"] = kwargs.get("part_id") or (info.context.get("part_id") if info is not None else None)
+
+        ThreadModel(
+            partition_key,
+            thread_uuid,
+            **cols,
+        ).save()
+        return
+    return
+
+
+@delete_decorator(
+    keys={
+        "hash_key": "partition_key",
+        "range_key": "thread_uuid",
+    },
+    model_funct=get_thread,
+)
+@purge_cache()
+def delete_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
+    run_list = resolve_run_list(
+        info,
+        **{
+            "partition_key": kwargs["entity"].partition_key,
+            "thread_uuid": kwargs["entity"].thread_uuid,
+        },
+    )
+    if run_list.total > 0:
+        return False
+
+    kwargs["entity"].delete()
+    return True

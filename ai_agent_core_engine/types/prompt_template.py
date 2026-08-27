@@ -52,7 +52,7 @@ class PromptTemplateType(PromptTemplateBaseType):
                 return mcp_server_refs
 
         # Otherwise, load via DataLoader to get full entity data
-        from ..models.batch_loaders import get_loaders
+        from ..models.repositories import get_loaders
 
         partition_key = parent.partition_key
         loaders = get_loaders(info.context)
@@ -87,7 +87,7 @@ class PromptTemplateType(PromptTemplateBaseType):
                 return [normalize_to_json(ui_comp) for ui_comp in ui_component_refs]
 
         # Otherwise, load via DataLoader to get full entity data
-        from ..models.batch_loaders import get_loaders
+        from ..models.repositories import get_loaders
 
         loaders = get_loaders(info.context)
 

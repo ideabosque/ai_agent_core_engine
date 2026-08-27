@@ -8,7 +8,7 @@ from typing import Any, Dict
 from graphene import Boolean, Field, Int, List, Mutation, String
 from silvaengine_utility import JSONCamelCase
 
-from ..models.async_task import delete_async_task, insert_update_async_task
+from ..models.repositories import get_repo
 from ..types.async_task import AsyncTaskType
 
 
@@ -31,7 +31,7 @@ class InsertUpdateAsyncTask(Mutation):
         root: Any, info: Any, **kwargs: Dict[str, Any]
     ) -> "InsertUpdateAsyncTask":
         try:
-            async_task = insert_update_async_task(info, **kwargs)
+            async_task = get_repo("async_task").insert_update(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
             info.context.get("logger").error(log)
@@ -50,7 +50,7 @@ class DeleteAsyncTask(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteAsyncTask":
         try:
-            ok = delete_async_task(info, **kwargs)
+            ok = get_repo("async_task").delete(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
             info.context.get("logger").error(log)
