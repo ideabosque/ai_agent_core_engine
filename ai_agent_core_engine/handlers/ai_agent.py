@@ -211,7 +211,7 @@ def _get_agent(info: ResolveInfo, agent_uuid: str):
     return agent
 
 
-@usage_recorder("ai_agent_core_engine", extract_token_usage, log_usage_record)
+@usage_recorder("conversation", extract_token_usage, log_usage_record)
 @async_task_handler("async_execute_ask_model")
 def execute_ask_model(info: ResolveInfo, **kwargs: Dict[str, Any]) -> tuple:
     """

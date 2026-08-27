@@ -29,6 +29,7 @@ def initialize_tables(logger: logging.Logger) -> None:
     from .wizard_group import WizardGroupModel
     from .wizard_group_filter import WizardGroupFilterModel
     from .wizard_schema import WizardSchemaModel
+    from .usage import UsageSummaryModel, UsageLimitModel
 
     models: List = [
         AgentModel,
@@ -48,6 +49,8 @@ def initialize_tables(logger: logging.Logger) -> None:
         WizardGroupModel,
         WizardGroupFilterModel,
         WizardSchemaModel,
+        UsageSummaryModel,
+        UsageLimitModel
     ]
 
     for model in models:
