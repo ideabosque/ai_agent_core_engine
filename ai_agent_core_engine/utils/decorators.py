@@ -200,20 +200,22 @@ def check_usage_limit(info: ResolveInfo, usage_key: str):
     if partition_key in ignore_partition_keys:
         return
     
-    from ..models.usage import get_usage_limit, add_usage_summary
-    
-    usage_limit = get_usage_limit(partition_key, usage_key)
+    from ..models.repositories import get_repo
+
+    usage_repo = get_repo("usage")
+
+    usage_limit = usage_repo.resolve_usage_limit(partition_key, usage_key)
     if usage_limit is None:
         raise Exception(f"No subscription for service: {usage_key}")
-    
+
     if usage_limit.status == "CANCELLED":
         raise Exception(f"Subscription is cancelled. Please contact support.")
-    
+
     now = pendulum.now("UTC")
     if now > usage_limit.period_end:
         raise Exception(f"Subscription is expired. Please renew your subscription.")
     usage_key_period_start = "{usage_key}#{period_start}".format(usage_key=usage_key, period_start=usage_limit.period_start.strftime("%Y-%m-%d"))
-    add_usage_summary(partition_key, usage_key, usage_key_period_start, usage_limit.usage_limit)
+    usage_repo.add_usage_summary(partition_key, usage_key, usage_key_period_start, usage_limit.usage_limit)
 
 def send_usage_limit_error(info: ResolveInfo, error_message: str):
     connection_id = info.context.get("connection_id")

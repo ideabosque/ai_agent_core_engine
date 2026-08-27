@@ -71,6 +71,7 @@ def _import_all_models() -> None:
         ".ui_component",
         ".flow_snippet",
         ".prompt_template",
+        ".usage",
     ]
     for mod_name in model_modules:
         try:
