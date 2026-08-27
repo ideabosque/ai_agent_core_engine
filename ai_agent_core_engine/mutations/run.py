@@ -10,7 +10,7 @@ from graphene import Boolean, Field, Int, List, Mutation, String
 
 from silvaengine_utility import JSONCamelCase
 
-from ..models.run import delete_run, insert_update_run
+from ..models.repositories import get_repo
 from ..types.run import RunType
 
 
@@ -29,7 +29,7 @@ class InsertUpdateRun(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "InsertUpdateRun":
         try:
-            run = insert_update_run(info, **kwargs)
+            run = get_repo("run").insert_update(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
             info.context.get("logger").error(log)
@@ -48,7 +48,7 @@ class DeleteRun(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteRun":
         try:
-            ok = delete_run(info, **kwargs)
+            ok = get_repo("run").delete(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
             info.context.get("logger").error(log)

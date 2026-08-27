@@ -8,10 +8,7 @@ from typing import Any, Dict
 from graphene import Boolean, Field, Int, Mutation, String
 from silvaengine_utility import JSONCamelCase
 
-from ..models.wizard_group_filter import (
-    delete_wizard_group_filter,
-    insert_update_wizard_group_filter,
-)
+from ..models.repositories import get_repo
 from ..types.wizard_group_filter import WizardGroupFilterType
 
 
@@ -33,7 +30,7 @@ class InsertUpdateWizardGroupFilter(Mutation):
         root: Any, info: Any, **kwargs: Dict[str, Any]
     ) -> "InsertUpdateWizardGroupFilter":
         try:
-            wizard_group_filter = insert_update_wizard_group_filter(info, **kwargs)
+            wizard_group_filter = get_repo("wizard_group_filter").insert_update(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
             info.context.get("logger").error(log)
@@ -53,7 +50,7 @@ class DeleteWizardGroupFilter(Mutation):
         root: Any, info: Any, **kwargs: Dict[str, Any]
     ) -> "DeleteWizardGroupFilter":
         try:
-            ok = delete_wizard_group_filter(info, **kwargs)
+            ok = get_repo("wizard_group_filter").delete(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
             info.context.get("logger").error(log)

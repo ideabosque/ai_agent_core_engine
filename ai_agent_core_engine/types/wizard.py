@@ -48,7 +48,7 @@ class WizardType(ObjectType):
         """
 
         """Resolve nested Run for this tool call using DataLoader."""
-        # from ..models.batch_loaders import get_loaders
+        # from ..models.repositories import get_loaders
 
         # Case 1: Already embedded (backward compatibility)
         if hasattr(parent, "wizard_schema") and parent.wizard_schema:
@@ -60,11 +60,23 @@ class WizardType(ObjectType):
         if not wizard_schema_type or not wizard_schema_name:
             return None
 
-        from ..models.wizard_schema import get_wizard_schema
+        from ..handlers.config import Config
 
         try:
-            wizard_schema = get_wizard_schema(wizard_schema_type, wizard_schema_name)
-            return WizardSchemaType(**wizard_schema.__dict__["attribute_values"])
+            if Config.DB_BACKEND == "postgresql":
+                from ..models.repositories import get_repo
+                _ws = get_repo("wizard_schema").get(
+                    wizard_schema_type=wizard_schema_type,
+                    wizard_schema_name=wizard_schema_name,
+                )
+                if _ws is None:
+                    return None
+                _ws_dict = _ws if isinstance(_ws, dict) else _ws.__dict__
+                return WizardSchemaType(**_ws_dict)
+            else:
+                from ..models.dynamodb.wizard_schema import get_wizard_schema
+                wizard_schema = get_wizard_schema(wizard_schema_type, wizard_schema_name)
+                return WizardSchemaType(**wizard_schema.__dict__["attribute_values"])
         except Exception:
             return None
 
@@ -76,7 +88,7 @@ class WizardType(ObjectType):
         2. Otherwise, use wizard_element_refs to load elements via DataLoader
         """
         """Resolve nested Run for this tool call using DataLoader."""
-        from ..models.batch_loaders import get_loaders
+        from ..models.repositories import get_loaders
 
         wizard_element_refs = parent.wizard_elements
         partition_key = parent.partition_key

@@ -77,6 +77,14 @@ SETTING = {
     "part_id": os.getenv("part_id"),
     "initialize_tables": int(os.getenv("initialize_tables", "0")),
     "cache_enabled": int(os.getenv("cache_enabled", "0")),
+    # Dual-backend selection
+    "db_backend": os.getenv("db_backend", "dynamodb"),
+    "db_host": os.getenv("PG_HOST", "localhost"),
+    "db_port": os.getenv("PG_PORT", "5432"),
+    "db_user": os.getenv("PG_USER", "silvaengine"),
+    "db_password": os.getenv("PG_PASSWORD", "silvaengine"),
+    "db_schema": os.getenv("PG_DB", "silvaengine"),
+    "pg_table_prefix": os.getenv("PG_TABLE_PREFIX", "aace_"),
 }
 
 

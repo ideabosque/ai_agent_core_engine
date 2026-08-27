@@ -12,12 +12,12 @@ from silvaengine_utility import method_cache
 
 from ..handlers.config import Config
 
-from ..models import run
+from ..models.repositories import get_repo
 from ..types.run import RunListType, RunType
 
 
 def resolve_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> RunType | None:
-    return run.resolve_run(info, **kwargs)
+    return get_repo("run").resolve_single(info, **kwargs)
 
 
 @method_cache(
@@ -28,4 +28,4 @@ def resolve_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> RunType | None:
 def resolve_run_list(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> RunListType | None:
-    return run.resolve_run_list(info, **kwargs)
+    return get_repo("run").list(info, **kwargs)

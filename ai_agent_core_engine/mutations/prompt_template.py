@@ -8,10 +8,7 @@ from typing import Any, Dict
 from graphene import Boolean, Field, List, Mutation, String
 from silvaengine_utility import JSONCamelCase
 
-from ..models.prompt_template import (
-    delete_prompt_template,
-    insert_update_prompt_template,
-)
+from ..models.repositories import get_repo
 from ..types.prompt_template import PromptTemplateType
 
 
@@ -37,7 +34,7 @@ class InsertUpdatePromptTemplate(Mutation):
         root: Any, info: Any, **kwargs: Dict[str, Any]
     ) -> "InsertUpdatePromptTemplate":
         try:
-            prompt_template = insert_update_prompt_template(info, **kwargs)
+            prompt_template = get_repo("prompt_template").insert_update(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
             info.context.get("logger").error(log)
@@ -57,7 +54,7 @@ class DeletePromptTemplate(Mutation):
         root: Any, info: Any, **kwargs: Dict[str, Any]
     ) -> "DeletePromptTemplate":
         try:
-            ok = delete_prompt_template(info, **kwargs)
+            ok = get_repo("prompt_template").delete(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
             info.context.get("logger").error(log)

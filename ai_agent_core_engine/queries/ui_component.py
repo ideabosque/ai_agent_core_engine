@@ -12,14 +12,14 @@ from silvaengine_utility import method_cache
 
 from ..handlers.config import Config
 
-from ..models import ui_component
+from ..models.repositories import get_repo
 from ..types.ui_component import UIComponentListType, UIComponentType
 
 
 def resolve_ui_component(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> UIComponentType | None:
-    return ui_component.resolve_ui_component(info, **kwargs)
+    return get_repo("ui_component").resolve_single(info, **kwargs)
 
 
 @method_cache(
@@ -30,4 +30,4 @@ def resolve_ui_component(
 def resolve_ui_component_list(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> UIComponentListType | None:
-    return ui_component.resolve_ui_component_list(info, **kwargs)
+    return get_repo("ui_component").list(info, **kwargs)

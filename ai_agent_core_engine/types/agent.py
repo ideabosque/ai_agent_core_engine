@@ -101,7 +101,7 @@ class AgentType(AgentTypeBase):
         1. Check if already embedded (Case 2)
         2. Fetch via DataLoader if needed (Case 1)
         """
-        from ..models.batch_loaders import get_loaders
+        from ..models.repositories import get_loaders
 
         # Case 2: already embedded
         existing = getattr(parent, "llm", None)
@@ -123,7 +123,7 @@ class AgentType(AgentTypeBase):
         )
 
     def resolve_mcp_servers(parent, info):
-        from ..models.batch_loaders import get_loaders
+        from ..models.repositories import get_loaders
 
         # Check if already embedded
         existing = getattr(parent, "mcp_servers", None)
@@ -148,7 +148,7 @@ class AgentType(AgentTypeBase):
         return Promise.all(promises)
 
     def resolve_flow_snippet(parent, info):
-        from ..models.batch_loaders import get_loaders
+        from ..models.repositories import get_loaders
 
         # Check if already embedded
         existing = getattr(parent, "flow_snippet", None)

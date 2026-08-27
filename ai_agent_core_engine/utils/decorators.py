@@ -133,7 +133,7 @@ def extract_token_usage(
     Returns:
         Dict with individual_identity_id, usage and details, or None if not available
     """
-    from ..models.run import get_run
+    from ..models.repositories import get_repo
 
     arguments = kwargs.get("arguments", {})
     thread_uuid = arguments.get("thread_uuid")
@@ -145,7 +145,9 @@ def extract_token_usage(
         )
         return None
 
-    run = get_run(thread_uuid, run_uuid)
+    run = get_repo("run").get(
+        thread_uuid=thread_uuid, run_uuid=run_uuid,
+    )
 
     if not run:
         info.context["logger"].warning(
@@ -153,19 +155,22 @@ def extract_token_usage(
         )
         return None
 
+    # Support both ObjectType (DynamoDB) and dict (PostgreSQL) return types
+    _run = run if isinstance(run, dict) else run.__dict__
+
     return {
         "individual_identity_id": arguments.get("user_id"),
-        "usage": int(run.total_tokens or 0),
+        "usage": int(_run.get("total_tokens") or 0),
         "details": {
             "thread_uuid": thread_uuid,
             "run_uuid": run_uuid,
-            "run_id": run.run_id,
+            "run_id": _run.get("run_id"),
             "agent_uuid": arguments.get("agent_uuid"),
-            "partition_key": run.partition_key,
+            "partition_key": _run.get("partition_key"),
             "token_usage": {
-                "prompt_tokens": int(run.prompt_tokens or 0),
-                "completion_tokens": int(run.completion_tokens or 0),
-                "total_tokens": int(run.total_tokens or 0),
+                "prompt_tokens": int(_run.get("prompt_tokens") or 0),
+                "completion_tokens": int(_run.get("completion_tokens") or 0),
+                "total_tokens": int(_run.get("total_tokens") or 0),
             },
         },
     }

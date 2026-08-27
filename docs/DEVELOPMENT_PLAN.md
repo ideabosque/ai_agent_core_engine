@@ -27,14 +27,20 @@ Overall Progress:     █████████████████░░�
 
 **Technology Stack:**
 - **GraphQL Server**: Graphene-based schema with strongly-typed resolvers
-- **Database**: AWS DynamoDB with multi-tenant partitioning via `endpoint_id`
+- **Database**: AWS DynamoDB with multi-tenant partitioning via composite `partition_key` (`endpoint_id#part_id`)
 - **Lazy Loading**: Field-level resolvers for on-demand data fetching
 - **Batch Optimization**: DataLoader pattern (planned) to eliminate N+1 queries
-- **WebSocket**: Real-time bidirectional communication via API Gateway
+- **WebSocket**: Real-time bidirectional communication via SilvaEngine Gateway or AWS API Gateway
 - **Serverless**: AWS Lambda with SilvaEngine framework
 - **Multi-LLM**: Unified interface for OpenAI, Anthropic, Gemini, Ollama
 - **Testing**: Modern pytest framework with parametrized tests (in progress)
 - **Type Safety**: Python type hints throughout codebase
+
+**Recent Gateway Update (June 2026):**
+- The engine now exposes module-level gateway dispatch wrappers: `dispatch_graphql` for HTTP GraphQL requests and `dispatch_ask_model` for WebSocket ask-model streaming.
+- WebSocket delivery is dual-mode. A SilvaEngine Gateway `ConnectionManager` can be injected through `Config.set_connection_manager()`, while Lambda deployments continue using the AWS API Gateway Management API fallback.
+- Gateway dispatch applies the same partition defaults as class-level execution and requires `endpoint_id` plus `part_id` to build `partition_key`.
+- Agent resolution now uses a five-minute in-process cache keyed by `(endpoint_id, part_id, agent_uuid)` to reduce repeated MCP tool loading during active conversations.
 
 **Key Design Patterns:**
 1. **Stateless Architecture**: No session state, all context stored in DynamoDB
@@ -42,7 +48,7 @@ Overall Progress:     █████████████████░░�
 3. **Multi-LLM Abstraction**: Unified handler interface for different LLM providers
 4. **Lazy Loading**: Nested entities resolved on-demand via GraphQL field resolvers
 5. **Asynchronous Processing**: SQS-based task queue for non-blocking operations
-6. **Multi-tenancy**: All models partition by `endpoint_id` for tenant isolation
+6. **Multi-tenancy**: Tenant-scoped models partition by composite `partition_key` for endpoint and part isolation
 7. **Versioning**: Agent and prompt template versioning for A/B testing
 8. **Audit Trail**: Comprehensive activity tracking via `ActivityHistory` model
 
@@ -536,6 +542,7 @@ LLM (OpenAI/Gemini/Anthropic/Ollama)
 - [x] Mutation resolvers for all entities (19 mutation modules)
 - [x] Type converters for all models (18 type modules)
 - [x] WebSocket communication layer
+- [x] SilvaEngine Gateway WebSocket dispatch path with local connection manager support
 - [x] SilvaEngine integration
 - **Status**: ✅ Production-ready with 85 Python files
 - **Module Count**: 
@@ -622,6 +629,8 @@ LLM (OpenAI/Gemini/Anthropic/Ollama)
 - **Expected Impact**: 80-90% reduction in DynamoDB queries
 
 **Testing Infrastructure** (🟡 **IN PROGRESS** - 60% Complete)
+- [x] Stream delivery tests cover gateway manager mode, AWS fallback mode, and manager priority
+- [ ] Full package test run currently requires a compatible `silvaengine_constants` export for `HttpStatus`
 - [x] Legacy test file exists (`test_ai_agent_core_engine.py`, 2290 lines)
 - [x] Test framework using `unittest.TestCase`
 - [ ] Migrate to modern pytest framework

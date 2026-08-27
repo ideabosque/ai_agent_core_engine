@@ -8,7 +8,7 @@ from typing import Any, Dict
 from graphene import Boolean, Field, Mutation, String
 from silvaengine_utility import JSONCamelCase
 
-from ..models.mcp_server import delete_mcp_server, insert_update_mcp_server
+from ..models.repositories import get_repo
 from ..types.mcp_server import MCPServerType
 
 
@@ -25,7 +25,7 @@ class InsertUpdateMCPServer(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "InsertUpdateMCPServer":
         try:
-            mcp_server = insert_update_mcp_server(info, **kwargs)
+            mcp_server = get_repo("mcp_server").insert_update(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
             info.context.get("logger").error(log)
@@ -43,7 +43,7 @@ class DeleteMCPServer(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteMCPServer":
         try:
-            ok = delete_mcp_server(info, **kwargs)
+            ok = get_repo("mcp_server").delete(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
             info.context.get("logger").error(log)

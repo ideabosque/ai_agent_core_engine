@@ -12,14 +12,14 @@ from silvaengine_utility import method_cache
 
 from ..handlers.config import Config
 
-from ..models import wizard_schema
+from ..models.repositories import get_repo
 from ..types.wizard_schema import WizardSchemaListType, WizardSchemaType
 
 
 def resolve_wizard_schema(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> WizardSchemaType | None:
-    return wizard_schema.resolve_wizard_schema(info, **kwargs)
+    return get_repo("wizard_schema").resolve_single(info, **kwargs)
 
 
 @method_cache(
@@ -30,4 +30,4 @@ def resolve_wizard_schema(
 def resolve_wizard_schema_list(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> WizardSchemaListType | None:
-    return wizard_schema.resolve_wizard_schema_list(info, **kwargs)
+    return get_repo("wizard_schema").list(info, **kwargs)

@@ -12,14 +12,14 @@ from silvaengine_utility import method_cache
 
 from ..handlers.config import Config
 
-from ..models import mcp_server
+from ..models.repositories import get_repo
 from ..types.mcp_server import MCPServerListType, MCPServerType
 
 
 def resolve_mcp_server(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> MCPServerType | None:
-    return mcp_server.resolve_mcp_server(info, **kwargs)
+    return get_repo("mcp_server").resolve_single(info, **kwargs)
 
 
 @method_cache(
@@ -30,4 +30,4 @@ def resolve_mcp_server(
 def resolve_mcp_server_list(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> MCPServerListType | None:
-    return mcp_server.resolve_mcp_server_list(info, **kwargs)
+    return get_repo("mcp_server").list(info, **kwargs)

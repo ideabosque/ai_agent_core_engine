@@ -12,12 +12,12 @@ from silvaengine_utility import method_cache
 
 from ..handlers.config import Config
 
-from ..models import message
+from ..models.repositories import get_repo
 from ..types.message import MessageListType, MessageType
 
 
 def resolve_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> MessageType | None:
-    return message.resolve_message(info, **kwargs)
+    return get_repo("message").resolve_single(info, **kwargs)
 
 
 @method_cache(
@@ -28,4 +28,4 @@ def resolve_message(info: ResolveInfo, **kwargs: Dict[str, Any]) -> MessageType 
 def resolve_message_list(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> MessageListType | None:
-    return message.resolve_message_list(info, **kwargs)
+    return get_repo("message").list(info, **kwargs)
