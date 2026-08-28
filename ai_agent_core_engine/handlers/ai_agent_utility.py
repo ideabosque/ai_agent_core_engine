@@ -39,6 +39,7 @@ from graphene import ResolveInfo
 from silvaengine_utility import Debugger, Invoker, Serializer
 
 from ..models.repositories import get_repo
+from .config import Config
 
 # message list resolved via get_repo
 # tool_call list resolved via get_repo
@@ -266,21 +267,44 @@ def local_async_invoker(payload: Dict[str, Any], **_ignored: Any) -> None:
 def dispatch_async_funct(
     info: ResolveInfo, function_name: str, params: Dict[str, Any]
 ) -> None:
-    """Dispatch an async engine "Event" function in-process.
+    """Dispatch an async engine "Event" function.
 
-    All async dispatch runs locally (SilvaEngine Gateway / FastAPI); AWS Lambda
-    is not used. ``local_async_invoker`` runs heavy functions on their own
-    thread and lightweight ordered recordings on a shared single worker.
+    Prefers a real AWS Lambda async invoke (``InvocationType.EVENT``) via the
+    ``aws_lambda_invoker``/``aws_lambda_arn`` that ``silvaengine_base``
+    injects into ``info.context`` when running as an actual AWS Lambda
+    function. This matters: an in-process background thread (as
+    ``local_async_invoker`` uses) is not safe there, since AWS Lambda freezes
+    the execution environment once the handler returns a response, which can
+    silently kill work still in flight on that thread.
+
+    Falls back to ``local_async_invoker`` (in-process dispatch) when no
+    Lambda invoker/ARN is present in context -- e.g. the SilvaEngine
+    Gateway/FastAPI process, which has no separate Lambda to invoke and
+    stays alive as a persistent process, so in-process dispatch is safe
+    there.
     """
-    local_async_invoker(
-        payload=Invoker.build_invoker_payload(
-            context=info.context,
-            module_name="ai_agent_core_engine",
-            class_name="AIAgentCoreEngine",
-            function_name=function_name,
-            parameters=params,
-        )
+    payload = Invoker.build_invoker_payload(
+        context=info.context,
+        module_name="ai_agent_core_engine",
+        class_name="AIAgentCoreEngine",
+        function_name=function_name,
+        parameters=params,
     )
+
+    invoker = info.context.get("aws_lambda_invoker")
+    aws_lambda_arn = info.context.get("aws_lambda_arn")
+
+    if callable(invoker) and aws_lambda_arn:
+        from silvaengine_constants import InvocationType
+
+        invoker(
+            function_name=aws_lambda_arn,
+            invocation_type=InvocationType.EVENT,
+            payload=payload,
+        )
+        return
+
+    local_async_invoker(payload=payload)
 
 
 def generate_async_task_uuid() -> str:
@@ -318,13 +342,28 @@ def start_async_task(
         and triggers the Lambda function asynchronously using the Utility helper.
     """
     try:
-        # Create task record in database
+        # Create task record in database.
+        #
+        # NOTE: unlike main.py's gateway pre-create paths (which construct
+        # AsyncTaskModel directly for DynamoDB, or use the PG repo's raw
+        # SQLAlchemy insert), this call goes through
+        # get_repo("async_task").insert_update(...) -> for DynamoDB, that is
+        # insert_update_async_task, wrapped by silvaengine_dynamodb_base's
+        # insert_update_decorator. That decorator raises "Cannot find the
+        # async_task ..." whenever the caller supplies an explicit range key
+        # (async_task_uuid) for a row that doesn't exist yet -- it assumes an
+        # explicit key means "update an existing row", not "insert with this
+        # key". So for DynamoDB we must NOT pass async_task_uuid and let the
+        # decorator generate its own range key; PostgreSQL's repo does a
+        # direct insert with no such decorator, so it needs one supplied
+        # explicitly (its composite primary key has no auto-generation).
         _async_task_kwargs = {
             "function_name": function_name,
-            "async_task_uuid": generate_async_task_uuid(),
             "arguments": {k: v for k, v in arguments.items() if k != "updated_by"},
             "updated_by": arguments["updated_by"],
         }
+        if Config.DB_BACKEND == "postgresql":
+            _async_task_kwargs["async_task_uuid"] = generate_async_task_uuid()
         async_task = get_repo("async_task").insert_update(info, **_async_task_kwargs)
 
         # Support both dict (PG) and ObjectType (DynamoDB) return types;

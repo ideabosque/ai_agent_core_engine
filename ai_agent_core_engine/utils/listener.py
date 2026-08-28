@@ -31,6 +31,12 @@ def create_listener_info(
         "partition_key": kwargs.get(
             "partition_key", request_context.get("partition_key")
         ),
+        # silvaengine_base passes this as a top-level kwarg (not nested under
+        # "metadata") when dispatching from a real AWS Lambda deployment; it
+        # identifies which Lambda function to invoke asynchronously for
+        # "Event"-type dispatch (see dispatch_async_funct). Absent outside
+        # that path (e.g. the SilvaEngine Gateway).
+        "aws_lambda_arn": kwargs.get("aws_lambda_arn"),
     }
 
     # Surface the gateway's cooperative stream-cancellation signal at the top
