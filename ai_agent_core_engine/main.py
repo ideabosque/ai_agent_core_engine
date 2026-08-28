@@ -420,22 +420,46 @@ class AIAgentCoreEngine(Graphql):
         propagates it into ``context``, which activates streaming mode in
         ``execute_ask_model`` (ai_agent.py:289).
 
-        This method is the sole source of truth for ``run_uuid`` and
-        ``async_task_uuid`` on the WebSocket path: the gateway forwards the
-        client's message unmodified and never generates either id itself.
-        ``async_task_uuid`` in particular is always server-generated here and
-        never taken from the client, since it's a tracking id for our own
-        async_task row, not something the caller should be able to set or
-        collide on. Both are pre-created (via ``_precreate_gateway_records``)
-        before dispatching, because the WebSocket path calls
-        ``async_execute_ask_model`` directly rather than through the Lambda
-        invoker the GraphQL path uses, so the ``insert_update_decorator``
+        When ``Config.aws_lambda`` is configured (a real AWS Lambda
+        deployment, as opposed to the SilvaEngine Gateway/FastAPI process),
+        delegate to the same ``handlers.ai_agent.ask_model`` flow the GraphQL
+        ``askModel`` query already uses: it creates the Thread/Run rows and
+        dispatches ``async_execute_ask_model`` via ``start_async_task``,
+        which is the well-exercised path (vs. hand-rolling record
+        pre-creation below for every edge case GraphQL already handles).
+
+        Otherwise, the hand-rolled path below is unchanged: this method is
+        the sole source of truth for ``run_uuid`` and ``async_task_uuid`` on
+        the WebSocket path, since the gateway forwards the client's message
+        unmodified and never generates either id itself. ``async_task_uuid``
+        is always server-generated (never taken from the client, since it's
+        a tracking id for our own async_task row, not something the caller
+        should be able to set or collide on). Both are pre-created (via
+        ``_precreate_gateway_records``) before dispatching, because this path
+        calls ``async_execute_ask_model`` directly rather than through the
+        Lambda invoker the GraphQL path uses, so the ``insert_update_decorator``
         would otherwise raise "Cannot find the async_task" on a count==0 row.
         """
         self._apply_partition_defaults(params)
 
-        arguments = params.get("arguments", {})
+        # Default arguments to {} when the client doesn't supply it, and
+        # write the default back into params (mirroring async_task_uuid
+        # below). Without this, params never carries the "arguments" key at
+        # all when the client omits it, so the downstream
+        # ai_agent_listener.async_execute_ask_model call -- which requires
+        # both async_task_uuid and arguments to be present -- rejects the
+        # request even though async_task_uuid is always generated.
+        arguments = params.get("arguments") or {}
+        params["arguments"] = arguments
         partition_key = params.get("context", {}).get("partition_key", "")
+
+        if Config.aws_lambda is not None:
+            from .handlers.ai_agent import ask_model as _ai_agent_ask_model
+            from .utils.listener import create_listener_info
+
+            info = create_listener_info(self.logger, "ask_model", self.setting, **params)
+            result = _ai_agent_ask_model(info, **arguments)
+            return result.__dict__ if hasattr(result, "__dict__") else result
 
         # Default run_uuid when the client doesn't supply one, and always
         # generate async_task_uuid server-side (never trust a client-supplied
