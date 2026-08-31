@@ -5,15 +5,12 @@ from __future__ import print_function
 __author__ = "bibow"
 
 import logging
-import uuid
 from typing import Any, Dict, List, Optional
 
-import pendulum
 from graphene import Schema
 from silvaengine_utility import Graphql
 
 from .handlers import ai_agent_listener
-from .handlers.ai_agent_utility import generate_async_task_uuid
 from .handlers.config import Config
 from .schema import Mutations, Query, type_class
 
@@ -420,240 +417,41 @@ class AIAgentCoreEngine(Graphql):
         propagates it into ``context``, which activates streaming mode in
         ``execute_ask_model`` (ai_agent.py:289).
 
-        When ``Config.aws_lambda`` is configured (a real AWS Lambda
-        deployment, as opposed to the SilvaEngine Gateway/FastAPI process),
-        delegate to the same ``handlers.ai_agent.ask_model`` flow the GraphQL
-        ``askModel`` query already uses: it creates the Thread/Run rows and
-        dispatches ``async_execute_ask_model`` via ``start_async_task``,
-        which is the well-exercised path (vs. hand-rolling record
-        pre-creation below for every edge case GraphQL already handles).
-
-        Otherwise, the hand-rolled path below is unchanged: this method is
-        the sole source of truth for ``run_uuid`` and ``async_task_uuid`` on
-        the WebSocket path, since the gateway forwards the client's message
-        unmodified and never generates either id itself. ``async_task_uuid``
-        is always server-generated (never taken from the client, since it's
-        a tracking id for our own async_task row, not something the caller
-        should be able to set or collide on). Both are pre-created (via
-        ``_precreate_gateway_records``) before dispatching, because this path
-        calls ``async_execute_ask_model`` directly rather than through the
-        Lambda invoker the GraphQL path uses, so the ``insert_update_decorator``
-        would otherwise raise "Cannot find the async_task" on a count==0 row.
+        Always delegates to the same ``handlers.ai_agent.ask_model`` flow the
+        GraphQL ``askModel`` query uses, regardless of deployment type (real
+        AWS Lambda or SilvaEngine Gateway/FastAPI). That flow creates the
+        Thread/Run rows -- auto-generating ``thread_uuid``/``run_uuid`` when
+        the caller doesn't supply one, backend-aware (see ``_get_thread``) --
+        and dispatches ``async_execute_ask_model`` via ``start_async_task`` /
+        ``dispatch_async_funct``, which already picks the right async-dispatch
+        mechanism (real Lambda invoke vs. in-process) based on what's in
+        context. Previously this method had a second, hand-rolled
+        implementation for the non-Lambda case (pre-creating async_task/
+        thread/run rows and calling ``async_execute_ask_model`` directly);
+        that duplication is exactly what caused this path to silently drift
+        out of sync with the GraphQL path (missing async_task_uuid/arguments,
+        no thread_uuid auto-generation, etc.) -- one implementation instead
+        of two that need to behave identically.
         """
         self._apply_partition_defaults(params)
 
-        # Default arguments to {} when the client doesn't supply it, and
-        # write the default back into params (mirroring async_task_uuid
-        # below). Without this, params never carries the "arguments" key at
-        # all when the client omits it, so the downstream
-        # ai_agent_listener.async_execute_ask_model call -- which requires
-        # both async_task_uuid and arguments to be present -- rejects the
-        # request even though async_task_uuid is always generated.
         arguments = params.get("arguments") or {}
         params["arguments"] = arguments
-        partition_key = params.get("context", {}).get("partition_key", "")
 
-        if Config.aws_lambda is not None:
-            from .handlers.ai_agent import ask_model as _ai_agent_ask_model
-            from .utils.listener import create_listener_info
+        from .handlers.ai_agent import ask_model as _ai_agent_ask_model
+        from .utils.listener import create_listener_info
 
-            info = create_listener_info(self.logger, "ask_model", self.setting, **params)
-            # Discard the AskModelType result rather than returning it: the
-            # WebSocket handler (silvaengine_base) returns whatever this
-            # method produces completely unwrapped (unlike every other
-            # branch there, which goes through _generate_response() to build
-            # a proper Lambda-proxy response shape). A raw dict here breaks
-            # that integration. The actual response reaches the client via
-            # send_data_to_stream, not this return value -- so preserve the
-            # None contract this method has always had on the WebSocket path.
-            _ai_agent_ask_model(info, **arguments)
-            return
-
-        # Default run_uuid when the client doesn't supply one, and always
-        # generate async_task_uuid server-side (never trust a client-supplied
-        # value). Without a value here, params never carries the key at all,
-        # so _precreate_gateway_records short-circuits (no DynamoDB/
-        # PostgreSQL async_task row is created to track this request) and the
-        # downstream ai_agent_listener.async_execute_ask_model raises a bare
-        # KeyError('async_task_uuid') instead of returning a trackable result
-        # over the WebSocket connection.
-        if arguments and "run_uuid" not in arguments:
-            arguments["run_uuid"] = str(uuid.uuid4())
-        async_task_uuid = generate_async_task_uuid()
-        params["async_task_uuid"] = async_task_uuid
-
-        # Pre-create async_task/thread/run rows before dispatching. When they
-        # were created here, tell the core engine to skip its own init write.
-        _precreated = self._precreate_gateway_records(
-            arguments, async_task_uuid, partition_key, params.get("context", {})
-        )
-        if not _precreated and partition_key:
-            _set_rls_context(partition_key)
-
-        try:
-            if _precreated:
-                params["_skip_init_write"] = True
-            return self.async_execute_ask_model(**params)
-        finally:
-            _clear_rls_context()
-
-    def _precreate_gateway_records(
-        self,
-        arguments: Dict[str, Any],
-        async_task_uuid: str,
-        partition_key: str,
-        context: Dict[str, Any],
-    ) -> bool:
-        """Pre-create the async_task/thread/run rows for the WebSocket path.
-
-        The Lambda path creates these via the invoker; the WebSocket path calls
-        ``async_execute_ask_model`` directly, so the ``insert_update_decorator``
-        would raise "Cannot find the async_task" on a count==0 row. Returns
-        ``True`` when the rows were created (so the caller sets
-        ``_skip_init_write``).
-
-        ``async_task_uuid`` is guaranteed non-empty by ``ask_model``, its only
-        caller; only ``partition_key`` can legitimately be absent here.
-        """
-        if not partition_key:
-            return False
-
-        run_uuid = arguments.get("run_uuid")
-        updated_by = arguments.get("updated_by", "test-user")
-        thread_uuid = arguments.get("thread_uuid")
-
-        # Set RLS context for PG mode
-        _set_rls_context(partition_key)
-
-        def _precreate_async_task():
-            try:
-                if Config.DB_BACKEND == "postgresql":
-                    from ai_agent_core_engine.models.repositories import get_repo
-
-                    get_repo("async_task").insert_update(
-                        None,
-                        function_name="async_execute_ask_model",
-                        async_task_uuid=async_task_uuid,
-                        partition_key=partition_key,
-                        output_files=[],
-                        status="in_progress",
-                        updated_by=updated_by,
-                    )
-                else:
-                    from ai_agent_core_engine.models.dynamodb.async_task import (
-                        AsyncTaskModel,
-                    )
-
-                    AsyncTaskModel(
-                        "async_execute_ask_model",
-                        async_task_uuid,
-                        partition_key=partition_key,
-                        output_files=[],
-                        status="in_progress",
-                        updated_by=updated_by,
-                        created_at=pendulum.now("UTC"),
-                        updated_at=pendulum.now("UTC"),
-                    ).save()
-            except Exception as exc:
-                self.logger.warning(
-                    "Unable to pre-create async task %s for gateway ask_model: %s",
-                    async_task_uuid,
-                    exc,
-                )
-
-        def _precreate_thread():
-            # The gateway streaming path takes ``thread_uuid`` from the client
-            # but never persists the thread itself, so runs/messages/tool_calls
-            # would reference a thread row that does not exist. Create it here
-            # (idempotently) the same way ``_get_thread`` does.
-            if not thread_uuid:
-                return
-            try:
-                # NB: the thread model (both backends) has no ``updated_by``
-                # field — only these columns/attributes.
-                _fields = {
-                    "agent_uuid": arguments.get("agent_uuid"),
-                    "user_id": arguments.get("user_id"),
-                    "endpoint_id": context.get("endpoint_id"),
-                    "part_id": context.get("part_id"),
-                }
-                _fields = {k: v for k, v in _fields.items() if v is not None}
-                if Config.DB_BACKEND == "postgresql":
-                    from ai_agent_core_engine.models.repositories import get_repo
-
-                    get_repo("thread").insert_update(
-                        None,
-                        thread_uuid=thread_uuid,
-                        partition_key=partition_key,
-                        **_fields,
-                    )
-                else:
-                    from ai_agent_core_engine.models.dynamodb.thread import ThreadModel
-
-                    ThreadModel(
-                        partition_key,
-                        thread_uuid,
-                        created_at=pendulum.now("UTC"),
-                        **_fields,
-                    ).save()
-            except Exception as exc:
-                self.logger.warning(
-                    "Unable to pre-create thread %s for gateway ask_model: %s",
-                    thread_uuid,
-                    exc,
-                )
-
-        def _precreate_run():
-            if not (run_uuid and thread_uuid):
-                return
-            try:
-                if Config.DB_BACKEND == "postgresql":
-                    from ai_agent_core_engine.models.repositories import get_repo
-
-                    get_repo("run").insert_update(
-                        None,
-                        thread_uuid=thread_uuid,
-                        run_uuid=run_uuid,
-                        partition_key=partition_key,
-                        prompt_tokens=0,
-                        completion_tokens=0,
-                        total_tokens=0,
-                        updated_by=updated_by,
-                    )
-                else:
-                    from ai_agent_core_engine.models.dynamodb.run import RunModel
-
-                    RunModel(
-                        thread_uuid,
-                        run_uuid,
-                        partition_key=partition_key,
-                        prompt_tokens=0,
-                        completion_tokens=0,
-                        total_tokens=0,
-                        updated_by=updated_by,
-                        created_at=pendulum.now("UTC"),
-                        updated_at=pendulum.now("UTC"),
-                    ).save()
-            except Exception as exc:
-                self.logger.warning(
-                    "Unable to pre-create run %s for gateway ask_model: %s",
-                    run_uuid,
-                    exc,
-                )
-
-        # Parallelize the pre-creation writes. thread + run are independent of
-        # async_task; the thread has no FK to enforce ordering against the run.
-        from concurrent.futures import ThreadPoolExecutor as _TPE
-
-        with _TPE(max_workers=3) as _pool:
-            _futures = [
-                _pool.submit(_precreate_async_task),
-                _pool.submit(_precreate_thread),
-                _pool.submit(_precreate_run),
-            ]
-            for _f in _futures:
-                _f.result()
-        return True
+        info = create_listener_info(self.logger, "ask_model", self.setting, **params)
+        # Discard the AskModelType result rather than returning it: the
+        # WebSocket handler (silvaengine_base) returns whatever this
+        # method produces completely unwrapped (unlike every other
+        # branch there, which goes through _generate_response() to build
+        # a proper Lambda-proxy response shape). A raw dict here breaks
+        # that integration. The actual response reaches the client via
+        # send_data_to_stream, not this return value -- so preserve the
+        # None contract this method has always had on the WebSocket path.
+        _ai_agent_ask_model(info, **arguments)
+        return
 
     def async_insert_update_tool_call(self, **params: Dict[str, Any]) -> Any:
         """
