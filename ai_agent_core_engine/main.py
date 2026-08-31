@@ -458,8 +458,16 @@ class AIAgentCoreEngine(Graphql):
             from .utils.listener import create_listener_info
 
             info = create_listener_info(self.logger, "ask_model", self.setting, **params)
-            result = _ai_agent_ask_model(info, **arguments)
-            return result.__dict__ if hasattr(result, "__dict__") else result
+            # Discard the AskModelType result rather than returning it: the
+            # WebSocket handler (silvaengine_base) returns whatever this
+            # method produces completely unwrapped (unlike every other
+            # branch there, which goes through _generate_response() to build
+            # a proper Lambda-proxy response shape). A raw dict here breaks
+            # that integration. The actual response reaches the client via
+            # send_data_to_stream, not this return value -- so preserve the
+            # None contract this method has always had on the WebSocket path.
+            _ai_agent_ask_model(info, **arguments)
+            return
 
         # Default run_uuid when the client doesn't supply one, and always
         # generate async_task_uuid server-side (never trust a client-supplied
