@@ -442,16 +442,41 @@ class AIAgentCoreEngine(Graphql):
         from .utils.listener import create_listener_info
 
         info = create_listener_info(self.logger, "ask_model", self.setting, **params)
-        # Discard the AskModelType result rather than returning it: the
-        # WebSocket handler (silvaengine_base) returns whatever this
-        # method produces completely unwrapped (unlike every other
-        # branch there, which goes through _generate_response() to build
-        # a proper Lambda-proxy response shape). A raw dict here breaks
-        # that integration. The actual response reaches the client via
-        # send_data_to_stream, not this return value -- so preserve the
-        # None contract this method has always had on the WebSocket path.
-        _ai_agent_ask_model(info, **arguments)
-        return
+        result = _ai_agent_ask_model(info, **arguments)
+
+        # Push an early ack over the same connection, carrying
+        # thread_uuid/async_task_uuid/current_run_uuid, so the client learns
+        # them before (or concurrently with) the first streamed chunk
+        # instead of only once chunks start arriving (ai_agent_handler's
+        # send_data_to_stream also carries thread_uuid on every chunk as a
+        # fallback/confirmation). ai_agent_listener.send_data_to_stream
+        # already picks the right delivery mechanism for either deployment
+        # -- the local ConnectionManager for the SilvaEngine Gateway, or AWS
+        # API Gateway Management API's post_to_connection for a real Lambda
+        # deployment (silvaengine_base) -- so this needs no branching on
+        # deployment type. Best-effort: a failed push shouldn't fail the
+        # request, since _ai_agent_ask_model already succeeded and the real
+        # streaming work is already dispatched.
+        connection_id = info.context.get("connection_id")
+        ack = result.__dict__ if hasattr(result, "__dict__") else result
+        if connection_id and isinstance(ack, dict):
+            try:
+                ai_agent_listener.send_data_to_stream(
+                    self.logger,
+                    connection_id=connection_id,
+                    data={"type": "ask_model_ack", **ack},
+                )
+            except Exception as exc:
+                self.logger.warning(
+                    "Unable to send ask_model_ack for %s: %s", connection_id, exc
+                )
+
+        # Return None regardless of deployment type: the WebSocket handler
+        # in silvaengine_base returns this value completely unwrapped to API
+        # Gateway, without going through _generate_response() to build a
+        # proper Lambda-proxy response shape (unlike every other action
+        # there) -- a raw dict there breaks that integration.
+        return None
 
     def async_insert_update_tool_call(self, **params: Dict[str, Any]) -> Any:
         """
